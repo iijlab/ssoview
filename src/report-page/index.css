@@ -1,0 +1,10 @@
+/**
+ * @copyright Internet Initiative Japan Inc. All rights reserved.
+ * @license BSD-3-Clause
+ */
+
+/* Revert styles injected by Chrome into extension pages */
+body {
+  font-family: revert;
+  font-size: revert;
+}

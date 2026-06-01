@@ -1,0 +1,76 @@
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                ID="identifier_2"
+                InResponseTo="identifier_1"
+                Version="2.0"
+                IssueInstant="2004-12-05T09:22:05Z"
+                Destination="https://sp.example.com/SAML2/SSO/POST">
+  <saml:Issuer>https://idp.example.org/SAML2</saml:Issuer>
+  <samlp:Status>
+    <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>
+  </samlp:Status>
+  <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                  ID="identifier_3"
+                  Version="2.0"
+                  IssueInstant="2004-12-05T09:22:05Z">
+    <saml:Issuer>https://idp.example.org/SAML2</saml:Issuer>
+    <ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+      <ds:SignedInfo>
+        <ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+        <ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+        <ds:Reference URI="#identifier_3">
+          <ds:Transforms>
+            <ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+            <ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+          </ds:Transforms>
+          <ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+          <ds:DigestValue>J/IW/jR0Ofzqcg4l0kf2bLifCn5C8Aj5mlqV3ELsHeU=</ds:DigestValue>
+        </ds:Reference>
+      </ds:SignedInfo>
+      <ds:SignatureValue>nlBSVEsKGfuKTRRwzFcumtUxA9hQEaTgEHzRaeQTZE1ZphvQIm+OAd0LdlYBjHSYcKnhq1HaoPendbsuc3o+2KLaQfdf+HyqDWY3Fe7EE6fpGq0f086vkGC+mOI6+54dRhNJKnYedXW6KFMZlsY74xLr66TRtQXFiBVQaaiO+Y/Pk9xlEKUUjjId/x671r9+3gkRELudynf3WGqvbs361ausgz3QVlCNi4syH/LgViXOpR0n6yenz+QC0G2a3C4sFseg7Lx5LHMg0Y9xk7Qk1N++yf+7kNajIDtjq0XSXbYnBzgZW/RsYXTMtZVQf49c2+3HdQb/jGwATmcq5MAkKA==</ds:SignatureValue>
+      <ds:KeyInfo>
+        <ds:X509Data>
+          <ds:X509Certificate>MIIDFTCCAf2gAwIBAgIUGYcGKbsf6+m08mThOLj59WThhiQwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAwwPaWRwLmV4YW1wbGUub3JnMB4XDTI2MDUyOTA2MTM0MVoXDTI5MDUyODA2MTM0MVowGjEYMBYGA1UEAwwPaWRwLmV4YW1wbGUub3JnMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApTn9Q9HuDb5A1nF+Z0z1NY+dlmeYoZZnhXtvzuUPYsvpnp4+X+7BbRxEltMz7KOkhDCR/K5dDlBxS9hHldlxH5tju5Vu3c+x4iWhbSRKWkGSXSNW72XAkNzbJACmJ4dBPKsh+CDvj0JKvJuj+ONBQpMJkxUTUXZyXauL3rDZ6qXUJw3HSvcmzUR6HgHK08b/exg6x2YzprU3u4ogU4/snJrfoQEWOBcSW9/w+zutihnisBpLis/Vaydx5MYoqThulLFc8GLQGrnOtSpAMzDxkFgNWPtWLINbSrbqWUd1qoB9I2EJBVtWCExODE5gEe+H/Z4OHBxWsc8ThIYRYxwSyQIDAQABo1MwUTAdBgNVHQ4EFgQUovOstcXogUkQpF3YsvaI+pBLd18wHwYDVR0jBBgwFoAUovOstcXogUkQpF3YsvaI+pBLd18wDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEANWqSTPYT1GaTr0UU5XDodj753jLyRTuh66cNgtYXxAq2V6G/JlIvZa90u1omI/ZCc6kI76YGd1U3lfCZSWjzyrieoqJQSIWy7EfrdTiQjszCMIibow6l/oi3cmoYn+hTwI0zf2xyZzYOTU0BrHUPc43Hiog9bTcEQt2gE5Cks+RXZt1+vGPFumkrVdcc5I29gwThJHKdq22rMqb+u7Vmn7MsoBnVirwLyZcuaZ29WbKVDZ852HbzDJI8B/4QvJ52Kff6JriCXhFPWjjs54giSpdavSB2f1ucD3XxD2p3Q44UmVP3/Putlu4COmCiLcUD0b9yOYe3NooNFg0IDvHgUQ==</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </ds:Signature>
+    <saml:Subject>
+      <saml:NameID Format="urn:oasis:names:tc:SAML:2.0:nameid-format:transient">
+        3f7b3dcf-1674-4ecd-92c8-1544f346baf8
+      </saml:NameID>
+      <saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">
+        <saml:SubjectConfirmationData InResponseTo="identifier_1"
+                                      Recipient="https://sp.example.com/SAML2/SSO/POST"
+                                      NotOnOrAfter="2004-12-05T09:27:05Z"/>
+      </saml:SubjectConfirmation>
+    </saml:Subject>
+    <saml:Conditions NotBefore="2004-12-05T09:17:05Z"
+                     NotOnOrAfter="2004-12-05T09:27:05Z">
+      <saml:AudienceRestriction>
+        <saml:Audience>https://sp.example.com/SAML2</saml:Audience>
+      </saml:AudienceRestriction>
+    </saml:Conditions>
+    <saml:AuthnStatement AuthnInstant="2004-12-05T09:22:00Z"
+                         SessionIndex="identifier_3">
+      <saml:AuthnContext>
+        <saml:AuthnContextClassRef>
+          urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport
+        </saml:AuthnContextClassRef>
+      </saml:AuthnContext>
+    </saml:AuthnStatement>
+    <saml:AttributeStatement>
+      <saml:Attribute Name="http://schemas.example.org/claims/displayname">
+        <saml:AttributeValue>Foo Bar</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://schemas.example.org/claims/emailaddress">
+        <saml:AttributeValue>foo@example.com</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://schemas.example.org/claims/givenname">
+        <saml:AttributeValue>Foo</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://schemas.example.org/claims/surname">
+        <saml:AttributeValue>Bar</saml:AttributeValue>
+      </saml:Attribute>
+    </saml:AttributeStatement>
+  </saml:Assertion>
+</samlp:Response>

@@ -1,0 +1,19 @@
+{
+  "name": "SSOView",
+  "description": "",
+  "version": "0.1.0",
+  "manifest_version": 3,
+  "icons": {
+    "48": "image/id-card-default-48x48.png",
+    "128": "image/id-card-default-128x128.png"
+  },
+  "permissions": ["debugger", "downloads", "sidePanel", "storage"],
+  "action": {
+    "default_icon": "image/id-card-default-128x128.png",
+    "default_title": "SSOView"
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  }
+}

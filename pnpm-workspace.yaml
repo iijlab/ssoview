@@ -1,0 +1,6 @@
+# v11
+allowBuilds:
+  esbuild: false
+# v10
+onlyBuiltDependencies:
+  - esbuild
