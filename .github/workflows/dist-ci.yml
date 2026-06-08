@@ -1,0 +1,43 @@
+name: "Distribution: CI"
+
+permissions: {}
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - "main"
+    paths:
+      - "public/**"
+      - "src/**"
+      - "tests/**"
+      - "*.html"
+      - "package.json"
+      - "pnpm-*.yaml"
+      - "tsconfig*.json"
+
+  # including PR merged event
+  push:
+    branches:
+      - "main"
+    paths:
+      - "public/**"
+      - "src/**"
+      - "tests/**"
+      - "*.html"
+      - "package.json"
+      - "pnpm-*.yaml"
+      - "tsconfig*.json"
+
+  workflow_dispatch:
+
+jobs:
+  dist-ci:
+    uses: ./.github/workflows/dist-pnpm.yml
+    with:
+      is-release: false
+    permissions:
+      contents: write
