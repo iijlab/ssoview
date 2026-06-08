@@ -1,0 +1,22 @@
+changelog:
+  categories:
+    - title: Improvements
+      labels:
+        - enhancement
+        - improvement
+        - refactoring
+    - title: Bug fixes
+      labels:
+        - bug
+        - fixes
+    - title: Security
+      labels:
+        - security
+    - title: Other Changes
+      labels:
+        - "*"
+  exclude:
+    labels:
+      - dependencies
+    authors:
+      - dependabot

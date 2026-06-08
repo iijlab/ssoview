@@ -1,0 +1,24 @@
+name: "Distribution: Release"
+
+permissions: {}
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+" # major.minor.patch
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version"
+        type: string
+        default: ""
+
+jobs:
+  dist-release:
+    uses: ./.github/workflows/dist-pnpm.yml
+    with:
+      version: ${{ inputs.version }}
+      is-release: true
+    permissions:
+      contents: write
