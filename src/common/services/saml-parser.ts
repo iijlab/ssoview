@@ -124,6 +124,7 @@ function buildSamlpAuthnRequest(elem: Record<string, unknown>): SamlpAuthnReques
     "@_AssertionConsumerServiceURL",
     "@_ProviderName",
     "@_Destination",
+    "#text",
   ]);
 
   return {
@@ -183,7 +184,7 @@ export type SamlpNameIdPolicy = {
 };
 
 function buildSamlNameIdPolicy(elem: Record<string, unknown>): SamlpNameIdPolicy {
-  warnUnhandledKeys("NameIDPolicy", elem, ["@_Format", "@_AllowCreate"]);
+  warnUnhandledKeys("NameIDPolicy", elem, ["@_Format", "@_AllowCreate", "#text"]);
 
   return {
     $format: getStringAttr(elem, "@_Format"),
@@ -304,6 +305,7 @@ function buildSamlpResponse(elem: Record<string, unknown>): SamlpResponse {
     "@_IssueInstant",
     "@_Destination",
     "Assertion",
+    "#text",
   ]);
 
   return {
@@ -364,7 +366,7 @@ function buildSamlpStatusCode(elem: Record<string, unknown>): SamlpStatusCode {
   const valueAttr = getStringAttr(elem, "@_Value");
   const $value = valueAttr === undefined ? new Error("Value attribute not found") : valueAttr;
 
-  warnUnhandledKeys("StatusCode", elem, ["StatusCode", "@_Value"]);
+  warnUnhandledKeys("StatusCode", elem, ["StatusCode", "@_Value", "#text"]);
 
   return {
     statusCode,
@@ -564,6 +566,7 @@ function buildSamlSubjectConfirmationData(
     "@_NotOnOrAfter",
     "@_Recipient",
     "@_InResponseTo",
+    "#text",
   ]);
 
   return {
@@ -935,7 +938,7 @@ function buildDsCanonicalizationMethod(elem: Record<string, unknown>): DsCanonic
   const $algorithm =
     algorithmAttr === undefined ? new Error("Algorithm attribute not found") : algorithmAttr;
 
-  warnUnhandledKeys("CanonicalizationMethod", elem, ["@_Algorithm"]);
+  warnUnhandledKeys("CanonicalizationMethod", elem, ["@_Algorithm", "#text"]);
 
   return { $algorithm };
 }
@@ -949,7 +952,7 @@ function buildDsSignatureMethod(elem: Record<string, unknown>): DsSignatureMetho
   const $algorithm =
     algorithmAttr === undefined ? new Error("Algorithm attribute not found") : algorithmAttr;
 
-  warnUnhandledKeys("SignatureMethod", elem, ["@_Algorithm"]);
+  warnUnhandledKeys("SignatureMethod", elem, ["@_Algorithm", "#text"]);
 
   return { $algorithm };
 }
@@ -997,7 +1000,7 @@ function buildDsTransform(elem: Record<string, unknown>): DsTransform {
   const $algorithm =
     algorithmAttr === undefined ? new Error("Algorithm attribute not found") : algorithmAttr;
 
-  warnUnhandledKeys("Transform", elem, ["@_Algorithm"]);
+  warnUnhandledKeys("Transform", elem, ["@_Algorithm", "#text"]);
 
   return { $algorithm };
 }
@@ -1011,7 +1014,7 @@ function buildDsDigestMethod(elem: Record<string, unknown>): DsDigestMethod {
   const $algorithm =
     algorithmAttr === undefined ? new Error("Algorithm attribute not found") : algorithmAttr;
 
-  warnUnhandledKeys("DigestMethod", elem, ["@_Algorithm"]);
+  warnUnhandledKeys("DigestMethod", elem, ["@_Algorithm", "#text"]);
 
   return { $algorithm };
 }
@@ -1054,7 +1057,7 @@ function buildDsKeyInfo(elem: Record<string, unknown>): DsKeyInfo {
   const keyNameElem = getChildElement(elem, "KeyName");
   const keyName = keyNameElem && buildDsKeyName(keyNameElem);
 
-  warnUnhandledKeys("KeyInfo", elem, ["X509Data", "KeyName"]);
+  warnUnhandledKeys("KeyInfo", elem, ["X509Data", "KeyName", "KeyValue"]);
 
   return { x509Data, keyName };
 }
