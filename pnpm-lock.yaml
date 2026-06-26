@@ -24,8 +24,8 @@ importers:
         specifier: ^9.0.1
         version: 9.0.1(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react@19.2.7))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       fast-xml-parser:
-        specifier: ^5.6.0
-        version: 5.6.0
+        specifier: ^5.9.3
+        version: 5.9.3
       js-base64:
         specifier: ^3.7.8
         version: 3.7.8
@@ -513,8 +513,8 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
-  '@nodable/entities@1.1.0':
-    resolution: {integrity: sha512-bidpxmTBP0pOsxULw6XlxzQpTgrAGLDHGBK/JuWhPDL6ZV0GZ/PmN9CA9do6e+A9lYI6qx6ikJUtJYRxup141g==}
+  '@nodable/entities@2.2.0':
+    resolution: {integrity: sha512-9uGyhaQavEUMC8AIddIjau4NsnsXhou+j5sBAGojCM1oxmQpVKTWR/9JxABD6UAv12vpIms55fPZKFQEhG6uBg==}
 
   '@oxc-project/types@0.133.0':
     resolution: {integrity: sha512-KzkdCd6Uxqnf6l3HOw1xfatAlUURA0g14cvBYFyJ5SaNOQbOUvBr9PKArcPcrNIeRsBdgcUzOGrhKveVpvOIGA==}
@@ -938,6 +938,9 @@ packages:
     resolution: {integrity: sha512-Cxwpt2SfTzTtXcfOlzGEee8O+c+MmUgGrNiBcXnuWxuFJHe6a5Hz7qwhwe5OgaSYI0IJvkLqWX1ASG+cJOkEiA==}
     engines: {node: '>=10'}
 
+  anynum@1.0.1:
+    resolution: {integrity: sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A==}
+
   aria-query@5.3.0:
     resolution: {integrity: sha512-b0P0sZPKtyu8HkeRAfCq0IfURZK+SuwMjY1UXGBU27wpAiTwQAIlq56IbIO+ytk/JjS1fMR14ee5WBBfKi5J6A==}
 
@@ -1247,11 +1250,11 @@ packages:
   fast-levenshtein@2.0.6:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
 
-  fast-xml-builder@1.1.4:
-    resolution: {integrity: sha512-f2jhpN4Eccy0/Uz9csxh3Nu6q4ErKxf0XIsasomfOihuSUa3/xw6w8dnOtCDgEItQFJG8KyXPzQXzcODDrrbOg==}
+  fast-xml-builder@1.2.0:
+    resolution: {integrity: sha512-00aAWieqff+ZJhsXA4g1g7M8k+7AYoMUUHF+/zFb5U6Uv/P0Vl4QZo84/IcufzYalLuEj9928bXN9PbbFzMF0Q==}
 
-  fast-xml-parser@5.6.0:
-    resolution: {integrity: sha512-5G+uaEBbOm9M4dgMOV3K/rBzfUNGqGqoUTaYJM3hBwM8t71w07gxLQZoTsjkY8FtfjabqgQHEkeIySBDYeBmJw==}
+  fast-xml-parser@5.9.3:
+    resolution: {integrity: sha512-brCNCeScma/kqa54J4PIDriSSSLssRkuYaUCpvHJulGc3HGI/xxKUCTDcYkAdqJsyb//ydpbxecjC3hB9+tb/g==}
     hasBin: true
 
   fdir@6.5.0:
@@ -1493,6 +1496,9 @@ packages:
   is-typed-array@1.1.15:
     resolution: {integrity: sha512-p3EcsicXjit7SaskXHs1hA91QxgTw46Fv6EFKKGS5DRFLD8yKnohjF3hxoju94b/OcMZoQukzpPpBE9uLVKzgQ==}
     engines: {node: '>= 0.4'}
+
+  is-unsafe@1.0.1:
+    resolution: {integrity: sha512-CLK2+VdgERgD96EYm5lUQssZYlRg2tkZnbsxZoacmSiRxiFJ4Nk4SzjCl+Ur+v3kXIY9dTIdb3IH22y1mZ56LA==}
 
   is-weakmap@2.0.2:
     resolution: {integrity: sha512-K5pXYOm9wqY1RgjpL3YTkF39tni1XajUIkawTLUo9EZEVUFga5gSQJF8nNS7ZwJQ02y+1YCNYcMh+HIf1ZqE+w==}
@@ -1778,8 +1784,8 @@ packages:
     resolution: {integrity: sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==}
     engines: {node: '>=8'}
 
-  path-expression-matcher@1.5.0:
-    resolution: {integrity: sha512-cbrerZV+6rvdQrrD+iGMcZFEiiSrbv9Tfdkvnusy6y0x0GKBXREFg/Y65GhIfm0tnLntThhzCnfKwp1WRjeCyQ==}
+  path-expression-matcher@1.6.1:
+    resolution: {integrity: sha512-h7bxdzhHk8Knyc4Tj+jMaa7fEEoUJy7p1qtbVgkYg1Uhpe5Np5VuGXCRZnkZvU+Q42M1vStt0ifa3ueykRJPmQ==}
     engines: {node: '>=14.0.0'}
 
   path-key@3.1.1:
@@ -2064,8 +2070,8 @@ packages:
     resolution: {integrity: sha512-UXSH262CSZY1tfu3G3Secr6uGLCFVPMhIqHjlgCUtCCcgihYc/xKs9djMTMUOb2j1mVSeU8EU6NWc/iQKU6Gfg==}
     engines: {node: '>= 0.4'}
 
-  strnum@2.2.3:
-    resolution: {integrity: sha512-oKx6RUCuHfT3oyVjtnrmn19H1SiCqgJSg+54XqURKp5aCMbrXrhLjRN9TjuwMjiYstZ0MzDrHqkGZ5dFTKd+zg==}
+  strnum@2.4.1:
+    resolution: {integrity: sha512-M9eUSMT2dCB2cTNPG7UYj6KuK7RJR2SN2+yCV/fTW3xzTCS6EaGZ5pSMgDIjB7r8zSfTGk+dvvn9rTjpVS9Mwg==}
 
   stylis@4.2.0:
     resolution: {integrity: sha512-Orov6g6BB1sDfYgzWfTHDOxamtX1bE/zo104Dh9e6fqJ3PooipYyfJ0pUmrZO2wAvO8YbEyeFrkV91XTsGMSrw==}
@@ -2286,6 +2292,10 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  xml-naming@0.1.0:
+    resolution: {integrity: sha512-k8KO9hrMyNk6tUWqUfkTEZbezRRpONVOzUTnc97VnCvyj6Tf9lyUR9EDAIeiVLv56jsMcoXEwjW8Kv5yPY52lw==}
+    engines: {node: '>=16.0.0'}
 
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
@@ -2781,7 +2791,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.2
     optional: true
 
-  '@nodable/entities@1.1.0': {}
+  '@nodable/entities@2.2.0': {}
 
   '@oxc-project/types@0.133.0': {}
 
@@ -3187,6 +3197,8 @@ snapshots:
   ansi-regex@5.0.1: {}
 
   ansi-styles@5.2.0: {}
+
+  anynum@1.0.1: {}
 
   aria-query@5.3.0:
     dependencies:
@@ -3629,16 +3641,19 @@ snapshots:
 
   fast-levenshtein@2.0.6: {}
 
-  fast-xml-builder@1.1.4:
+  fast-xml-builder@1.2.0:
     dependencies:
-      path-expression-matcher: 1.5.0
+      path-expression-matcher: 1.6.1
+      xml-naming: 0.1.0
 
-  fast-xml-parser@5.6.0:
+  fast-xml-parser@5.9.3:
     dependencies:
-      '@nodable/entities': 1.1.0
-      fast-xml-builder: 1.1.4
-      path-expression-matcher: 1.5.0
-      strnum: 2.2.3
+      '@nodable/entities': 2.2.0
+      fast-xml-builder: 1.2.0
+      is-unsafe: 1.0.1
+      path-expression-matcher: 1.6.1
+      strnum: 2.4.1
+      xml-naming: 0.1.0
 
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
@@ -3881,6 +3896,8 @@ snapshots:
   is-typed-array@1.1.15:
     dependencies:
       which-typed-array: 1.1.20
+
+  is-unsafe@1.0.1: {}
 
   is-weakmap@2.0.2: {}
 
@@ -4139,7 +4156,7 @@ snapshots:
 
   path-exists@4.0.0: {}
 
-  path-expression-matcher@1.5.0: {}
+  path-expression-matcher@1.6.1: {}
 
   path-key@3.1.1: {}
 
@@ -4430,7 +4447,9 @@ snapshots:
       define-properties: 1.2.1
       es-object-atoms: 1.1.1
 
-  strnum@2.2.3: {}
+  strnum@2.4.1:
+    dependencies:
+      anynum: 1.0.1
 
   stylis@4.2.0: {}
 
@@ -4627,6 +4646,8 @@ snapshots:
   word-wrap@1.2.5: {}
 
   ws@8.21.0: {}
+
+  xml-naming@0.1.0: {}
 
   yallist@3.1.1: {}
 
