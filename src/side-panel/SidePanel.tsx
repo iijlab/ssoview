@@ -4,7 +4,7 @@
  */
 
 // react
-import { type SyntheticEvent, useEffect, useRef, useState } from "react";
+import { Activity, type SyntheticEvent, useEffect, useRef, useState } from "react";
 import {
   AppBar,
   Box,
@@ -22,7 +22,6 @@ import { SessionPanel } from "@/side-panel/session-panel/SessionPanel.tsx";
 import { SidePanelState } from "@/side-panel/config.ts";
 // tab-panel
 import { a11yProps } from "@/side-panel/utils.ts";
-import { CustomTabPanel } from "@/side-panel/CustomTabPanel.tsx";
 // local
 import type { SessionSummary } from "@/common/models/session-summary.ts";
 
@@ -93,7 +92,7 @@ const SidePanel = ({ tabId, testId }: { tabId: number; testId?: string }) => {
             }}
           />
           <Toolbar />
-          <CustomTabPanel value={tabValue} index={0}>
+          <Activity mode={tabValue === 0 ? "visible" : "hidden"}>
             <RecordPanel
               tabId={tabId}
               panelState={panelState}
@@ -103,8 +102,8 @@ const SidePanel = ({ tabId, testId }: { tabId: number; testId?: string }) => {
               headerHeight={headerHeight}
               testId={testId}
             />
-          </CustomTabPanel>
-          <CustomTabPanel value={tabValue} index={1}>
+          </Activity>
+          <Activity mode={tabValue === 1 ? "visible" : "hidden"}>
             <SessionPanel
               tabId={tabId}
               panelState={panelState}
@@ -114,7 +113,7 @@ const SidePanel = ({ tabId, testId }: { tabId: number; testId?: string }) => {
               headerHeight={headerHeight}
               testId={testId}
             />
-          </CustomTabPanel>
+          </Activity>
         </Box>
       </ThemeProvider>
     </>
