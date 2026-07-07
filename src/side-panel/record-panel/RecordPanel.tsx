@@ -6,6 +6,7 @@
 // react
 import React, { useEffect, useRef, useState } from "react";
 import { Box } from "@mui/material";
+import { grey } from "@mui/material/colors";
 // side-panel
 import { SessionCardList } from "@/side-panel/session-card/SessionCardList.tsx";
 import { RecordButton } from "@/side-panel/record-panel/RecordButton.tsx";
@@ -121,16 +122,35 @@ const RecordPanel = ({
           />
         </Box>
       </Box>
-      <SessionCardList
-        tabId={tabId}
-        sessionSummaries={sessionSummaries}
-        setSessionSummaries={setSessionSummaries}
-        imported={false}
+      <Box
         sx={{
           marginTop: `${buttonHeight + 8}px`,
+          height: `calc(100vh - ${headerHeight + buttonHeight + 8}px)`,
+          overflowY: "auto",
+          // scrollbar
+          "&::-webkit-scrollbar": {
+            width: "12px", // 8 + 2(left) + 2(right)
+          },
+          "&::-webkit-scrollbar-thumb": {
+            backgroundColor: grey[700],
+            borderRadius: "4px",
+            borderLeft: "2px solid transparent",
+            borderRight: "2px solid transparent",
+            backgroundClip: "padding-box",
+          },
+          "&::-webkit-scrollbar-thumb:hover": {
+            backgroundColor: grey[600],
+          },
         }}
-        testId={testId}
-      />
+      >
+        <SessionCardList
+          tabId={tabId}
+          sessionSummaries={sessionSummaries}
+          setSessionSummaries={setSessionSummaries}
+          imported={false}
+          testId={testId}
+        />
+      </Box>
     </>
   );
 };
