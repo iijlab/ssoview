@@ -1130,8 +1130,22 @@ function getStringProperty(obj: Record<string, unknown>, key: string): string | 
 
 function warnUnhandledKeys(context: string, elem: Record<string, unknown>, handledKeys: string[]) {
   const handled = new Set(handledKeys);
-  const unhandled = Object.keys(elem).filter((k) => !handled.has(k) && !k.startsWith("@_xmlns"));
+  const unhandled = Object.keys(elem).filter((k) => !handled.has(k) && !isIgnorableKey(elem, k));
   if (0 < unhandled.length) {
     console.warn(`Unhandled keys in ${context}:`, unhandled);
   }
+}
+
+function isIgnorableKey(elem: Record<string, unknown>, key: string): boolean {
+  return (
+    key.startsWith("@_xmlns") ||
+    // fast-xml-parser's alwaysCreateTextNode option keeps text-only elements (e.g. Audience)
+    // as objects rather than plain strings, so every element builder can treat elem
+    // uniformly. As a side effect, it also adds an empty #text to attribute-only elements
+    // (e.g. self-closing tags); that's a parsing artifact, not real SAML data.
+    // If a builder forgets to list "#text" in handledKeys for an element that the schema
+    // says does carry text, and the real data happens to be empty, this mistake will not
+    // be detected. This is unavoidable as long as alwaysCreateTextNode is used.
+    (key === "#text" && getStringContent(elem) === "")
+  );
 }
