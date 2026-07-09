@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parseSamlpAuthnRequest, parseSamlpResponse } from "./saml-parser.ts";
 
 describe("parseSamlpAuthnRequest", () => {
@@ -239,6 +239,54 @@ describe("parseSamlpAuthnRequest", () => {
     if (result instanceof Error) return;
 
     expect(result.$id).toBeInstanceOf(Error);
+  });
+});
+
+describe("warnUnhandledKeys #text handling", () => {
+  it("does not warn about the empty #text artifact on an attribute-only element", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const xml = `
+      <samlp:AuthnRequest
+        xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+        ID="_abc123"
+        Version="2.0"
+        IssueInstant="2026-01-01T00:00:00Z">
+        <samlp:NameIDPolicy
+          Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+          AllowCreate="true"/>
+      </samlp:AuthnRequest>
+    `;
+
+    const result = parseSamlpAuthnRequest(xml);
+    expect(result).not.toBeInstanceOf(Error);
+
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("NameIDPolicy"), ["#text"]);
+
+    warnSpy.mockRestore();
+  });
+
+  it("still warns when an unhandled element has meaningful #text content", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const xml = `
+      <samlp:AuthnRequest
+        xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+        ID="_abc123"
+        Version="2.0"
+        IssueInstant="2026-01-01T00:00:00Z">
+        <samlp:NameIDPolicy
+          Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+          AllowCreate="true">unexpected</samlp:NameIDPolicy>
+      </samlp:AuthnRequest>
+    `;
+
+    const result = parseSamlpAuthnRequest(xml);
+    expect(result).not.toBeInstanceOf(Error);
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("NameIDPolicy"), ["#text"]);
+
+    warnSpy.mockRestore();
   });
 });
 
