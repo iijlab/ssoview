@@ -6,13 +6,6 @@
 // react
 import { type EffectCallback, useEffect } from "react";
 
-const a11yProps = (index: number) => {
-  return {
-    id: `simple-tab-${index}`,
-    "aria-controls": `simple-tabpanel-${index}`,
-  };
-};
-
 const formatRFC3339Date = (d: Date) => {
   if (isNaN(d.valueOf())) return "";
 
@@ -53,4 +46,4 @@ const useEffectOnce = (effect: EffectCallback) => {
   useEffect(effect, []); // eslint-disable-line react-hooks/exhaustive-deps
 };
 
-export { a11yProps, formatRFC3339, timestamp, useEffectOnce };
+export { formatRFC3339, timestamp, useEffectOnce };
