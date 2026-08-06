@@ -1,10 +1,5 @@
 {
-  "name": "ssoview",
-  "version": "0.1.0",
-  "author": "Internet Initiative Japan Inc.",
-  "license": "BSD-3-Clause",
-  "description": "Browser extension to visualize the single sign-on process",
-  "main": "index.js",
+  "private": true,
   "type": "module",
   "scripts": {
     "build": "pnpm prd",
