@@ -1,10 +1,5 @@
 {
-  "name": "ssoview",
-  "version": "0.1.0",
-  "author": "Internet Initiative Japan Inc.",
-  "license": "BSD-3-Clause",
-  "description": "Browser extension to visualize the single sign-on process",
-  "main": "index.js",
+  "private": true,
   "type": "module",
   "scripts": {
     "build": "pnpm prd",
@@ -21,6 +16,17 @@
     "coverage:node": "vitest run --coverage --project node",
     "coverage:browser": "vitest run --coverage --project browser",
     "fmt": "prettier -w ."
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fontsource/roboto": "^5.2.10",
+    "@mui/icons-material": "^9.0.1",
+    "@mui/material": "^9.0.1",
+    "fast-xml-parser": "^5.10.1",
+    "js-base64": "^3.7.8",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -52,16 +58,5 @@
     "typescript-eslint": "^8.60.1",
     "vite": "^8.0.16",
     "vitest": "^4.1.8"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@fontsource/roboto": "^5.2.10",
-    "@mui/icons-material": "^9.0.1",
-    "@mui/material": "^9.0.1",
-    "fast-xml-parser": "^5.10.1",
-    "js-base64": "^3.7.8",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
   }
 }
