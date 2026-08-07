@@ -474,17 +474,21 @@ describe("buildHttpMessageDetails", () => {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     requestId: "req-1",
-    resourceType: "Document",
     url: "https://example.com/path",
     method: "POST",
     headers: [{ name: "Content-Type", value: "text/html" }],
   };
 
-  it("builds request details from a loaded HTTP request", () => {
+  const pairedRequest = {
+    ...baseFields,
+    stage: "Request",
+    body: "",
+  };
+
+  it("builds request details from an HTTP request", () => {
     const httpMessage = {
       ...baseFields,
       stage: "Request",
-      bodyStatus: "loaded",
       body: "request body",
     } as HttpMessage;
 
@@ -498,13 +502,13 @@ describe("buildHttpMessageDetails", () => {
     expect(result.url).toBe("https://example.com/path");
   });
 
-  it("builds response details from a loaded HTTP response", () => {
+  it("builds response details from an HTTP response", () => {
     const httpMessage = {
       ...baseFields,
       stage: "Response",
       statusCode: 200,
-      bodyStatus: "loaded",
       body: "response body",
+      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);
@@ -519,17 +523,18 @@ describe("buildHttpMessageDetails", () => {
     expect(result.requestUrl).toBe("https://example.com/path");
   });
 
-  it("sets body to empty string when bodyStatus is not loaded", () => {
+  it("keeps the body undefined when it was not retrieved", () => {
     const httpMessage = {
       ...baseFields,
-      stage: "Request",
-      bodyStatus: "pending",
-      getBody: () => Promise.resolve(""),
+      stage: "Response",
+      statusCode: 302,
+      body: undefined,
+      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);
 
-    expect(result.body).toBe("");
+    expect(result.body).toBeUndefined();
   });
 
   it("maps statusCode to statusText", () => {
@@ -537,8 +542,8 @@ describe("buildHttpMessageDetails", () => {
       ...baseFields,
       stage: "Response",
       statusCode: 302,
-      bodyStatus: "loaded",
       body: "",
+      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);

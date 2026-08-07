@@ -51,10 +51,8 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    bodyStatus: "loaded",
     stage: "Request",
     requestId: "req-1",
-    resourceType: "Document",
     headers: [],
     url: "https://sp.example.com/",
     method: "GET",
@@ -70,10 +68,8 @@ function makeResponse(
   return {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    bodyStatus: "loaded",
     stage: "Response",
     requestId: "req-1",
-    resourceType: "Document",
     headers: [{ name: "Date", value: DATE_HEADER_VALUE }],
     url: "https://sp.example.com/",
     method: "GET",
@@ -162,6 +158,20 @@ describe("detectSamlStep", () => {
     it("returns undefined for a POST request without SAMLResponse", async () => {
       const request = makeRequest({ method: "POST", body: "username=user&password=pass" });
       const result = await detectSamlStep(request);
+      expect(result).toBeUndefined();
+    });
+
+    it("returns undefined for an HTML response whose body was not retrieved", async () => {
+      const response = makeResponse({
+        headers: [
+          { name: "Content-Type", value: "text/html" },
+          { name: "Date", value: DATE_HEADER_VALUE },
+        ],
+        body: undefined,
+      });
+
+      const result = await detectSamlStep(response);
+
       expect(result).toBeUndefined();
     });
   });

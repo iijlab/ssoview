@@ -629,7 +629,7 @@ type HttpMessageDetails = HttpRequestDetails | HttpResponseDetails;
 
 type HttpMessageDetailsBase = {
   headers: Protocol.Fetch.HeaderEntry[];
-  body: string;
+  body: string | undefined;
 };
 
 export type HttpRequestDetails = HttpMessageDetailsBase & {
@@ -647,15 +647,13 @@ export type HttpResponseDetails = HttpMessageDetailsBase & {
 };
 
 export function buildHttpMessageDetails(httpMessage: HttpMessage): HttpMessageDetails {
-  const body = httpMessage.bodyStatus === "loaded" ? httpMessage.body : "";
-
   if (httpMessage.stage === "Request") {
     return {
       kind: "request",
       method: httpMessage.method,
       url: httpMessage.url,
       headers: httpMessage.headers,
-      body,
+      body: httpMessage.body,
     };
   } else {
     return {
@@ -665,7 +663,7 @@ export function buildHttpMessageDetails(httpMessage: HttpMessage): HttpMessageDe
       requestMethod: httpMessage.method,
       requestUrl: httpMessage.url,
       headers: httpMessage.headers,
-      body,
+      body: httpMessage.body,
     };
   }
 }

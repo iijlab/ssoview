@@ -155,14 +155,20 @@ function onFetchRequestPausedEvent(
     } else {
       // Ignore non-http URLs like chrome://
       if (requestPausedEvent.request.url.startsWith("http")) {
-        await onInterceptHttpResponse(
-          tabId,
-          newHttpResponse(
+        // Do not attempt to get the response body for redirects as it causes an error
+        const getResponseBodyResponse = isRedirectResponse(requestPausedEvent)
+          ? undefined
+          : await getGetResponseBodyResponse(tabId, requestPausedEvent.requestId);
+        if (getResponseBodyResponse instanceof Error) {
+          console.warn("Failed to get response body:", { error: getResponseBodyResponse });
+        } else {
+          const httpResponse = newHttpResponse(
             requestPausedEvent,
             requestPausedEvent.responseStatusCode,
-            getGetResponseBodyResponse.bind(null, tabId),
-          ),
-        );
+            getResponseBodyResponse,
+          );
+          await onInterceptHttpResponse(tabId, httpResponse);
+        }
       }
 
       // NOTE: Response body cannot be retrieved after calling
@@ -194,8 +200,16 @@ async function getGetResponseBodyResponse(
       ? getResponseBodyResponse
       : new Error("Invalid response body");
   } catch (err) {
-    return new Error("Failed to get response body", { cause: err });
+    return new Error("Failed to send Fetch.getResponseBody command", { cause: err });
   }
+}
+
+function isRedirectResponse(requestPausedEvent: Protocol.Fetch.RequestPausedEvent): boolean {
+  return (
+    requestPausedEvent.responseStatusCode !== undefined &&
+    300 <= requestPausedEvent.responseStatusCode &&
+    requestPausedEvent.responseStatusCode < 400
+  );
 }
 
 //

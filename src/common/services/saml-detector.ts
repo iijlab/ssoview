@@ -9,8 +9,6 @@ import {
   type HttpRequest,
   type HttpResponse,
   getHeaderValue,
-  getRequestBody,
-  getResponseBody,
 } from "@/common/models/http-message.ts";
 import {
   type AuthenticatedResourceResponse,
@@ -135,17 +133,16 @@ async function detectIncomingSamlAuthnRequestForHttpRedirectBinding(
 async function detectIncomingSamlAuthnRequestForHttpPostBinding(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+  if (httpResponse.body === undefined) {
+    return undefined;
+  }
+
   const contentType = getHeaderValue(httpResponse, "Content-Type");
   if (!contentType?.includes("text/html")) {
     return undefined;
   }
 
-  const responseBody = await getResponseBody(httpResponse);
-  if (responseBody instanceof Error) {
-    return responseBody;
-  }
-
-  const encodedSamlAuthnRequest = extractSamlRequestFromResponseBody(responseBody);
+  const encodedSamlAuthnRequest = extractSamlRequestFromResponseBody(httpResponse.body);
   if (!encodedSamlAuthnRequest) {
     return undefined;
   }
@@ -199,17 +196,16 @@ function extractSamlRequestFromResponseBody(responseBody: string): string | unde
 async function detectIncomingSamlAuthnRequestForScriptRedirectBinding(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+  if (httpResponse.body === undefined) {
+    return undefined;
+  }
+
   const contentType = getHeaderValue(httpResponse, "Content-Type");
   if (!contentType?.includes("text/html")) {
     return undefined;
   }
 
-  const responseBody = await getResponseBody(httpResponse);
-  if (responseBody instanceof Error) {
-    return responseBody;
-  }
-
-  const matched = responseBody.match(/"location\.href=&quot;([^"]*SAMLRequest=[^"]*)&quot;"/);
+  const matched = httpResponse.body.match(/"location\.href=&quot;([^"]*SAMLRequest=[^"]*)&quot;"/);
   if (!matched?.[1]) {
     return undefined;
   }
@@ -266,17 +262,16 @@ async function detectIncomingSamlAuthnRequestForScriptRedirectBinding(
 async function detectIncomingSamlAuthnRequestForMetaRefreshBinding(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+  if (httpResponse.body === undefined) {
+    return undefined;
+  }
+
   const contentType = getHeaderValue(httpResponse, "Content-Type");
   if (!contentType?.includes("text/html")) {
     return undefined;
   }
 
-  const responseBody = await getResponseBody(httpResponse);
-  if (responseBody instanceof Error) {
-    return responseBody;
-  }
-
-  const url = extractUrlFromMetaRefresh(responseBody);
+  const url = extractUrlFromMetaRefresh(httpResponse.body);
   if (!url) {
     return undefined;
   }
@@ -395,16 +390,15 @@ async function detectOutgoingSamlAuthnRequestForRedirectBinding(
 async function detectOutgoingSamlAuthnRequestForPostBinding(
   httpRequest: HttpRequest,
 ): Promise<OutgoingSamlAuthnRequest | undefined | Error> {
+  if (httpRequest.body === undefined) {
+    return undefined;
+  }
+
   if (httpRequest.method !== "POST") {
     return undefined;
   }
 
-  const requestBody = await getRequestBody(httpRequest);
-  if (requestBody instanceof Error) {
-    return requestBody;
-  }
-
-  const encodedSamlAuthnRequest = extractSamlRequestFromRequestBody(requestBody);
+  const encodedSamlAuthnRequest = extractSamlRequestFromRequestBody(httpRequest.body);
   if (encodedSamlAuthnRequest instanceof Error || encodedSamlAuthnRequest === undefined) {
     return encodedSamlAuthnRequest;
   }
@@ -523,17 +517,16 @@ async function detectIncomingSamlResponseForRedirectBinding(
 async function detectIncomingSamlResponseForPostBinding(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlResponse | undefined | Error> {
+  if (httpResponse.body === undefined) {
+    return undefined;
+  }
+
   const contentType = getHeaderValue(httpResponse, "Content-Type");
   if (!contentType?.includes("text/html")) {
     return undefined;
   }
 
-  const responseBody = await getResponseBody(httpResponse);
-  if (responseBody instanceof Error) {
-    return responseBody;
-  }
-
-  const encodedSamlResponse = extractSamlResponseFromResponseBody(responseBody);
+  const encodedSamlResponse = extractSamlResponseFromResponseBody(httpResponse.body);
   if (!encodedSamlResponse) {
     return undefined;
   }
@@ -641,16 +634,15 @@ async function detectOutgoingSamlResponseForRedirectBinding(
 async function detectOutgoingSamlResponseForPostBinding(
   httpRequest: HttpRequest,
 ): Promise<OutgoingSamlResponse | undefined | Error> {
+  if (httpRequest.body === undefined) {
+    return undefined;
+  }
+
   if (httpRequest.method !== "POST") {
     return undefined;
   }
 
-  const requestBody = await getRequestBody(httpRequest);
-  if (requestBody instanceof Error) {
-    return requestBody;
-  }
-
-  const encodedSamlResponse = extractSamlResponseFromRequestBody(requestBody);
+  const encodedSamlResponse = extractSamlResponseFromRequestBody(httpRequest.body);
   if (encodedSamlResponse instanceof Error || encodedSamlResponse === undefined) {
     return encodedSamlResponse;
   }

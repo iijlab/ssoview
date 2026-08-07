@@ -60,9 +60,15 @@ export function HttpDetails({ httpMessage, sequenceNumber }: HttpDetailsProps) {
       <section>
         <h3 className="mb-2 text-lg font-semibold text-cyan-400">Body</h3>
         <div className="rounded-lg border border-gray-800 bg-gray-900 p-4">
-          <pre className="font-mono text-sm wrap-anywhere whitespace-pre-wrap">
-            {httpMessageDetails.body}
-          </pre>
+          {httpMessageDetails.body === undefined ? (
+            <p className="text-sm text-gray-400">
+              The body of a redirect response is not captured.
+            </p>
+          ) : (
+            <pre className="font-mono text-sm wrap-anywhere whitespace-pre-wrap">
+              {httpMessageDetails.body}
+            </pre>
+          )}
         </div>
       </section>
     </section>

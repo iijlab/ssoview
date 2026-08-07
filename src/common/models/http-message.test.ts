@@ -3,95 +3,44 @@
  * @license BSD-3-Clause
  */
 
-import { describe, expect, it, vi } from "vitest";
-import type { HttpMessage, HttpRequest, HttpResponse } from "./http-message.ts";
-import {
-  ensureLoadedHttpMessage,
-  getHeaderValue,
-  getRequestBody,
-  getResponseBody,
-  isHttpMessage,
-} from "./http-message.ts";
+import type Protocol from "devtools-protocol";
+import { Base64 } from "js-base64";
+import { describe, expect, it } from "vitest";
+import type { HttpRequest } from "./http-message.ts";
+import { getHeaderValue, isHttpMessage, newHttpRequest, newHttpResponse } from "./http-message.ts";
 
 //
 // Helpers
 //
 
-function makeLoadedRequest(overrides: Record<string, unknown> = {}): HttpRequest {
+function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    bodyStatus: "loaded",
     stage: "Request",
     requestId: "req-1",
-    resourceType: "Document",
-    headers: [],
     url: "https://example.com/",
     method: "GET",
+    headers: [],
     body: "",
     ...overrides,
   } as unknown as HttpRequest;
 }
 
-function makePendingRequest(
-  getBody: () => Promise<string | Error>,
+function makeRequestPausedEvent(
+  request: Record<string, unknown> = {},
   overrides: Record<string, unknown> = {},
-): HttpRequest {
+): Protocol.Fetch.RequestPausedEvent {
   return {
-    createdAt: "2026-01-01T00:00:00Z",
-    imported: false,
-    bodyStatus: "pending",
-    stage: "Request",
     requestId: "req-1",
-    resourceType: "Document",
-    headers: [],
-    url: "https://example.com/",
-    method: "GET",
-    getBody,
-    _requestPausedEvent: {},
+    request: {
+      url: "https://example.com/",
+      method: "GET",
+      headers: { Host: "example.com" },
+      ...request,
+    },
     ...overrides,
-  } as unknown as HttpRequest;
-}
-
-function makeLoadedResponse(overrides: Record<string, unknown> = {}): HttpResponse {
-  return {
-    createdAt: "2026-01-01T00:00:00Z",
-    imported: false,
-    bodyStatus: "loaded",
-    stage: "Response",
-    requestId: "req-1",
-    resourceType: "Document",
-    headers: [],
-    url: "https://example.com/",
-    method: "GET",
-    statusCode: 200,
-    body: "<html></html>",
-    request: makeLoadedRequest(),
-    ...overrides,
-  } as unknown as HttpResponse;
-}
-
-function makePendingResponse(
-  getBody: () => Promise<string | Error>,
-  request?: HttpRequest,
-  overrides: Record<string, unknown> = {},
-): HttpResponse {
-  return {
-    createdAt: "2026-01-01T00:00:00Z",
-    imported: false,
-    bodyStatus: "pending",
-    stage: "Response",
-    requestId: "req-1",
-    resourceType: "Document",
-    headers: [],
-    url: "https://example.com/",
-    method: "GET",
-    statusCode: 200,
-    getBody,
-    request: request ?? makePendingRequest(async () => "request body"),
-    _requestPausedEvent: {},
-    ...overrides,
-  } as unknown as HttpResponse;
+  } as unknown as Protocol.Fetch.RequestPausedEvent;
 }
 
 //
@@ -99,40 +48,36 @@ function makePendingResponse(
 //
 
 describe("isHttpMessage", () => {
-  const validLoadedHttpRequest = {
+  const validHttpRequest = {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     requestId: "req-123",
-    resourceType: "Document",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",
     stage: "Request",
-    bodyStatus: "loaded",
     body: "",
   };
 
-  const validLoadedHttpResponse = {
+  const validHttpResponse = {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     requestId: "req-123",
-    resourceType: "Document",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",
     stage: "Response",
     statusCode: 200,
-    bodyStatus: "loaded",
     body: "<html></html>",
-    request: validLoadedHttpRequest,
+    request: validHttpRequest,
   };
 
-  it("returns true for valid LoadedHttpRequest", () => {
-    expect(isHttpMessage(validLoadedHttpRequest)).toBe(true);
+  it("returns true for valid HttpRequest", () => {
+    expect(isHttpMessage(validHttpRequest)).toBe(true);
   });
 
-  it("returns true for valid LoadedHttpResponse", () => {
-    expect(isHttpMessage(validLoadedHttpResponse)).toBe(true);
+  it("returns true for valid HttpResponse", () => {
+    expect(isHttpMessage(validHttpResponse)).toBe(true);
   });
 
   it("returns false for null", () => {
@@ -144,44 +89,55 @@ describe("isHttpMessage", () => {
   });
 
   it("returns false when createdAt is missing", () => {
-    const { createdAt, ...msg } = validLoadedHttpRequest;
+    const { createdAt, ...msg } = validHttpRequest;
+    expect(isHttpMessage(msg)).toBe(false);
+  });
+
+  // A missing body means it was not retrieved. JSON round-trips drop the key.
+  it("returns true when body is missing", () => {
+    const { body, ...msg } = validHttpRequest;
+    expect(isHttpMessage(msg)).toBe(true);
+  });
+
+  it("returns false when body is not a string", () => {
+    const msg = { ...validHttpRequest, body: 123 };
     expect(isHttpMessage(msg)).toBe(false);
   });
 
   it("returns false when stage is invalid", () => {
-    const msg = { ...validLoadedHttpRequest, stage: "Invalid" };
+    const msg = { ...validHttpRequest, stage: "Invalid" };
     expect(isHttpMessage(msg)).toBe(false);
   });
 
   it("returns false when headers is not an array", () => {
-    const msg = { ...validLoadedHttpRequest, headers: "invalid" };
+    const msg = { ...validHttpRequest, headers: "invalid" };
     expect(isHttpMessage(msg)).toBe(false);
   });
 
   it("returns false when headers contains invalid entry", () => {
-    const msg = { ...validLoadedHttpRequest, headers: [{ name: "Content-Type" }] };
+    const msg = { ...validHttpRequest, headers: [{ name: "Content-Type" }] };
     expect(isHttpMessage(msg)).toBe(false);
   });
 
   it("returns false for Response without statusCode", () => {
-    const { statusCode, ...msg } = validLoadedHttpResponse;
+    const { statusCode, ...msg } = validHttpResponse;
     expect(isHttpMessage(msg)).toBe(false);
   });
 
   it("returns false for Response with invalid request", () => {
-    const msg = { ...validLoadedHttpResponse, request: { invalid: true } };
+    const msg = { ...validHttpResponse, request: { invalid: true } };
     expect(isHttpMessage(msg)).toBe(false);
   });
 });
 
 describe("getHeaderValue", () => {
-  const httpMessage = makeLoadedRequest({
+  const httpMessage = makeRequest({
     headers: [
       { name: "Content-Type", value: "text/html" },
       { name: "X-Custom-Header", value: "custom-value" },
       { name: "Cache-Control", value: "no-cache" },
     ],
-  }) as HttpMessage;
+  });
 
   it("returns header value for exact case match", () => {
     expect(getHeaderValue(httpMessage, "Content-Type")).toBe("text/html");
@@ -201,151 +157,154 @@ describe("getHeaderValue", () => {
   });
 });
 
-describe("getRequestBody", () => {
-  it("returns body directly for loaded request", async () => {
-    const request = makeLoadedRequest({ body: "loaded body" });
+describe("newHttpRequest", () => {
+  it("carries over the request attributes", () => {
+    const requestPausedEvent = makeRequestPausedEvent({
+      url: "https://sp.example.com/SAML2/ACS",
+      method: "POST",
+    });
 
-    const result = await getRequestBody(request);
+    const httpRequest = newHttpRequest(requestPausedEvent);
 
-    expect(result).toBe("loaded body");
-  });
-
-  it("calls getBody for pending request", async () => {
-    const getBody = vi.fn().mockResolvedValue("fetched body");
-    const request = makePendingRequest(getBody);
-
-    const result = await getRequestBody(request);
-
-    expect(result).toBe("fetched body");
-    expect(getBody).toHaveBeenCalledOnce();
-  });
-
-  it("returns Error when getBody fails for pending request", async () => {
-    const request = makePendingRequest(async () => new Error("fetch failed"));
-
-    const result = await getRequestBody(request);
-
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("fetch failed");
-  });
-});
-
-describe("getResponseBody", () => {
-  it("returns body directly for loaded response", async () => {
-    const response = makeLoadedResponse({ body: "loaded response" });
-
-    const result = await getResponseBody(response);
-
-    expect(result).toBe("loaded response");
-  });
-
-  it("calls getBody for pending response", async () => {
-    const getBody = vi.fn().mockResolvedValue("fetched response");
-    const response = makePendingResponse(getBody);
-
-    const result = await getResponseBody(response);
-
-    expect(result).toBe("fetched response");
-    expect(getBody).toHaveBeenCalledOnce();
-  });
-
-  it("returns Error when getBody fails for pending response", async () => {
-    const response = makePendingResponse(async () => new Error("response fetch failed"));
-
-    const result = await getResponseBody(response);
-
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("response fetch failed");
-  });
-});
-
-describe("ensureLoadedHttpMessage", () => {
-  it("returns loaded request as-is", async () => {
-    const request = makeLoadedRequest({ body: "already loaded" });
-
-    const result = await ensureLoadedHttpMessage(request);
-
-    expect(result).not.toBeInstanceOf(Error);
-    expect(result).toMatchObject({
-      bodyStatus: "loaded",
-      body: "already loaded",
+    expect(httpRequest).toMatchObject({
+      imported: false,
       stage: "Request",
+      requestId: "req-1",
+      url: "https://sp.example.com/SAML2/ACS",
+      method: "POST",
     });
   });
 
-  it("returns loaded response as-is", async () => {
-    const response = makeLoadedResponse({ body: "already loaded" });
+  it("converts headers from an object to entries", () => {
+    const requestPausedEvent = makeRequestPausedEvent({
+      headers: { Host: "example.com", "Content-Type": "text/html" },
+    });
 
-    const result = await ensureLoadedHttpMessage(response);
+    const httpRequest = newHttpRequest(requestPausedEvent);
 
-    expect(result).not.toBeInstanceOf(Error);
-    expect(result).toMatchObject({
-      bodyStatus: "loaded",
-      body: "already loaded",
+    expect(httpRequest.headers).toEqual([
+      { name: "Host", value: "example.com" },
+      { name: "Content-Type", value: "text/html" },
+    ]);
+  });
+
+  it("returns an empty body when the request has no post data", () => {
+    const httpRequest = newHttpRequest(makeRequestPausedEvent());
+
+    expect(httpRequest.body).toBe("");
+  });
+
+  it("returns an empty body when postDataEntries is missing", () => {
+    const httpRequest = newHttpRequest(makeRequestPausedEvent({ hasPostData: true }));
+
+    expect(httpRequest.body).toBe("");
+  });
+
+  it("decodes and concatenates postDataEntries", () => {
+    const requestPausedEvent = makeRequestPausedEvent({
+      hasPostData: true,
+      postDataEntries: [
+        { bytes: Base64.encode("SAMLResponse=abc") },
+        { bytes: Base64.encode("&RelayState=xyz") },
+      ],
+    });
+
+    const httpRequest = newHttpRequest(requestPausedEvent);
+
+    expect(httpRequest.body).toBe("SAMLResponse=abc&RelayState=xyz");
+  });
+
+  it("skips postDataEntries without bytes", () => {
+    const requestPausedEvent = makeRequestPausedEvent({
+      hasPostData: true,
+      postDataEntries: [{ bytes: Base64.encode("a") }, {}, { bytes: Base64.encode("b") }],
+    });
+
+    const httpRequest = newHttpRequest(requestPausedEvent);
+
+    expect(httpRequest.body).toBe("ab");
+  });
+});
+
+describe("newHttpResponse", () => {
+  it("carries over the response attributes", () => {
+    const requestPausedEvent = makeRequestPausedEvent(
+      {},
+      {
+        responseStatusCode: 200,
+        responseHeaders: [{ name: "Content-Type", value: "text/html" }],
+      },
+    );
+
+    const httpResponse = newHttpResponse(requestPausedEvent, 200, {
+      body: "<html></html>",
+      base64Encoded: false,
+    });
+
+    expect(httpResponse).toMatchObject({
+      imported: false,
       stage: "Response",
+      requestId: "req-1",
+      statusCode: 200,
+      headers: [{ name: "Content-Type", value: "text/html" }],
+      body: "<html></html>",
     });
   });
 
-  it("loads pending request body", async () => {
-    const request = makePendingRequest(async () => "resolved body");
+  it("returns empty headers when responseHeaders is missing", () => {
+    const httpResponse = newHttpResponse(
+      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
+      200,
+      { body: "", base64Encoded: false },
+    );
 
-    const result = await ensureLoadedHttpMessage(request);
-
-    expect(result).not.toBeInstanceOf(Error);
-    expect(result).toMatchObject({ bodyStatus: "loaded", body: "resolved body", stage: "Request" });
+    expect(httpResponse).toMatchObject({ headers: [] });
   });
 
-  it("loads pending response and its paired request", async () => {
-    const pairedRequest = makePendingRequest(async () => "request body");
-    const response = makePendingResponse(async () => "response body", pairedRequest);
+  it("decodes a base64 encoded response body", () => {
+    const httpResponse = newHttpResponse(
+      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
+      200,
+      { body: Base64.encode("<html></html>"), base64Encoded: true },
+    );
 
-    const result = await ensureLoadedHttpMessage(response);
+    expect(httpResponse).toMatchObject({ body: "<html></html>" });
+  });
 
-    expect(result).not.toBeInstanceOf(Error);
-    expect(result).toMatchObject({
-      bodyStatus: "loaded",
-      body: "response body",
-      stage: "Response",
+  it("includes the paired request with its body", () => {
+    const requestPausedEvent = makeRequestPausedEvent(
+      {
+        url: "https://sp.example.com/SAML2/ACS",
+        method: "POST",
+        hasPostData: true,
+        postDataEntries: [{ bytes: Base64.encode("SAMLResponse=abc") }],
+      },
+      { responseStatusCode: 200 },
+    );
+
+    const httpResponse = newHttpResponse(requestPausedEvent, 200, {
+      body: "",
+      base64Encoded: false,
     });
-    const loaded = result as { request: { bodyStatus: string; body: string } };
-    expect(loaded.request).toMatchObject({ bodyStatus: "loaded", body: "request body" });
+
+    expect(httpResponse).toMatchObject({
+      request: {
+        stage: "Request",
+        url: "https://sp.example.com/SAML2/ACS",
+        method: "POST",
+        body: "SAMLResponse=abc",
+      },
+    });
   });
 
-  it("returns Error when pending request getBody fails", async () => {
-    const request = makePendingRequest(async () => new Error("load failed"));
+  it("leaves the body undefined when the response body is not given", () => {
+    const httpResponse = newHttpResponse(
+      makeRequestPausedEvent({}, { responseStatusCode: 302 }),
+      302,
+      undefined,
+    );
 
-    const result = await ensureLoadedHttpMessage(request);
-
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("load failed");
-  });
-
-  it("returns Error when pending response getBody fails", async () => {
-    const response = makePendingResponse(async () => new Error("response load failed"));
-
-    const result = await ensureLoadedHttpMessage(response);
-
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("response load failed");
-  });
-
-  it("returns Error when paired request getBody fails during response loading", async () => {
-    const pairedRequest = makePendingRequest(async () => new Error("request load failed"));
-    const response = makePendingResponse(async () => "response ok", pairedRequest);
-
-    const result = await ensureLoadedHttpMessage(response);
-
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("request load failed");
-  });
-
-  it("strips getBody and _requestPausedEvent from loaded result", async () => {
-    const request = makePendingRequest(async () => "body");
-
-    const result = await ensureLoadedHttpMessage(request);
-
-    expect(result).not.toBeInstanceOf(Error);
-    expect(result).not.toHaveProperty("getBody");
-    expect(result).not.toHaveProperty("_requestPausedEvent");
+    expect(httpResponse.statusCode).toBe(302);
+    expect(httpResponse.body).toBeUndefined();
   });
 });

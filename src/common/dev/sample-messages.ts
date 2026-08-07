@@ -32,15 +32,9 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
 
   const idpSsoUrl = `https://idp.example.org/SAML2/SSO/Redirect?SAMLRequest=${encodeURIComponent(encodedAuthnRequest)}`;
 
-  const httpMessageBase = {
-    imported: false,
-    bodyStatus: "loaded" as const,
-    resourceType: "Document" as const,
-  };
-
   // Step 1: User -> SP
   const httpRequest1 = {
-    ...httpMessageBase,
+    imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:21:58.000Z",
     requestId: "req-001",
@@ -52,7 +46,7 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
 
   // Step 2: SP -> User
   const httpResponse2 = {
-    ...httpMessageBase,
+    imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:21:59.000Z",
     requestId: "req-001",
@@ -64,13 +58,13 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
       { name: "Date", value: "Sun, 05 Dec 2004 09:21:59 GMT" },
       { name: "Location", value: idpSsoUrl },
     ],
-    body: "",
+    body: undefined,
     request: httpRequest1,
   } satisfies HttpMessage;
 
   // Step 3: User -> IdP
   const httpRequest3 = {
-    ...httpMessageBase,
+    imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:21:59.200Z",
     requestId: "req-002",
@@ -82,7 +76,7 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
 
   // Step 4: IdP -> User
   const httpResponse4 = {
-    ...httpMessageBase,
+    imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:22:05.000Z",
     requestId: "req-002",
@@ -110,7 +104,7 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
 
   // Step 5: User -> SP
   const httpRequest5 = {
-    ...httpMessageBase,
+    imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:22:05.100Z",
     requestId: "req-003",
@@ -126,7 +120,7 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   // Step 6:  SP -> User
   const isSuccess = sample !== "failure" && sample !== "unknown";
   const httpResponse6 = {
-    ...httpMessageBase,
+    imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:22:05.500Z",
     requestId: "req-003",
