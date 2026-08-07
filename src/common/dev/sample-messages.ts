@@ -58,7 +58,7 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
       { name: "Date", value: "Sun, 05 Dec 2004 09:21:59 GMT" },
       { name: "Location", value: idpSsoUrl },
     ],
-    body: "",
+    body: undefined,
     request: httpRequest1,
   } satisfies HttpMessage;
 

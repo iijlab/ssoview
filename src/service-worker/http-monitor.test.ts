@@ -78,7 +78,10 @@ describe("setupMonitoring", () => {
       "Fetch.getResponseBody",
       expect.anything(),
     );
-    expect(onInterceptHttpResponse).toHaveBeenCalledWith(1, expect.objectContaining({ body: "" }));
+    expect(onInterceptHttpResponse).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ body: undefined }),
+    );
   });
 
   it("skips the response but continues it when the body cannot be retrieved", async () => {

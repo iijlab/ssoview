@@ -629,7 +629,7 @@ type HttpMessageDetails = HttpRequestDetails | HttpResponseDetails;
 
 type HttpMessageDetailsBase = {
   headers: Protocol.Fetch.HeaderEntry[];
-  body: string;
+  body: string | undefined;
 };
 
 export type HttpRequestDetails = HttpMessageDetailsBase & {

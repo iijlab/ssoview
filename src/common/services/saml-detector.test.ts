@@ -160,6 +160,20 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStep(request);
       expect(result).toBeUndefined();
     });
+
+    it("returns undefined for an HTML response whose body was not retrieved", async () => {
+      const response = makeResponse({
+        headers: [
+          { name: "Content-Type", value: "text/html" },
+          { name: "Date", value: DATE_HEADER_VALUE },
+        ],
+        body: undefined,
+      });
+
+      const result = await detectSamlStep(response);
+
+      expect(result).toBeUndefined();
+    });
   });
 
   describe("Step 2: IncomingAuthnRequest (SP issues AuthnRequest via redirect)", () => {

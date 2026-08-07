@@ -21,7 +21,7 @@ type HttpMessageBase = {
   url: string;
   method: string;
   headers: Protocol.Fetch.HeaderEntry[];
-  body: string;
+  body: string | undefined;
 };
 
 function isHttpMessageBase(u: unknown): u is HttpMessageBase {
@@ -33,7 +33,7 @@ function isHttpMessageBase(u: unknown): u is HttpMessageBase {
     typeof u.url === "string" &&
     typeof u.method === "string" &&
     isHeaderEntries(u.headers) &&
-    typeof u.body === "string"
+    (typeof u.body === "string" || u.body === undefined)
   );
 }
 
@@ -89,11 +89,11 @@ export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedE
 export function newHttpResponse(
   requestPausedEvent: Protocol.Fetch.RequestPausedEvent,
   statusCode: number,
-  getResponseBodyResponse?: Protocol.Network.GetResponseBodyResponse,
+  getResponseBodyResponse: Protocol.Network.GetResponseBodyResponse | undefined,
 ): HttpResponse {
   const body =
     getResponseBodyResponse === undefined
-      ? ""
+      ? undefined
       : getResponseBodyResponse.base64Encoded
         ? Base64.decode(getResponseBodyResponse.body)
         : getResponseBodyResponse.body;

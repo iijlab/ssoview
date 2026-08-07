@@ -133,6 +133,10 @@ async function detectIncomingSamlAuthnRequestForHttpRedirectBinding(
 async function detectIncomingSamlAuthnRequestForHttpPostBinding(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+  if (httpResponse.body === undefined) {
+    return undefined;
+  }
+
   const contentType = getHeaderValue(httpResponse, "Content-Type");
   if (!contentType?.includes("text/html")) {
     return undefined;
@@ -192,6 +196,10 @@ function extractSamlRequestFromResponseBody(responseBody: string): string | unde
 async function detectIncomingSamlAuthnRequestForScriptRedirectBinding(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+  if (httpResponse.body === undefined) {
+    return undefined;
+  }
+
   const contentType = getHeaderValue(httpResponse, "Content-Type");
   if (!contentType?.includes("text/html")) {
     return undefined;
@@ -254,6 +262,10 @@ async function detectIncomingSamlAuthnRequestForScriptRedirectBinding(
 async function detectIncomingSamlAuthnRequestForMetaRefreshBinding(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+  if (httpResponse.body === undefined) {
+    return undefined;
+  }
+
   const contentType = getHeaderValue(httpResponse, "Content-Type");
   if (!contentType?.includes("text/html")) {
     return undefined;
@@ -378,6 +390,10 @@ async function detectOutgoingSamlAuthnRequestForRedirectBinding(
 async function detectOutgoingSamlAuthnRequestForPostBinding(
   httpRequest: HttpRequest,
 ): Promise<OutgoingSamlAuthnRequest | undefined | Error> {
+  if (httpRequest.body === undefined) {
+    return undefined;
+  }
+
   if (httpRequest.method !== "POST") {
     return undefined;
   }
@@ -501,6 +517,10 @@ async function detectIncomingSamlResponseForRedirectBinding(
 async function detectIncomingSamlResponseForPostBinding(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlResponse | undefined | Error> {
+  if (httpResponse.body === undefined) {
+    return undefined;
+  }
+
   const contentType = getHeaderValue(httpResponse, "Content-Type");
   if (!contentType?.includes("text/html")) {
     return undefined;
@@ -614,6 +634,10 @@ async function detectOutgoingSamlResponseForRedirectBinding(
 async function detectOutgoingSamlResponseForPostBinding(
   httpRequest: HttpRequest,
 ): Promise<OutgoingSamlResponse | undefined | Error> {
+  if (httpRequest.body === undefined) {
+    return undefined;
+  }
+
   if (httpRequest.method !== "POST") {
     return undefined;
   }

@@ -93,8 +93,14 @@ describe("isHttpMessage", () => {
     expect(isHttpMessage(msg)).toBe(false);
   });
 
-  it("returns false when body is missing", () => {
+  // A missing body means it was not retrieved. JSON round-trips drop the key.
+  it("returns true when body is missing", () => {
     const { body, ...msg } = validHttpRequest;
+    expect(isHttpMessage(msg)).toBe(true);
+  });
+
+  it("returns false when body is not a string", () => {
+    const msg = { ...validHttpRequest, body: 123 };
     expect(isHttpMessage(msg)).toBe(false);
   });
 
@@ -291,13 +297,14 @@ describe("newHttpResponse", () => {
     });
   });
 
-  it("sets an empty body when the response body is not given", () => {
+  it("leaves the body undefined when the response body is not given", () => {
     const httpResponse = newHttpResponse(
       makeRequestPausedEvent({}, { responseStatusCode: 302 }),
       302,
       undefined,
     );
 
-    expect(httpResponse).toMatchObject({ statusCode: 302, body: "" });
+    expect(httpResponse.statusCode).toBe(302);
+    expect(httpResponse.body).toBeUndefined();
   });
 });

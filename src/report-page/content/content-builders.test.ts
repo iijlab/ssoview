@@ -523,6 +523,20 @@ describe("buildHttpMessageDetails", () => {
     expect(result.requestUrl).toBe("https://example.com/path");
   });
 
+  it("keeps the body undefined when it was not retrieved", () => {
+    const httpMessage = {
+      ...baseFields,
+      stage: "Response",
+      statusCode: 302,
+      body: undefined,
+      request: pairedRequest,
+    } as HttpMessage;
+
+    const result = buildHttpMessageDetails(httpMessage);
+
+    expect(result.body).toBeUndefined();
+  });
+
   it("maps statusCode to statusText", () => {
     const httpMessage = {
       ...baseFields,
