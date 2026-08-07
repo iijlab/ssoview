@@ -51,7 +51,6 @@ function fireDebuggerEvent(
 function makeResponsePausedEvent(responseStatusCode: number): Protocol.Fetch.RequestPausedEvent {
   return {
     requestId: "req-1",
-    resourceType: "Document",
     request: {
       url: "https://sp.example.com/SAML2/resource",
       method: "GET",

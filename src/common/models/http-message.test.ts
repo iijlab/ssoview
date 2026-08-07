@@ -19,7 +19,6 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
     imported: false,
     stage: "Request",
     requestId: "req-1",
-    resourceType: "Document",
     url: "https://example.com/",
     method: "GET",
     headers: [],
@@ -34,7 +33,6 @@ function makeRequestPausedEvent(
 ): Protocol.Fetch.RequestPausedEvent {
   return {
     requestId: "req-1",
-    resourceType: "Document",
     request: {
       url: "https://example.com/",
       method: "GET",
@@ -54,7 +52,6 @@ describe("isHttpMessage", () => {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     requestId: "req-123",
-    resourceType: "Document",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",
@@ -66,7 +63,6 @@ describe("isHttpMessage", () => {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     requestId: "req-123",
-    resourceType: "Document",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",

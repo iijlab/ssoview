@@ -18,7 +18,6 @@ type HttpMessageBase = {
   createdAt: string;
   imported: boolean;
   requestId: Protocol.Fetch.RequestId;
-  resourceType: Protocol.Network.ResourceType;
   url: string;
   method: string;
   headers: Protocol.Fetch.HeaderEntry[];
@@ -31,7 +30,6 @@ function isHttpMessageBase(u: unknown): u is HttpMessageBase {
     typeof u.createdAt === "string" &&
     typeof u.imported === "boolean" &&
     typeof u.requestId === "string" &&
-    typeof u.resourceType === "string" &&
     typeof u.url === "string" &&
     typeof u.method === "string" &&
     isHeaderEntries(u.headers) &&
@@ -79,7 +77,6 @@ export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedE
     imported: false,
     stage: "Request",
     requestId: requestPausedEvent.requestId,
-    resourceType: requestPausedEvent.resourceType,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
     headers: Object.entries(requestPausedEvent.request.headers).map(
@@ -106,7 +103,6 @@ export function newHttpResponse(
     imported: false,
     stage: "Response",
     requestId: requestPausedEvent.requestId,
-    resourceType: requestPausedEvent.resourceType,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
     headers: requestPausedEvent.responseHeaders ?? [],
