@@ -5,7 +5,7 @@
 
 import type Protocol from "devtools-protocol";
 import { Base64 } from "js-base64";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { HttpRequest } from "./http-message.ts";
 import { getHeaderValue, isHttpMessage, newHttpRequest, newHttpResponse } from "./http-message.ts";
 
@@ -225,10 +225,7 @@ describe("newHttpRequest", () => {
 });
 
 describe("newHttpResponse", () => {
-  it("carries over the response attributes", async () => {
-    const getGetResponseBodyResponse = vi
-      .fn()
-      .mockResolvedValue({ body: "<html></html>", base64Encoded: false });
+  it("carries over the response attributes", () => {
     const requestPausedEvent = makeRequestPausedEvent(
       {},
       {
@@ -237,9 +234,11 @@ describe("newHttpResponse", () => {
       },
     );
 
-    const httpResponse = await newHttpResponse(requestPausedEvent, 200, getGetResponseBodyResponse);
+    const httpResponse = newHttpResponse(requestPausedEvent, 200, {
+      body: "<html></html>",
+      base64Encoded: false,
+    });
 
-    expect(httpResponse).not.toBeInstanceOf(Error);
     expect(httpResponse).toMatchObject({
       imported: false,
       stage: "Response",
@@ -248,41 +247,29 @@ describe("newHttpResponse", () => {
       headers: [{ name: "Content-Type", value: "text/html" }],
       body: "<html></html>",
     });
-    expect(getGetResponseBodyResponse).toHaveBeenCalledWith("req-1");
   });
 
-  it("returns empty headers when responseHeaders is missing", async () => {
-    const getGetResponseBodyResponse = vi
-      .fn()
-      .mockResolvedValue({ body: "", base64Encoded: false });
-
-    const httpResponse = await newHttpResponse(
+  it("returns empty headers when responseHeaders is missing", () => {
+    const httpResponse = newHttpResponse(
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
-      getGetResponseBodyResponse,
+      { body: "", base64Encoded: false },
     );
 
     expect(httpResponse).toMatchObject({ headers: [] });
   });
 
-  it("decodes a base64 encoded response body", async () => {
-    const getGetResponseBodyResponse = vi
-      .fn()
-      .mockResolvedValue({ body: Base64.encode("<html></html>"), base64Encoded: true });
-
-    const httpResponse = await newHttpResponse(
+  it("decodes a base64 encoded response body", () => {
+    const httpResponse = newHttpResponse(
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
-      getGetResponseBodyResponse,
+      { body: Base64.encode("<html></html>"), base64Encoded: true },
     );
 
     expect(httpResponse).toMatchObject({ body: "<html></html>" });
   });
 
-  it("includes the paired request with its body", async () => {
-    const getGetResponseBodyResponse = vi
-      .fn()
-      .mockResolvedValue({ body: "", base64Encoded: false });
+  it("includes the paired request with its body", () => {
     const requestPausedEvent = makeRequestPausedEvent(
       {
         url: "https://sp.example.com/SAML2/ACS",
@@ -293,7 +280,10 @@ describe("newHttpResponse", () => {
       { responseStatusCode: 200 },
     );
 
-    const httpResponse = await newHttpResponse(requestPausedEvent, 200, getGetResponseBodyResponse);
+    const httpResponse = newHttpResponse(requestPausedEvent, 200, {
+      body: "",
+      base64Encoded: false,
+    });
 
     expect(httpResponse).toMatchObject({
       request: {
@@ -305,29 +295,13 @@ describe("newHttpResponse", () => {
     });
   });
 
-  it("does not fetch the body for redirects", async () => {
-    const getGetResponseBodyResponse = vi.fn();
-
-    const httpResponse = await newHttpResponse(
+  it("sets an empty body when the response body is not given", () => {
+    const httpResponse = newHttpResponse(
       makeRequestPausedEvent({}, { responseStatusCode: 302 }),
       302,
-      getGetResponseBodyResponse,
+      undefined,
     );
 
     expect(httpResponse).toMatchObject({ statusCode: 302, body: "" });
-    expect(getGetResponseBodyResponse).not.toHaveBeenCalled();
-  });
-
-  it("returns Error when fetching the body fails", async () => {
-    const getGetResponseBodyResponse = vi.fn().mockResolvedValue(new Error("fetch failed"));
-
-    const httpResponse = await newHttpResponse(
-      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
-      200,
-      getGetResponseBodyResponse,
-    );
-
-    expect(httpResponse).toBeInstanceOf(Error);
-    expect((httpResponse as Error).message).toBe("fetch failed");
   });
 });

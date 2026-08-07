@@ -89,17 +89,17 @@ export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedE
   };
 }
 
-export async function newHttpResponse(
+export function newHttpResponse(
   requestPausedEvent: Protocol.Fetch.RequestPausedEvent,
   statusCode: number,
-  getGetResponseBodyResponse: (
-    requestId: Protocol.Fetch.RequestId,
-  ) => Promise<Protocol.Network.GetResponseBodyResponse | Error>,
-): Promise<HttpResponse | Error> {
-  const body = await extractResponseBody(requestPausedEvent, getGetResponseBodyResponse);
-  if (body instanceof Error) {
-    return body;
-  }
+  getResponseBodyResponse?: Protocol.Network.GetResponseBodyResponse,
+): HttpResponse {
+  const body =
+    getResponseBodyResponse === undefined
+      ? ""
+      : getResponseBodyResponse.base64Encoded
+        ? Base64.decode(getResponseBodyResponse.body)
+        : getResponseBodyResponse.body;
 
   return {
     createdAt: new Date().toISOString(),
@@ -124,31 +124,6 @@ function extractRequestBody(request: Protocol.Network.Request): string {
   return request.postDataEntries
     .flatMap((e) => (e.bytes !== undefined ? [Base64.decode(e.bytes)] : []))
     .join("");
-}
-
-async function extractResponseBody(
-  requestPausedEvent: Protocol.Fetch.RequestPausedEvent,
-  getGetResponseBodyResponse: (
-    requestId: Protocol.Fetch.RequestId,
-  ) => Promise<Protocol.Network.GetResponseBodyResponse | Error>,
-): Promise<string | Error> {
-  // Do not attempt to get the response body for redirects as it causes an error
-  if (
-    requestPausedEvent.responseStatusCode !== undefined &&
-    300 <= requestPausedEvent.responseStatusCode &&
-    requestPausedEvent.responseStatusCode < 400
-  ) {
-    return "";
-  }
-
-  const getResponseBodyResponse = await getGetResponseBodyResponse(requestPausedEvent.requestId);
-  if (getResponseBodyResponse instanceof Error) {
-    return getResponseBodyResponse;
-  }
-
-  return getResponseBodyResponse.base64Encoded
-    ? Base64.decode(getResponseBodyResponse.body)
-    : getResponseBodyResponse.body;
 }
 
 export function getHeaderValue(httpMessage: HttpMessage, key: string): string | undefined {
