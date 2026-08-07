@@ -17,7 +17,6 @@ const baseFields = {
   requestId: "req-1",
   resourceType: "Document",
   headers: [],
-  bodyStatus: "loaded",
   body: "",
 };
 

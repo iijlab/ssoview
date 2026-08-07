@@ -9,8 +9,6 @@ import {
   type HttpRequest,
   type HttpResponse,
   getHeaderValue,
-  getRequestBody,
-  getResponseBody,
 } from "@/common/models/http-message.ts";
 import {
   type AuthenticatedResourceResponse,
@@ -140,12 +138,7 @@ async function detectIncomingSamlAuthnRequestForHttpPostBinding(
     return undefined;
   }
 
-  const responseBody = await getResponseBody(httpResponse);
-  if (responseBody instanceof Error) {
-    return responseBody;
-  }
-
-  const encodedSamlAuthnRequest = extractSamlRequestFromResponseBody(responseBody);
+  const encodedSamlAuthnRequest = extractSamlRequestFromResponseBody(httpResponse.body);
   if (!encodedSamlAuthnRequest) {
     return undefined;
   }
@@ -204,12 +197,7 @@ async function detectIncomingSamlAuthnRequestForScriptRedirectBinding(
     return undefined;
   }
 
-  const responseBody = await getResponseBody(httpResponse);
-  if (responseBody instanceof Error) {
-    return responseBody;
-  }
-
-  const matched = responseBody.match(/"location\.href=&quot;([^"]*SAMLRequest=[^"]*)&quot;"/);
+  const matched = httpResponse.body.match(/"location\.href=&quot;([^"]*SAMLRequest=[^"]*)&quot;"/);
   if (!matched?.[1]) {
     return undefined;
   }
@@ -271,12 +259,7 @@ async function detectIncomingSamlAuthnRequestForMetaRefreshBinding(
     return undefined;
   }
 
-  const responseBody = await getResponseBody(httpResponse);
-  if (responseBody instanceof Error) {
-    return responseBody;
-  }
-
-  const url = extractUrlFromMetaRefresh(responseBody);
+  const url = extractUrlFromMetaRefresh(httpResponse.body);
   if (!url) {
     return undefined;
   }
@@ -399,12 +382,7 @@ async function detectOutgoingSamlAuthnRequestForPostBinding(
     return undefined;
   }
 
-  const requestBody = await getRequestBody(httpRequest);
-  if (requestBody instanceof Error) {
-    return requestBody;
-  }
-
-  const encodedSamlAuthnRequest = extractSamlRequestFromRequestBody(requestBody);
+  const encodedSamlAuthnRequest = extractSamlRequestFromRequestBody(httpRequest.body);
   if (encodedSamlAuthnRequest instanceof Error || encodedSamlAuthnRequest === undefined) {
     return encodedSamlAuthnRequest;
   }
@@ -528,12 +506,7 @@ async function detectIncomingSamlResponseForPostBinding(
     return undefined;
   }
 
-  const responseBody = await getResponseBody(httpResponse);
-  if (responseBody instanceof Error) {
-    return responseBody;
-  }
-
-  const encodedSamlResponse = extractSamlResponseFromResponseBody(responseBody);
+  const encodedSamlResponse = extractSamlResponseFromResponseBody(httpResponse.body);
   if (!encodedSamlResponse) {
     return undefined;
   }
@@ -645,12 +618,7 @@ async function detectOutgoingSamlResponseForPostBinding(
     return undefined;
   }
 
-  const requestBody = await getRequestBody(httpRequest);
-  if (requestBody instanceof Error) {
-    return requestBody;
-  }
-
-  const encodedSamlResponse = extractSamlResponseFromRequestBody(requestBody);
+  const encodedSamlResponse = extractSamlResponseFromRequestBody(httpRequest.body);
   if (encodedSamlResponse instanceof Error || encodedSamlResponse === undefined) {
     return encodedSamlResponse;
   }

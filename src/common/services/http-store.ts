@@ -3,11 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import {
-  type HttpMessage,
-  ensureLoadedHttpMessage,
-  isHttpMessage,
-} from "@/common/models/http-message.ts";
+import { type HttpMessage, isHttpMessage } from "@/common/models/http-message.ts";
 import { makeStorageKey, makeStorageKeyPrefix } from "@/common/services/storage-key.ts";
 import {
   getSessionStorageItemsByKeyPrefix,
@@ -42,12 +38,8 @@ export async function storeHttpMessage(
     httpMessage.requestId,
     httpMessage.stage,
   );
-  const loadedHttpMessage = await ensureLoadedHttpMessage(httpMessage);
-  if (loadedHttpMessage instanceof Error) {
-    return loadedHttpMessage;
-  }
 
-  return setSessionStorageItem(key, loadedHttpMessage);
+  return setSessionStorageItem(key, httpMessage);
 }
 
 export async function retrieveHttpMessages(

@@ -155,14 +155,16 @@ function onFetchRequestPausedEvent(
     } else {
       // Ignore non-http URLs like chrome://
       if (requestPausedEvent.request.url.startsWith("http")) {
-        await onInterceptHttpResponse(
-          tabId,
-          newHttpResponse(
-            requestPausedEvent,
-            requestPausedEvent.responseStatusCode,
-            getGetResponseBodyResponse.bind(null, tabId),
-          ),
+        const httpResponse = await newHttpResponse(
+          requestPausedEvent,
+          requestPausedEvent.responseStatusCode,
+          getGetResponseBodyResponse.bind(null, tabId),
         );
+        if (httpResponse instanceof Error) {
+          console.warn("Failed to retrieve HTTP response:", httpResponse);
+        } else {
+          await onInterceptHttpResponse(tabId, httpResponse);
+        }
       }
 
       // NOTE: Response body cannot be retrieved after calling

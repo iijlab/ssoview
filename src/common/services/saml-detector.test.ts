@@ -51,7 +51,6 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    bodyStatus: "loaded",
     stage: "Request",
     requestId: "req-1",
     resourceType: "Document",
@@ -70,7 +69,6 @@ function makeResponse(
   return {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    bodyStatus: "loaded",
     stage: "Response",
     requestId: "req-1",
     resourceType: "Document",

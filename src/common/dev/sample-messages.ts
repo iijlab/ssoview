@@ -34,7 +34,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
 
   const httpMessageBase = {
     imported: false,
-    bodyStatus: "loaded" as const,
     resourceType: "Document" as const,
   };
 

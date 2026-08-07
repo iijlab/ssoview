@@ -480,11 +480,16 @@ describe("buildHttpMessageDetails", () => {
     headers: [{ name: "Content-Type", value: "text/html" }],
   };
 
-  it("builds request details from a loaded HTTP request", () => {
+  const pairedRequest = {
+    ...baseFields,
+    stage: "Request",
+    body: "",
+  };
+
+  it("builds request details from an HTTP request", () => {
     const httpMessage = {
       ...baseFields,
       stage: "Request",
-      bodyStatus: "loaded",
       body: "request body",
     } as HttpMessage;
 
@@ -498,13 +503,13 @@ describe("buildHttpMessageDetails", () => {
     expect(result.url).toBe("https://example.com/path");
   });
 
-  it("builds response details from a loaded HTTP response", () => {
+  it("builds response details from an HTTP response", () => {
     const httpMessage = {
       ...baseFields,
       stage: "Response",
       statusCode: 200,
-      bodyStatus: "loaded",
       body: "response body",
+      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);
@@ -519,26 +524,13 @@ describe("buildHttpMessageDetails", () => {
     expect(result.requestUrl).toBe("https://example.com/path");
   });
 
-  it("sets body to empty string when bodyStatus is not loaded", () => {
-    const httpMessage = {
-      ...baseFields,
-      stage: "Request",
-      bodyStatus: "pending",
-      getBody: () => Promise.resolve(""),
-    } as HttpMessage;
-
-    const result = buildHttpMessageDetails(httpMessage);
-
-    expect(result.body).toBe("");
-  });
-
   it("maps statusCode to statusText", () => {
     const httpMessage = {
       ...baseFields,
       stage: "Response",
       statusCode: 302,
-      bodyStatus: "loaded",
       body: "",
+      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);
