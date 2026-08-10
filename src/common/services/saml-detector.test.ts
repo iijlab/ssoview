@@ -35,6 +35,17 @@ const RESPONSE_XML = [
   "</samlp:Response>",
 ].join("");
 
+// An unsolicited response, which is how an IdP-initiated flow starts. It has no InResponseTo.
+const UNSOLICITED_RESPONSE_XML = [
+  "<samlp:Response",
+  '  xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"',
+  `  ID="${RESPONSE_ID}">`,
+  "  <samlp:Status>",
+  '    <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>',
+  "  </samlp:Status>",
+  "</samlp:Response>",
+].join("");
+
 const DATE_HEADER_VALUE = "Thu, 01 Jan 2026 00:00:00 GMT";
 const DATE_ISO = "2026-01-01T00:00:00.000Z";
 
@@ -139,6 +150,11 @@ function buildSamlResponseFormBodyWithUpperCaseAttributes(): string {
 
 function buildSamlResponsePostBody(): string {
   const encoded = Base64.encode(RESPONSE_XML);
+  return new URLSearchParams({ SAMLResponse: encoded }).toString();
+}
+
+function buildUnsolicitedSamlResponsePostBody(): string {
+  const encoded = Base64.encode(UNSOLICITED_RESPONSE_XML);
   return new URLSearchParams({ SAMLResponse: encoded }).toString();
 }
 
@@ -910,9 +926,27 @@ describe("detectSamlStep", () => {
       expect(result).toBeUndefined();
     });
 
-    it("returns Error when SAML Response XML has no InResponseTo", async () => {
-      const noInResponseToXml = '<samlp:Response Version="2.0"></samlp:Response>';
-      const encoded = Base64.encode(noInResponseToXml);
+    it("uses the Response ID as the session ID when there is no InResponseTo", async () => {
+      const request = makeRequest({
+        url: "https://sp.example.com/acs",
+        method: "POST",
+        body: buildUnsolicitedSamlResponsePostBody(),
+      });
+
+      const result = await detectSamlStep(request);
+
+      expect(result).not.toBeInstanceOf(Error);
+      expect(result).toMatchObject({
+        step: 5,
+        type: "OutgoingResponse",
+        sessionId: RESPONSE_ID,
+        sp: "sp.example.com",
+      });
+    });
+
+    it("returns Error when SAML Response XML has no ID", async () => {
+      const noIdXml = '<samlp:Response Version="2.0"></samlp:Response>';
+      const encoded = Base64.encode(noIdXml);
       const body = new URLSearchParams({ SAMLResponse: encoded }).toString();
       const request = makeRequest({
         url: "https://sp.example.com/acs",
@@ -923,7 +957,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStep(request);
 
       expect(result).toBeInstanceOf(Error);
-      expect((result as Error).message).toBe("InResponseTo not found in Response");
+      expect((result as Error).message).toBe("ID not found in Response");
     });
   });
 
