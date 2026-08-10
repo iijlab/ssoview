@@ -71,6 +71,7 @@ export type SamlAuthnRequest = {
 };
 
 export type SamlResponse = {
+  id: string;
   inResponseTo: string;
   statusCode: string;
   raw?: string;

@@ -769,12 +769,18 @@ function makeSamlResponse(samlResponseStr: string): SamlResponse | Error {
     return new Error("InResponseTo not found in Response");
   }
 
+  const id = unwrap(parsed.$id);
+  if (!id) {
+    return new Error("ID not found in Response");
+  }
+
   const statusCode = unwrap(unwrap(unwrap(parsed.status)?.statusCode)?.$value);
   if (!statusCode) {
     return new Error("StatusCode not found in Response");
   }
 
   return {
+    id,
     inResponseTo,
     statusCode,
     raw: samlResponseStr,

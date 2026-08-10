@@ -22,9 +22,12 @@ const AUTHN_REQUEST_XML = [
   "</samlp:AuthnRequest>",
 ].join("");
 
+const RESPONSE_ID = "response-1";
+
 const RESPONSE_XML = [
   "<samlp:Response",
   '  xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"',
+  `  ID="${RESPONSE_ID}"`,
   `  InResponseTo="${AUTHN_REQUEST_ID}">`,
   "  <samlp:Status>",
   '    <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>',
@@ -794,7 +797,7 @@ describe("detectSamlStep", () => {
       expect(result).toBeUndefined();
     });
 
-    it("includes response with inResponseTo and raw XML", async () => {
+    it("includes response with id, inResponseTo and raw XML", async () => {
       const requestUrl = await buildIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
       const response = makeResponse(
@@ -813,7 +816,8 @@ describe("detectSamlStep", () => {
 
       expect(result).not.toBeUndefined();
       expect(result).not.toBeInstanceOf(Error);
-      const saml = result as { response: { inResponseTo: string; raw: string } };
+      const saml = result as { response: { id: string; inResponseTo: string; raw: string } };
+      expect(saml.response.id).toBe(RESPONSE_ID);
       expect(saml.response.inResponseTo).toBe(AUTHN_REQUEST_ID);
       expect(saml.response.raw).toContain(AUTHN_REQUEST_ID);
     });
