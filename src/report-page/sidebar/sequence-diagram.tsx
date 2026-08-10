@@ -182,30 +182,28 @@ export function SequenceDiagram({
     const container = samlContextLayerContainerRef.current;
     const samlRequest = samlRequestRef.current;
     const samlResponse = samlResponseRef.current;
-    if (!container || !samlRequest) {
+    if (!container) {
       return;
     }
 
     const observer = new ResizeObserver(() => {
       const containerRect = container.getBoundingClientRect();
-      const samlRequestRect = samlRequest.getBoundingClientRect();
-      if (samlResponse) {
-        const samlResponseRect = samlResponse.getBoundingClientRect();
-        setAuthPhaseLayout({
-          top: samlRequestRect.bottom - containerRect.top,
-          bottom: containerRect.bottom - samlResponseRect.top,
-        });
-      } else {
-        setAuthPhaseLayout({
-          top: samlRequestRect.bottom - containerRect.top,
-          bottom:
-            containerRect.bottom - (containerRect.top + (diagramLayout.httpMessageTops[3] ?? 0)),
-        });
-      }
+
+      // Anchor to the SAML overlays when they exist, otherwise to the slots where HTTP messages 3 and 4 are laid out.
+      const top = samlRequest
+        ? samlRequest.getBoundingClientRect().bottom - containerRect.top
+        : (diagramLayout.httpMessageTops[2] ?? 0) + HTTP_ARROW_HEIGHT;
+      const bottom = samlResponse
+        ? containerRect.bottom - samlResponse.getBoundingClientRect().top
+        : containerRect.bottom - (containerRect.top + (diagramLayout.httpMessageTops[3] ?? 0));
+
+      setAuthPhaseLayout({ top, bottom });
     });
 
     observer.observe(container);
-    observer.observe(samlRequest);
+    if (samlRequest) {
+      observer.observe(samlRequest);
+    }
     if (samlResponse) {
       observer.observe(samlResponse);
     }

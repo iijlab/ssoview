@@ -497,7 +497,7 @@ async function detectIncomingSamlResponseForRedirectBinding(
   }
 
   return {
-    sessionId: samlResponse.inResponseTo,
+    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
     createdAt: new Date().toISOString(),
     imported: httpResponse.imported,
     step: 4,
@@ -547,7 +547,7 @@ async function detectIncomingSamlResponseForPostBinding(
   }
 
   return {
-    sessionId: samlResponse.inResponseTo,
+    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
     createdAt: new Date().toISOString(),
     imported: httpResponse.imported,
     step: 4,
@@ -615,7 +615,7 @@ async function detectOutgoingSamlResponseForRedirectBinding(
   }
 
   return {
-    sessionId: samlResponse.inResponseTo,
+    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
     createdAt: new Date().toISOString(),
     imported: httpRequest.imported,
     step: 5,
@@ -663,7 +663,7 @@ async function detectOutgoingSamlResponseForPostBinding(
   }
 
   return {
-    sessionId: samlResponse.inResponseTo,
+    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
     createdAt: new Date().toISOString(),
     imported: httpRequest.imported,
     step: 5,
@@ -764,10 +764,12 @@ function makeSamlResponse(samlResponseStr: string): SamlResponse | Error {
     return parsed;
   }
 
-  const inResponseTo = unwrap(parsed.$inResponseTo);
-  if (!inResponseTo) {
-    return new Error("InResponseTo not found in Response");
+  const id = unwrap(parsed.$id);
+  if (!id) {
+    return new Error("ID not found in Response");
   }
+
+  const inResponseTo = unwrap(parsed.$inResponseTo);
 
   const statusCode = unwrap(unwrap(unwrap(parsed.status)?.statusCode)?.$value);
   if (!statusCode) {
@@ -775,6 +777,7 @@ function makeSamlResponse(samlResponseStr: string): SamlResponse | Error {
   }
 
   return {
+    id,
     inResponseTo,
     statusCode,
     raw: samlResponseStr,
