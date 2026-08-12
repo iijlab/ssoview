@@ -13,7 +13,6 @@ import { RecordButton } from "@/side-panel/record-panel/RecordButton.tsx";
 import { StopButton } from "@/side-panel/record-panel/StopButton.tsx";
 import { SidePanelState } from "@/side-panel/config.ts";
 import { useEffectOnce } from "@/side-panel/utils.ts";
-import { hideBadge } from "@/side-panel/extensions/badge.ts";
 // local
 import type { SessionSummary } from "@/common/models/session-summary.ts";
 import { type CaptureTerminatedReason, subscribeCaptureTerminatedEvent } from "@/common/pubsub.ts";
@@ -44,7 +43,6 @@ const RecordPanel = ({
         console.info(`[${tabId}]: CaptureTerminatedEvent occurred:`, reason);
         // Managing state
         setPanelState(SidePanelState.STOPPED);
-        hideBadge();
         // Update SessionCardList
         if (tabId !== subscribeTabId) {
           console.warn(`[${tabId}]: tabId mismatched: subscribeTabId = ${subscribeTabId}`);
