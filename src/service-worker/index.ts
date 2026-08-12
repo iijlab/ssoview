@@ -27,7 +27,7 @@ import { dumpSessionArchive, loadSessionArchive } from "@/common/services/sessio
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
 import { setupMonitoring, startMonitoring, stopMonitoring } from "@/service-worker/http-monitor.ts";
 import { processHttpMessage } from "@/service-worker/saml-recorder.ts";
-import "@/service-worker/sidepanel-activator.ts";
+import { setupSidePanel } from "@/service-worker/side-panel.ts";
 
 function init() {
   registerStartMonitoringHandler(onStartMonitoring);
@@ -69,6 +69,8 @@ function init() {
       }
     },
   );
+
+  setupSidePanel();
 }
 
 async function onStartMonitoring(tabId: number): Promise<void | Error> {

@@ -85,7 +85,7 @@ const registerCloseHandler = () => {
   });
 };
 
-export function activate() {
+export function setupSidePanel() {
   registerOpenHandler();
   registerCloseHandler();
 }
