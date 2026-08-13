@@ -8,8 +8,7 @@ import React from "react";
 import { Fab, type FabOwnProps } from "@mui/material";
 import { Start } from "@mui/icons-material";
 // side-panel
-import { BadgeColor, SidePanelState } from "@/side-panel/config.ts";
-import { showBadge } from "@/side-panel/extensions/badge.ts";
+import { SidePanelState } from "@/side-panel/config.ts";
 // local
 import type { SessionSummary } from "@/common/models/session-summary.ts";
 import { startMonitoring } from "@/common/rpc.ts";
@@ -40,7 +39,6 @@ const RecordButton = ({
     }
     // Managing state
     setPanelState(SidePanelState.RECORDING);
-    showBadge("REC", BadgeColor.REC_TEXT, BadgeColor.REC_BACKGROUND);
   };
 
   return (

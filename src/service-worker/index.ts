@@ -24,9 +24,10 @@ import {
 } from "@/common/rpc.ts";
 import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
 import { dumpSessionArchive, loadSessionArchive } from "@/common/services/session-archiver.ts";
+import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
 import { setupMonitoring, startMonitoring, stopMonitoring } from "@/service-worker/http-monitor.ts";
 import { processHttpMessage } from "@/service-worker/saml-recorder.ts";
-import "@/service-worker/sidepanel-activator.ts";
+import { setupSidePanel } from "@/service-worker/side-panel.ts";
 
 function init() {
   registerStartMonitoringHandler(onStartMonitoring);
@@ -60,20 +61,34 @@ function init() {
       }
     },
     async (tabId, reason) => {
+      hideBadge();
+
       const result = await publishCaptureTerminatedEvent(tabId, reason);
       if (result instanceof Error) {
         console.warn("Failed to publish monitoring terminated event:", result);
       }
     },
   );
+
+  setupSidePanel();
 }
 
 async function onStartMonitoring(tabId: number): Promise<void | Error> {
-  return await startMonitoring(tabId);
+  const result = await startMonitoring(tabId);
+  if (result instanceof Error) {
+    return result;
+  }
+
+  showBadge("REC", BadgeColor.REC_TEXT, BadgeColor.REC_BACKGROUND);
 }
 
 async function onStopMonitoring(tabId: number): Promise<void | Error> {
-  return await stopMonitoring(tabId);
+  const result = await stopMonitoring(tabId);
+  if (result instanceof Error) {
+    return result;
+  }
+
+  hideBadge();
 }
 
 async function onGetSessionSummaries(tabId: number): Promise<SessionSummary[] | Error> {

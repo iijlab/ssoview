@@ -5,12 +5,10 @@
 
 // @ts-expect-error "Avoid errors caused by erasableSyntaxOnly"
 import ContextType = chrome.runtime.ContextType;
-// side-panel
-import { IconPath } from "@/side-panel/config.ts";
-import { hideBadge } from "@/side-panel/extensions/badge.ts";
 // local
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
 import { getActiveTabId } from "@/common/utils/chrome-tabs.ts";
+import { IconPath, hideBadge } from "@/service-worker/action-icon.ts";
 import { stopMonitoring } from "@/service-worker/http-monitor.ts";
 
 const registerOpenHandler = () => {
@@ -87,7 +85,7 @@ const registerCloseHandler = () => {
   });
 };
 
-export function activate() {
+export function setupSidePanel() {
   registerOpenHandler();
   registerCloseHandler();
 }

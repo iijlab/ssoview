@@ -9,7 +9,6 @@ import { Fab, type FabOwnProps } from "@mui/material";
 import { Stop } from "@mui/icons-material";
 // side-panel
 import { SidePanelState } from "@/side-panel/config.ts";
-import { hideBadge } from "@/side-panel/extensions/badge.ts";
 // local
 import type { SessionSummary } from "@/common/models/session-summary.ts";
 import { stopMonitoring } from "@/common/rpc.ts";
@@ -41,7 +40,6 @@ const StopButton = ({
     }
     // Managing state
     setPanelState(SidePanelState.STOPPED);
-    hideBadge();
     // Update SessionCardList
     if (setSessionSummaries !== undefined) {
       const result = await getSessionSummaries(tabId);
