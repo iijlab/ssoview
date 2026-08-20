@@ -4,6 +4,7 @@
  */
 
 import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { isAttached } from "@/common/utils/chrome-debugger.ts";
 import {
   getAllSessionStorageItems,
   getSessionStorageBytesInUse,
@@ -25,9 +26,17 @@ import {
 import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
 import { dumpSessionArchive, loadSessionArchive } from "@/common/services/session-archiver.ts";
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
-import { setupMonitoring, startMonitoring, stopMonitoring } from "@/service-worker/http-monitor.ts";
+import {
+  registerCaptureStopHandler,
+  startCapturing,
+  stopCapturing,
+} from "@/service-worker/capture-manager.ts";
+import { setupInterception } from "@/service-worker/http-interception.ts";
 import { processHttpMessage } from "@/service-worker/saml-recorder.ts";
-import { setupSidePanel } from "@/service-worker/side-panel.ts";
+import {
+  registerSidePanelCloseHandler,
+  registerSidePanelOpenHandler,
+} from "@/service-worker/side-panel.ts";
 
 function init() {
   registerStartMonitoringHandler(onStartMonitoring);
@@ -37,7 +46,7 @@ function init() {
   registerDumpSessionHandler(onDumpSession);
   registerLoadSessionHandler(onLoadSession);
 
-  setupMonitoring(
+  setupInterception(
     async (tabId, httpRequest) => {
       const sessionId = await processHttpMessage(tabId, httpRequest);
       if (sessionId instanceof Error) {
@@ -60,21 +69,34 @@ function init() {
         }
       }
     },
-    async (tabId, reason) => {
-      hideBadge();
-
-      const result = await publishCaptureTerminatedEvent(tabId, reason);
-      if (result instanceof Error) {
-        console.warn("Failed to publish monitoring terminated event:", result);
-      }
-    },
   );
 
-  setupSidePanel();
+  registerCaptureStopHandler(async (tabId) => {
+    hideBadge();
+
+    // TODO: The detach reason is no longer used. This parameter will be removed.
+    const result = await publishCaptureTerminatedEvent(tabId, "unknown");
+    if (result instanceof Error) {
+      console.warn("Failed to publish monitoring terminated event:", result);
+    }
+  });
+
+  registerSidePanelOpenHandler();
+  registerSidePanelCloseHandler(async (tabId) => {
+    const attached = await isAttached(tabId);
+    if (attached instanceof Error) {
+      console.warn("Failed to get debugging state:", attached);
+    } else if (attached) {
+      const result = await onStopMonitoring(tabId);
+      if (result instanceof Error) {
+        console.warn("Failed to stop monitoring:", result);
+      }
+    }
+  });
 }
 
 async function onStartMonitoring(tabId: number): Promise<void | Error> {
-  const result = await startMonitoring(tabId);
+  const result = await startCapturing(tabId);
   if (result instanceof Error) {
     return result;
   }
@@ -83,7 +105,7 @@ async function onStartMonitoring(tabId: number): Promise<void | Error> {
 }
 
 async function onStopMonitoring(tabId: number): Promise<void | Error> {
-  const result = await stopMonitoring(tabId);
+  const result = await stopCapturing(tabId);
   if (result instanceof Error) {
     return result;
   }
