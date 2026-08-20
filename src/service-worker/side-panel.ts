@@ -6,12 +6,10 @@
 // @ts-expect-error "Avoid errors caused by erasableSyntaxOnly"
 import ContextType = chrome.runtime.ContextType;
 // local
-import { isAttached } from "@/common/utils/chrome-debugger.ts";
 import { getActiveTabId } from "@/common/utils/chrome-tabs.ts";
 import { IconPath, hideBadge } from "@/service-worker/action-icon.ts";
-import { stopMonitoring } from "@/service-worker/http-monitor.ts";
 
-const registerOpenHandler = () => {
+export function registerSidePanelOpenHandler(): void {
   chrome.action.onClicked.addListener((tab) => {
     if (tab.id === undefined) {
       console.error("tab.id is undefined");
@@ -44,9 +42,11 @@ const registerOpenHandler = () => {
       }
     });
   });
-};
+}
 
-const registerCloseHandler = () => {
+export function registerSidePanelCloseHandler(
+  onSidePanelClosed: (tabId: number) => Promise<void>,
+): void {
   chrome.sidePanel.onClosed.addListener((info) => {
     (async () => {
       let tabId: number;
@@ -66,26 +66,8 @@ const registerCloseHandler = () => {
       chrome.action.setIcon({ path: IconPath.DEFAULT }, () => {});
       // Badge
       hideBadge();
-      // Detach the debugger
-      const attached = await isAttached(tabId);
-      if (attached instanceof Error) {
-        console.error(`[${tabId}]: Failed to isAttached:`, attached);
-        return;
-      }
-      if (!attached) {
-        return;
-      }
-      const result = await stopMonitoring(tabId); // Call chrome.debugger.detach
-      if (result instanceof Error) {
-        console.error(`[${tabId}]: Failed to stop monitoring:`, result);
-        return;
-      }
-      console.info(`[${tabId}]: Detach the debugger from a tab`);
+
+      await onSidePanelClosed(tabId);
     })();
   });
-};
-
-export function setupSidePanel() {
-  registerOpenHandler();
-  registerCloseHandler();
 }

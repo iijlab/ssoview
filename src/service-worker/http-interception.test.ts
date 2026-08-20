@@ -5,7 +5,7 @@
 
 import type Protocol from "devtools-protocol";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { setupMonitoring } from "./http-monitor.ts";
+import { setupInterception } from "./http-interception.ts";
 
 //
 // Helpers
@@ -28,13 +28,11 @@ beforeEach(() => {
   vi.stubGlobal("chrome", {
     debugger: {
       onEvent: { addListener: (listener: DebuggerEventListener) => eventListeners.push(listener) },
-      onDetach: { addListener: vi.fn() },
       sendCommand,
     },
   });
 });
 
-// Dispatches an event to the listener registered by setupMonitoring
 function fireDebuggerEvent(
   source: chrome.debugger.Debuggee,
   method: string,
@@ -65,10 +63,10 @@ function makeResponsePausedEvent(responseStatusCode: number): Protocol.Fetch.Req
 // Tests
 //
 
-describe("setupMonitoring", () => {
+describe("setupInterception", () => {
   it("does not send Fetch.getResponseBody for redirects", async () => {
     const onInterceptHttpResponse = vi.fn();
-    setupMonitoring(vi.fn(), onInterceptHttpResponse, vi.fn());
+    setupInterception(vi.fn(), onInterceptHttpResponse);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(302));
 
@@ -91,7 +89,7 @@ describe("setupMonitoring", () => {
       }
     });
     const onInterceptHttpResponse = vi.fn();
-    setupMonitoring(vi.fn(), onInterceptHttpResponse, vi.fn());
+    setupInterception(vi.fn(), onInterceptHttpResponse);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(200));
 
