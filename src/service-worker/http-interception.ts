@@ -12,7 +12,7 @@ import {
 } from "@/common/models/http-message.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
-export function setupInterception(
+export function registerHttpInterceptionHandlers(
   onInterceptHttpRequest: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
   onInterceptHttpResponse: (tabId: number, httpResponse: HttpResponse) => Promise<void>,
 ): void {

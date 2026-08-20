@@ -5,7 +5,7 @@
 
 import type Protocol from "devtools-protocol";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { setupInterception } from "./http-interception.ts";
+import { registerHttpInterceptionHandlers } from "./http-interception.ts";
 
 //
 // Helpers
@@ -63,10 +63,10 @@ function makeResponsePausedEvent(responseStatusCode: number): Protocol.Fetch.Req
 // Tests
 //
 
-describe("setupInterception", () => {
+describe("registerHttpInterceptionHandlers", () => {
   it("does not send Fetch.getResponseBody for redirects", async () => {
     const onInterceptHttpResponse = vi.fn();
-    setupInterception(vi.fn(), onInterceptHttpResponse);
+    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(302));
 
@@ -89,7 +89,7 @@ describe("setupInterception", () => {
       }
     });
     const onInterceptHttpResponse = vi.fn();
-    setupInterception(vi.fn(), onInterceptHttpResponse);
+    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(200));
 
