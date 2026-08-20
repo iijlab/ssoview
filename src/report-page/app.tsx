@@ -171,7 +171,7 @@ async function loadHttpMessages(
   if (!Number.isSafeInteger(tabId) || tabId <= 0 || sessionId === null) {
     // In development mode, fall back to sample data
     if (import.meta.env.MODE === "development") {
-      const { buildSampleHttpMessages } = await import("@/common/dev/sample-messages.ts");
+      const { buildSampleHttpMessages } = await import("@/report-page/dev/sample-messages.ts");
       return buildSampleHttpMessages();
     } else {
       return new Error(`Invalid URL params: tabId=${tabId}, sessionId=${sessionId}`);

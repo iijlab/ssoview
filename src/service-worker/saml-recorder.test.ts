@@ -6,23 +6,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HttpRequest, HttpResponse } from "@/common/models/http-message.ts";
 import type { SamlTrace } from "@/common/models/saml-trace.ts";
+import { storeHttpMessage } from "@/common/services/http-store.ts";
+import { detectSamlStep } from "@/common/services/saml-detector.ts";
+import { storeSamlTrace } from "@/common/services/saml-store.ts";
 import { processHttpMessage } from "./saml-recorder.ts";
-
-vi.mock("@/common/models/http-message.ts", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/common/models/http-message.ts")>();
-  return {
-    ...original,
-    debugHttpMessage: vi.fn(),
-  };
-});
-
-vi.mock("@/common/models/saml-trace.ts", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/common/models/saml-trace.ts")>();
-  return {
-    ...original,
-    debugSamlTrace: vi.fn(),
-  };
-});
 
 vi.mock("@/common/services/saml-detector.ts", () => ({
   detectSamlStep: vi.fn(),
@@ -35,10 +22,6 @@ vi.mock("@/common/services/http-store.ts", () => ({
 vi.mock("@/common/services/saml-store.ts", () => ({
   storeSamlTrace: vi.fn(),
 }));
-
-const { detectSamlStep } = await import("@/common/services/saml-detector.ts");
-const { storeHttpMessage } = await import("@/common/services/http-store.ts");
-const { storeSamlTrace } = await import("@/common/services/saml-store.ts");
 
 beforeEach(() => {
   vi.resetAllMocks();

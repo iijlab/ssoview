@@ -5,6 +5,11 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  getAllSessionStorageKeys,
+  getSessionStorageItems,
+  setSessionStorageItem,
+} from "@/common/utils/chrome-storage.ts";
+import {
   newCaptureStartedRecord,
   newDebuggerAttachedRecord,
   newDebuggerDetachedRecord,
@@ -17,9 +22,6 @@ vi.mock("@/common/utils/chrome-storage.ts", () => ({
   getSessionStorageItems: vi.fn(),
   setSessionStorageItem: vi.fn(),
 }));
-
-const { getAllSessionStorageKeys, getSessionStorageItems, setSessionStorageItem } =
-  await import("@/common/utils/chrome-storage.ts");
 
 beforeEach(() => {
   vi.resetAllMocks();

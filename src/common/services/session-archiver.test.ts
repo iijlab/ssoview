@@ -4,8 +4,12 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
 import type { HttpMessage } from "@/common/models/http-message.ts";
 import type { SamlTrace } from "@/common/models/saml-trace.ts";
+import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
+import { detectSamlStep } from "@/common/services/saml-detector.ts";
+import { storeSamlTrace } from "@/common/services/saml-store.ts";
 import { dumpSessionArchive, loadSessionArchive } from "./session-archiver.ts";
 
 vi.mock("@/common/models/http-archive.ts", () => ({
@@ -25,11 +29,6 @@ vi.mock("@/common/services/saml-detector.ts", () => ({
 vi.mock("@/common/services/saml-store.ts", () => ({
   storeSamlTrace: vi.fn(),
 }));
-
-const { newHar, toHttpMessages } = await import("@/common/models/http-archive.ts");
-const { retrieveHttpMessages, storeHttpMessage } = await import("@/common/services/http-store.ts");
-const { detectSamlStep } = await import("@/common/services/saml-detector.ts");
-const { storeSamlTrace } = await import("@/common/services/saml-store.ts");
 
 beforeEach(() => {
   vi.resetAllMocks();

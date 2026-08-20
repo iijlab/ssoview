@@ -5,13 +5,12 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SamlTrace } from "@/common/models/saml-trace.ts";
+import { retrieveSamlTraces } from "@/common/services/saml-store.ts";
 import { getSamlSessionSummary, summarizeSamlSession } from "./saml-summarizer.ts";
 
 vi.mock("@/common/services/saml-store.ts", () => ({
   retrieveSamlTraces: vi.fn(),
 }));
-
-const { retrieveSamlTraces } = await import("@/common/services/saml-store.ts");
 
 beforeEach(() => {
   vi.resetAllMocks();

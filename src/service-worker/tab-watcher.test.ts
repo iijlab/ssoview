@@ -4,7 +4,15 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { tabExists } from "@/common/utils/chrome-tabs.ts";
+import {
+  isDebugging,
+  registerDebuggerDetachHandler,
+  startDebugging,
+  stopDebugging,
+} from "@/service-worker/debugger-controller.ts";
 import { newWatchStartedRecord, newWatchStoppedRecord } from "@/service-worker/event-record.ts";
+import { retrieveAllEventRecords, storeEventRecord } from "@/service-worker/event-store.ts";
 import {
   getWatchedTabIds,
   isWatching,
@@ -28,12 +36,6 @@ vi.mock("@/service-worker/debugger-controller.ts", () => ({
   startDebugging: vi.fn(),
   stopDebugging: vi.fn(),
 }));
-
-const { retrieveAllEventRecords, storeEventRecord } =
-  await import("@/service-worker/event-store.ts");
-const { tabExists } = await import("@/common/utils/chrome-tabs.ts");
-const { isDebugging, registerDebuggerDetachHandler, startDebugging, stopDebugging } =
-  await import("@/service-worker/debugger-controller.ts");
 
 //
 // Helpers
