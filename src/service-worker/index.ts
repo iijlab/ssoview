@@ -31,7 +31,7 @@ import {
   startCapturing,
   stopCapturing,
 } from "@/service-worker/capture-manager.ts";
-import { setupInterception } from "@/service-worker/http-interception.ts";
+import { registerHttpInterceptionHandlers } from "@/service-worker/http-interception.ts";
 import { processHttpMessage } from "@/service-worker/saml-recorder.ts";
 import {
   registerSidePanelCloseHandler,
@@ -46,7 +46,7 @@ function init() {
   registerDumpSessionHandler(onDumpSession);
   registerLoadSessionHandler(onLoadSession);
 
-  setupInterception(
+  registerHttpInterceptionHandlers(
     async (tabId, httpRequest) => {
       const sessionId = await processHttpMessage(tabId, httpRequest);
       if (sessionId instanceof Error) {
