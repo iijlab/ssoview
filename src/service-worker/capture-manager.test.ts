@@ -5,6 +5,13 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/service-worker/event-record.ts";
+import { retrieveAllEventRecords, storeEventRecord } from "@/service-worker/event-store.ts";
+import {
+  getWatchedTabIds,
+  registerWatchStopHandler,
+  startWatching,
+  stopWatching,
+} from "@/service-worker/tab-watcher.ts";
 import {
   isCapturing,
   registerCaptureStopHandler,
@@ -23,11 +30,6 @@ vi.mock("@/service-worker/tab-watcher.ts", () => ({
   startWatching: vi.fn(),
   stopWatching: vi.fn(),
 }));
-
-const { retrieveAllEventRecords, storeEventRecord } =
-  await import("@/service-worker/event-store.ts");
-const { getWatchedTabIds, registerWatchStopHandler, startWatching, stopWatching } =
-  await import("@/service-worker/tab-watcher.ts");
 
 //
 // Helpers

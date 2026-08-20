@@ -6,6 +6,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionSummary } from "@/common/models/session-summary.ts";
 import type { SamlTrace } from "@/common/models/saml-trace.ts";
+import { purgeHttpMessages } from "@/common/services/http-store.ts";
+import { purgeSamlTraces, retrieveSamlTraces } from "@/common/services/saml-store.ts";
+import { getSamlSessionSummary } from "@/common/services/saml-summarizer.ts";
+import { isAttached } from "@/common/utils/chrome-debugger.ts";
 import { deleteSession, getSessionSummaries, getSessionSummary } from "./session-manager.ts";
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -24,19 +28,6 @@ vi.mock("@/common/services/saml-summarizer.ts", () => ({
 vi.mock("@/common/utils/chrome-debugger.ts", () => ({
   isAttached: vi.fn(),
 }));
-
-vi.mock("@/common/models/session-summary.ts", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/common/models/session-summary.ts")>();
-  return {
-    ...original,
-    debugSessionSummary: vi.fn(),
-  };
-});
-
-const { purgeHttpMessages } = await import("@/common/services/http-store.ts");
-const { purgeSamlTraces, retrieveSamlTraces } = await import("@/common/services/saml-store.ts");
-const { getSamlSessionSummary } = await import("@/common/services/saml-summarizer.ts");
-const { isAttached } = await import("@/common/utils/chrome-debugger.ts");
 
 beforeEach(() => {
   vi.resetAllMocks();

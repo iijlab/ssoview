@@ -8,6 +8,7 @@ import {
   newDebuggerAttachedRecord,
   newDebuggerDetachedRecord,
 } from "@/service-worker/event-record.ts";
+import { retrieveAllEventRecords, storeEventRecord } from "@/service-worker/event-store.ts";
 import {
   isDebugging,
   startDebugging,
@@ -19,9 +20,6 @@ vi.mock("@/service-worker/event-store.ts", () => ({
   retrieveAllEventRecords: vi.fn(),
   storeEventRecord: vi.fn(),
 }));
-
-const { retrieveAllEventRecords, storeEventRecord } =
-  await import("@/service-worker/event-store.ts");
 
 //
 // Helpers
