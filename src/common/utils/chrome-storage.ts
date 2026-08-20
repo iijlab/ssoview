@@ -22,7 +22,9 @@ export async function getSessionStorageItemValue(
   }
 }
 
-async function getSessionStorageItems(keys: string[]): Promise<Record<string, unknown> | Error> {
+export async function getSessionStorageItems(
+  keys: string[],
+): Promise<Record<string, unknown> | Error> {
   try {
     const items = await chrome.storage.session.get(keys);
     return items;
@@ -67,6 +69,14 @@ export async function removeSessionStorageItemsByKeyPrefix(
   }
 
   return await removeSessionStorageItems(keys);
+}
+
+export async function getAllSessionStorageKeys(): Promise<string[] | Error> {
+  try {
+    return await chrome.storage.session.getKeys();
+  } catch (err) {
+    return new Error("Failed to get all keys from session storage", { cause: err });
+  }
 }
 
 async function getSessionStorageKeysByPrefix(prefix: string): Promise<string[] | Error> {
