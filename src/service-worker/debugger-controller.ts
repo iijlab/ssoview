@@ -21,9 +21,8 @@ export function registerDebuggerDetachHandler(
   // Event fired when debugger is detached by Chrome.
   // Not fired when chrome.debugger.detach() is called.
   chrome.debugger.onDetach.addListener((source, reason) => {
-    console.info("Debugger detached:", { source, reason });
-
     if (source.tabId === undefined) {
+      console.warn("Unexpected debuggee without tab ID:", { source, reason });
       // Nothing we can do without the tab ID
       return;
     }
