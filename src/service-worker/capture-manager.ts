@@ -1,0 +1,126 @@
+/**
+ * @copyright Internet Initiative Japan Inc. All rights reserved.
+ * @license BSD-3-Clause
+ */
+
+import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/service-worker/event-record.ts";
+import { retrieveAllEventRecords, storeEventRecord } from "@/service-worker/event-store.ts";
+import {
+  getWatchedTabIds,
+  registerWatchStopHandler,
+  startWatching,
+  stopWatching,
+} from "@/service-worker/tab-watcher.ts";
+
+export function registerCaptureStopHandler(
+  onCaptureStopped: (tabId: number) => Promise<void>,
+): void {
+  registerWatchStopHandler(async (tabId) => {
+    const storeResult = await storeEventRecord(newCaptureStoppedRecord());
+    if (storeResult instanceof Error) {
+      console.warn("Failed to store the capture stopped event:", { error: storeResult });
+    }
+
+    await onCaptureStopped(tabId);
+  });
+}
+
+export async function isCapturing(): Promise<boolean | Error> {
+  // How the capture record and the watched tabs decide the result:
+  //
+  //   record | watched tab | result
+  //   -------+-------------+-------
+  //   open   | yes         | capturing
+  //   open   | no          | not capturing -- the stop record was lost [1]
+  //   closed | yes         | not capturing -- the record wins [2]
+  //   closed | no          | not capturing
+  //
+  // [1] The debugger is already detached, so staying "capturing" would show a recording that can
+  //     never be stopped.
+  // [2] The user can detach from the banner.
+
+  const records = await retrieveAllEventRecords();
+  if (records instanceof Error) {
+    return records;
+  }
+
+  const latest = records.findLast(
+    (r) => r.type === "CaptureStarted" || r.type === "CaptureStopped",
+  );
+  if (latest === undefined || latest.type === "CaptureStopped") {
+    return false;
+  }
+
+  const tabIds = await getWatchedTabIds();
+  if (tabIds instanceof Error) {
+    return tabIds;
+  }
+
+  return 0 < tabIds.length;
+}
+
+export async function startCapturing(tabId: number): Promise<void | Error> {
+  const closeResult = await closeInconsistentCapture();
+  if (closeResult instanceof Error) {
+    return closeResult;
+  }
+
+  const capturing = await isCapturing();
+  if (capturing instanceof Error) {
+    return capturing;
+  } else if (capturing) {
+    console.info("Capture already in progress");
+    return;
+  }
+
+  const storeResult = await storeEventRecord(newCaptureStartedRecord());
+  if (storeResult instanceof Error) {
+    return storeResult;
+  }
+
+  const startResult = await startWatching(tabId);
+  if (startResult instanceof Error) {
+    const storeResult = await storeEventRecord(newCaptureStoppedRecord());
+    if (storeResult instanceof Error) {
+      console.warn("Failed to store the capture stopped event:", { error: storeResult });
+    }
+    return startResult;
+  }
+}
+
+async function closeInconsistentCapture(): Promise<void | Error> {
+  const records = await retrieveAllEventRecords();
+  if (records instanceof Error) {
+    return records;
+  }
+
+  const latest = records.findLast(
+    (r) => r.type === "CaptureStarted" || r.type === "CaptureStopped",
+  );
+  if (latest === undefined) {
+    return;
+  }
+
+  if (latest.type === "CaptureStarted") {
+    const watchedTabIds = await getWatchedTabIds();
+    if (watchedTabIds instanceof Error) {
+      return watchedTabIds;
+    }
+
+    if (watchedTabIds.length === 0) {
+      return await storeEventRecord(newCaptureStoppedRecord());
+    }
+  }
+}
+
+export async function stopCapturing(tabId: number): Promise<void | Error> {
+  const stopResult = await stopWatching(tabId);
+  if (stopResult instanceof Error) {
+    return stopResult;
+  }
+
+  const storeResult = await storeEventRecord(newCaptureStoppedRecord());
+  if (storeResult instanceof Error) {
+    return new Error("Failed to store the capture stopped event", { cause: storeResult });
+  }
+}
