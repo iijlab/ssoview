@@ -3,8 +3,8 @@
  * @license BSD-3-Clause
  */
 
-import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/service-worker/event-record.ts";
-import { retrieveAllEventRecords, storeEventRecord } from "@/service-worker/event-store.ts";
+import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/common/models/event-record.ts";
+import { retrieveEventRecordKeyFields, storeEventRecord } from "@/common/services/event-store.ts";
 import {
   getWatchedTabIds,
   registerWatchStopHandler,
@@ -25,6 +25,16 @@ export function registerCaptureStopHandler(
   });
 }
 
+export async function getOngoingCaptureSessionId(): Promise<string | undefined | Error> {
+  const keyFields = await retrieveEventRecordKeyFields(["CaptureStarted", "CaptureStopped"]);
+  if (keyFields instanceof Error) {
+    return keyFields;
+  }
+
+  const latest = keyFields.at(-1);
+  return latest?.type === "CaptureStarted" ? latest.id : undefined;
+}
+
 export async function isCapturing(): Promise<boolean | Error> {
   // How the capture record and the watched tabs decide the result:
   //
@@ -39,15 +49,10 @@ export async function isCapturing(): Promise<boolean | Error> {
   //     never be stopped.
   // [2] The user can detach from the banner.
 
-  const records = await retrieveAllEventRecords();
-  if (records instanceof Error) {
-    return records;
-  }
-
-  const latest = records.findLast(
-    (r) => r.type === "CaptureStarted" || r.type === "CaptureStopped",
-  );
-  if (latest === undefined || latest.type === "CaptureStopped") {
+  const sessionId = await getOngoingCaptureSessionId();
+  if (sessionId instanceof Error) {
+    return sessionId;
+  } else if (sessionId === undefined) {
     return false;
   }
 
@@ -89,25 +94,19 @@ export async function startCapturing(tabId: number): Promise<void | Error> {
 }
 
 async function closeInconsistentCapture(): Promise<void | Error> {
-  const records = await retrieveAllEventRecords();
-  if (records instanceof Error) {
-    return records;
+  const sessionId = await getOngoingCaptureSessionId();
+  if (sessionId instanceof Error) {
+    return sessionId;
   }
 
-  const latest = records.findLast(
-    (r) => r.type === "CaptureStarted" || r.type === "CaptureStopped",
-  );
-  if (latest === undefined) {
-    return;
-  }
-
-  if (latest.type === "CaptureStarted") {
+  if (sessionId !== undefined) {
     const watchedTabIds = await getWatchedTabIds();
     if (watchedTabIds instanceof Error) {
       return watchedTabIds;
     }
 
     if (watchedTabIds.length === 0) {
+      // No tab is being watched, so the capture is stale. Write the stop record that went missing.
       return await storeEventRecord(newCaptureStoppedRecord());
     }
   }

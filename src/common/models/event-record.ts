@@ -12,7 +12,8 @@ export type EventRecord =
   | WatchStartedRecord
   | WatchStoppedRecord
   | DebuggerAttachedRecord
-  | DebuggerDetachedRecord;
+  | DebuggerDetachedRecord
+  | ArchiveImportedRecord;
 
 export function isEventRecord(u: unknown): u is EventRecord {
   return (
@@ -21,7 +22,8 @@ export function isEventRecord(u: unknown): u is EventRecord {
     isWatchStartedRecord(u) ||
     isWatchStoppedRecord(u) ||
     isDebuggerAttachedRecord(u) ||
-    isDebuggerDetachedRecord(u)
+    isDebuggerDetachedRecord(u) ||
+    isArchiveImportedRecord(u)
   );
 }
 
@@ -34,6 +36,7 @@ const eventRecordTypeMap: Record<EventRecordType, true> = {
   WatchStopped: true,
   DebuggerAttached: true,
   DebuggerDetached: true,
+  ArchiveImported: true,
 };
 
 export function isEventRecordType(u: unknown): u is EventRecordType {
@@ -176,5 +179,20 @@ export function newDebuggerDetachedRecord(
     ...(detachReason === undefined
       ? { detachedBy: "self" }
       : { detachedBy: "chrome", detachReason }),
+  };
+}
+
+export type ArchiveImportedRecord = EventRecordBase & {
+  type: "ArchiveImported";
+};
+
+function isArchiveImportedRecord(u: unknown): u is ArchiveImportedRecord {
+  return isObject(u) && u.type === "ArchiveImported" && isEventRecordBase(u);
+}
+
+export function newArchiveImportedRecord(): ArchiveImportedRecord {
+  return {
+    ...newEventRecordBase(),
+    type: "ArchiveImported",
   };
 }

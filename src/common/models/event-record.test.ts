@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   isEventRecord,
   isEventRecordType,
+  newArchiveImportedRecord,
   newCaptureStartedRecord,
   newCaptureStoppedRecord,
   newDebuggerAttachedRecord,
@@ -62,6 +63,11 @@ describe("factory functions", () => {
     expect(record).toHaveProperty("detachReason", "target_closed");
   });
 
+  it("creates an ArchiveImportedRecord", () => {
+    const record = newArchiveImportedRecord();
+    expect(record.type).toBe("ArchiveImported");
+  });
+
   it("assigns a UUIDv7 as the ID", () => {
     const record = newCaptureStartedRecord();
     expect(uuidValidate(record.id)).toBe(true);
@@ -81,6 +87,7 @@ describe("factory functions", () => {
       newDebuggerDetachedRecord(1, "canceled_by_user").id,
       newWatchStoppedRecord(1).id,
       newCaptureStoppedRecord().id,
+      newArchiveImportedRecord().id,
     ];
     expect([...ids].sort()).toEqual(ids);
   });
@@ -95,6 +102,7 @@ describe("isEventRecord", () => {
     expect(isEventRecord(newDebuggerAttachedRecord(1, false))).toBe(true);
     expect(isEventRecord(newDebuggerDetachedRecord(1))).toBe(true);
     expect(isEventRecord(newDebuggerDetachedRecord(1, "target_closed"))).toBe(true);
+    expect(isEventRecord(newArchiveImportedRecord())).toBe(true);
   });
 
   it("returns false for non-objects", () => {
@@ -164,6 +172,7 @@ describe("isEventRecordType", () => {
     expect(isEventRecordType(newDebuggerAttachedRecord(1, false).type)).toBe(true);
     expect(isEventRecordType(newDebuggerDetachedRecord(1).type)).toBe(true);
     expect(isEventRecordType(newDebuggerDetachedRecord(1, "target_closed").type)).toBe(true);
+    expect(isEventRecordType(newArchiveImportedRecord().type)).toBe(true);
   });
 
   it("returns false for an unknown type or a non-string", () => {
