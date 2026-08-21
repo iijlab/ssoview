@@ -7,8 +7,8 @@ import { isAttached } from "@/common/utils/chrome-debugger.ts";
 import {
   newDebuggerAttachedRecord,
   newDebuggerDetachedRecord,
-} from "@/service-worker/event-record.ts";
-import { retrieveAllEventRecords, storeEventRecord } from "@/service-worker/event-store.ts";
+} from "@/common/models/event-record.ts";
+import { retrieveAllEventRecords, storeEventRecord } from "@/common/services/event-store.ts";
 
 // chrome.debugger.DetachReason is an enum, which is not compatible with the callback parameter
 // type of chrome.debugger.onDetach.addListener. So we define our own type alias with the same

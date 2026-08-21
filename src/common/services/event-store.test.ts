@@ -15,7 +15,7 @@ import {
   newDebuggerAttachedRecord,
   newDebuggerDetachedRecord,
   newWatchStartedRecord,
-} from "@/service-worker/event-record.ts";
+} from "@/common/models/event-record.ts";
 import {
   retrieveAllEventRecords,
   retrieveEventRecordKeyFields,

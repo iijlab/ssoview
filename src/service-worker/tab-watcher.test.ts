@@ -11,8 +11,8 @@ import {
   startDebugging,
   stopDebugging,
 } from "@/service-worker/debugger-controller.ts";
-import { newWatchStartedRecord, newWatchStoppedRecord } from "@/service-worker/event-record.ts";
-import { retrieveAllEventRecords, storeEventRecord } from "@/service-worker/event-store.ts";
+import { newWatchStartedRecord, newWatchStoppedRecord } from "@/common/models/event-record.ts";
+import { retrieveAllEventRecords, storeEventRecord } from "@/common/services/event-store.ts";
 import {
   getWatchedTabIds,
   isWatching,
@@ -21,7 +21,7 @@ import {
   stopWatching,
 } from "./tab-watcher.ts";
 
-vi.mock("@/service-worker/event-store.ts", () => ({
+vi.mock("@/common/services/event-store.ts", () => ({
   retrieveAllEventRecords: vi.fn(),
   storeEventRecord: vi.fn(),
 }));

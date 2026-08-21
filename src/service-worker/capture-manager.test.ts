@@ -4,8 +4,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { EventRecordKeyFields } from "@/service-worker/event-store.ts";
-import { retrieveEventRecordKeyFields, storeEventRecord } from "@/service-worker/event-store.ts";
+import type { EventRecordKeyFields } from "@/common/services/event-store.ts";
+import { retrieveEventRecordKeyFields, storeEventRecord } from "@/common/services/event-store.ts";
 import {
   getWatchedTabIds,
   registerWatchStopHandler,
@@ -20,7 +20,7 @@ import {
   stopCapturing,
 } from "./capture-manager.ts";
 
-vi.mock("@/service-worker/event-store.ts", () => ({
+vi.mock("@/common/services/event-store.ts", () => ({
   retrieveEventRecordKeyFields: vi.fn(),
   storeEventRecord: vi.fn(),
 }));

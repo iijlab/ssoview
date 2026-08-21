@@ -10,8 +10,8 @@ import {
   startDebugging,
   stopDebugging,
 } from "@/service-worker/debugger-controller.ts";
-import { newWatchStartedRecord, newWatchStoppedRecord } from "@/service-worker/event-record.ts";
-import { retrieveAllEventRecords, storeEventRecord } from "@/service-worker/event-store.ts";
+import { newWatchStartedRecord, newWatchStoppedRecord } from "@/common/models/event-record.ts";
+import { retrieveAllEventRecords, storeEventRecord } from "@/common/services/event-store.ts";
 
 export function registerWatchStopHandler(onWatchStopped: (tabId: number) => Promise<void>): void {
   registerDebuggerDetachHandler(async (tabId, reason) => {

@@ -3,8 +3,8 @@
  * @license BSD-3-Clause
  */
 
-import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/service-worker/event-record.ts";
-import { retrieveEventRecordKeyFields, storeEventRecord } from "@/service-worker/event-store.ts";
+import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/common/models/event-record.ts";
+import { retrieveEventRecordKeyFields, storeEventRecord } from "@/common/services/event-store.ts";
 import {
   getWatchedTabIds,
   registerWatchStopHandler,

@@ -14,7 +14,7 @@ import {
   type EventRecordType,
   isEventRecord,
   isEventRecordType,
-} from "@/service-worker/event-record.ts";
+} from "@/common/models/event-record.ts";
 
 export async function storeEventRecord(record: EventRecord): Promise<void | Error> {
   return await setSessionStorageItem(makeEventRecordKey(record), record);
