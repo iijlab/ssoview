@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
 import type { HttpMessage } from "@/common/models/http-message.ts";
 import type { SamlTrace } from "@/common/models/saml-trace.ts";
+import { storeEventRecord } from "@/common/services/event-store.ts";
 import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
 import { detectSamlStep } from "@/common/services/saml-detector.ts";
 import { storeSamlTrace } from "@/common/services/saml-store.ts";
@@ -15,6 +16,10 @@ import { dumpSessionArchive, loadSessionArchive } from "./session-archiver.ts";
 vi.mock("@/common/models/http-archive.ts", () => ({
   newHar: vi.fn(),
   toHttpMessages: vi.fn(),
+}));
+
+vi.mock("@/common/services/event-store.ts", () => ({
+  storeEventRecord: vi.fn(),
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -32,6 +37,7 @@ vi.mock("@/common/services/saml-store.ts", () => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(storeEventRecord).mockResolvedValue(undefined);
 });
 
 describe("dumpSessionArchive", () => {
@@ -83,6 +89,16 @@ describe("loadSessionArchive", () => {
     );
   });
 
+  it("records the import as an event", async () => {
+    vi.mocked(toHttpMessages).mockReturnValue([]);
+
+    await loadSessionArchive(1, "har-string");
+
+    expect(storeEventRecord).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "ArchiveImported" }),
+    );
+  });
+
   it("returns Error when toHttpMessages fails", async () => {
     vi.mocked(toHttpMessages).mockReturnValue(new Error("parse error"));
 
@@ -90,6 +106,16 @@ describe("loadSessionArchive", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("parse error");
+    expect(storeEventRecord).not.toHaveBeenCalled();
+  });
+
+  it("returns Error when the import event cannot be stored", async () => {
+    const error = new Error("storage failed");
+    vi.mocked(toHttpMessages).mockReturnValue([]);
+    vi.mocked(storeEventRecord).mockResolvedValue(error);
+
+    expect(await loadSessionArchive(1, "har-string")).toBe(error);
+    expect(detectSamlStep).not.toHaveBeenCalled();
   });
 
   it("returns empty array when no SAML traces are detected", async () => {

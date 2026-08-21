@@ -3,7 +3,9 @@
  * @license BSD-3-Clause
  */
 
+import { newArchiveImportedRecord } from "@/common/models/event-record.ts";
 import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
+import { storeEventRecord } from "@/common/services/event-store.ts";
 import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
 import { detectSamlStep } from "@/common/services/saml-detector.ts";
 import { storeSamlTrace } from "@/common/services/saml-store.ts";
@@ -41,6 +43,11 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
   const httpMessages = toHttpMessages(har);
   if (httpMessages instanceof Error) {
     return httpMessages;
+  }
+
+  const storeEventResult = await storeEventRecord(newArchiveImportedRecord());
+  if (storeEventResult instanceof Error) {
+    return storeEventResult;
   }
 
   // Ideally we could just store all imported logs, but because the storage key
