@@ -66,9 +66,9 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       continue;
     }
 
-    if (httpMessage.stage === "Response" && samlTrace.step === 2) {
+    if (httpMessage.stage === "Response") {
       const storeHttpResult = await storeHttpMessage(
-        httpMessage.request,
+        { ...httpMessage.request, imported: true },
         tabId,
         samlTrace.sessionId,
       );

@@ -112,11 +112,12 @@ describe("processHttpMessage", () => {
     const result = await processHttpMessage(1, request);
 
     expect(result).toBe("session-1");
+    expect(storeHttpMessage).toHaveBeenCalledTimes(1);
     expect(storeHttpMessage).toHaveBeenCalledWith(request, 1, "session-1");
     expect(storeSamlTrace).toHaveBeenCalledWith(detected, 1);
   });
 
-  it("stores the paired request when step is 2 and stage is Response", async () => {
+  it("stores the paired request when stage is Response", async () => {
     const pairedRequest = makeRequest({ url: "https://sp.example.com/resource" });
     const response = makeResponse({ statusCode: 302 }, pairedRequest);
     const detected = makeSamlTrace({
@@ -136,25 +137,9 @@ describe("processHttpMessage", () => {
     expect(storeHttpMessage).toHaveBeenNthCalledWith(2, response, 1, "session-1");
   });
 
-  it("does not store the paired request when step is 2 but stage is Request", async () => {
-    const request = makeRequest();
-    const detected = makeSamlTrace({
-      sessionId: "session-1",
-      step: 2,
-      type: "IncomingAuthnRequest",
-    });
-    vi.mocked(detectSamlStep).mockResolvedValue(detected);
-    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(storeSamlTrace).mockResolvedValue(undefined);
-
-    await processHttpMessage(1, request);
-
-    expect(storeHttpMessage).toHaveBeenCalledTimes(1);
-    expect(storeHttpMessage).toHaveBeenCalledWith(request, 1, "session-1");
-  });
-
-  it("does not store the paired request when stage is Response but step is not 2", async () => {
-    const response = makeResponse();
+  it("stores the paired request for a response of any step", async () => {
+    const pairedRequest = makeRequest({ url: "https://sp.example.com/resource" });
+    const response = makeResponse({}, pairedRequest);
     const detected = makeSamlTrace({
       sessionId: "session-1",
       step: 6,
@@ -166,8 +151,9 @@ describe("processHttpMessage", () => {
 
     await processHttpMessage(1, response);
 
-    expect(storeHttpMessage).toHaveBeenCalledTimes(1);
-    expect(storeHttpMessage).toHaveBeenCalledWith(response, 1, "session-1");
+    expect(storeHttpMessage).toHaveBeenCalledTimes(2);
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(1, pairedRequest, 1, "session-1");
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(2, response, 1, "session-1");
   });
 
   it("returns Error when storing the paired request fails", async () => {

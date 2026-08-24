@@ -22,9 +22,7 @@ export async function processHttpMessage(
     return undefined;
   }
 
-  // Store the paired request for step=2 responses. This request is the initial
-  // unauthenticated resource request (step=1) that triggered the SSO flow.
-  if (httpMessage.stage === "Response" && detected.step === 2) {
+  if (httpMessage.stage === "Response") {
     const storeHttpResult = await storeHttpMessage(httpMessage.request, tabId, detected.sessionId);
     if (storeHttpResult instanceof Error) {
       return storeHttpResult;

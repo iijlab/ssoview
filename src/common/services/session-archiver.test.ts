@@ -89,6 +89,42 @@ describe("loadSessionArchive", () => {
     );
   });
 
+  it("stores the paired request of a response as an imported message", async () => {
+    const pairedRequest = {
+      stage: "Request",
+      imported: false,
+      url: "https://sp.example.com/resource",
+    } as unknown as HttpMessage;
+    const httpMessage = {
+      stage: "Response",
+      imported: false,
+      request: pairedRequest,
+    } as unknown as HttpMessage;
+    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
+    vi.mocked(detectSamlStep).mockResolvedValue({
+      sessionId: "session-1",
+      step: 6,
+    } as unknown as SamlTrace);
+    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
+    vi.mocked(storeSamlTrace).mockResolvedValue(undefined);
+
+    await loadSessionArchive(1, "har-string");
+
+    expect(storeHttpMessage).toHaveBeenCalledTimes(2);
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(
+      1,
+      { ...pairedRequest, imported: true },
+      1,
+      "session-1",
+    );
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(
+      2,
+      { ...httpMessage, imported: true },
+      1,
+      "session-1",
+    );
+  });
+
   it("records the import as an event", async () => {
     vi.mocked(toHttpMessages).mockReturnValue([]);
 
