@@ -15,6 +15,7 @@ import { getHeaderValue, isHttpMessage, newHttpRequest, newHttpResponse } from "
 
 function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
+    id: "msg-1",
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     stage: "Request",
@@ -49,6 +50,7 @@ function makeRequestPausedEvent(
 
 describe("isHttpMessage", () => {
   const validHttpRequest = {
+    id: "msg-123",
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     fetchRequestId: "req-123",
@@ -60,6 +62,7 @@ describe("isHttpMessage", () => {
   };
 
   const validHttpResponse = {
+    id: "msg-124",
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     fetchRequestId: "req-123",
@@ -86,6 +89,11 @@ describe("isHttpMessage", () => {
 
   it("returns false for undefined", () => {
     expect(isHttpMessage(undefined)).toBe(false);
+  });
+
+  it("returns false when id is missing", () => {
+    const { id, ...msg } = validHttpRequest;
+    expect(isHttpMessage(msg)).toBe(false);
   });
 
   it("returns false when createdAt is missing", () => {
@@ -173,6 +181,16 @@ describe("newHttpRequest", () => {
       url: "https://sp.example.com/SAML2/ACS",
       method: "POST",
     });
+  });
+
+  it("issues a unique id", () => {
+    const requestPausedEvent = makeRequestPausedEvent();
+
+    const first = newHttpRequest(requestPausedEvent);
+    const second = newHttpRequest(requestPausedEvent);
+
+    expect(first.id).not.toBe("");
+    expect(first.id).not.toBe(second.id);
   });
 
   it("converts headers from an object to entries", () => {
@@ -273,6 +291,20 @@ describe("newHttpResponse", () => {
     );
 
     expect(httpResponse).toMatchObject({ body: "<html></html>" });
+  });
+
+  it("issues an id distinct from the paired request", () => {
+    const httpRequest = makeRequest();
+
+    const httpResponse = newHttpResponse(
+      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
+      200,
+      { body: "", base64Encoded: false },
+      httpRequest,
+    );
+
+    expect(httpResponse.id).not.toBe("");
+    expect(httpResponse.id).not.toBe(httpRequest.id);
   });
 
   it("carries over the given paired request", () => {

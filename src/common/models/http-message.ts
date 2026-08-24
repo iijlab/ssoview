@@ -5,6 +5,7 @@
 
 import type Protocol from "devtools-protocol";
 import { Base64 } from "js-base64";
+import { v7 as uuidv7 } from "uuid";
 import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
@@ -15,6 +16,7 @@ export function isHttpMessage(u: unknown): u is HttpMessage {
 }
 
 type HttpMessageBase = {
+  id: string;
   createdAt: string;
   imported: boolean;
   fetchRequestId: Protocol.Fetch.RequestId;
@@ -27,6 +29,7 @@ type HttpMessageBase = {
 function isHttpMessageBase(u: unknown): u is HttpMessageBase {
   return (
     isObject(u) &&
+    typeof u.id === "string" &&
     typeof u.createdAt === "string" &&
     typeof u.imported === "boolean" &&
     typeof u.fetchRequestId === "string" &&
@@ -73,6 +76,7 @@ function isHttpResponse(u: unknown): u is HttpResponse {
 
 export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedEvent): HttpRequest {
   return {
+    id: uuidv7(),
     createdAt: new Date().toISOString(),
     imported: false,
     stage: "Request",
@@ -100,6 +104,7 @@ export function newHttpResponse(
         : getResponseBodyResponse.body;
 
   return {
+    id: uuidv7(),
     createdAt: new Date().toISOString(),
     imported: false,
     stage: "Response",
