@@ -90,6 +90,7 @@ export function newHttpResponse(
   requestPausedEvent: Protocol.Fetch.RequestPausedEvent,
   statusCode: number,
   getResponseBodyResponse: Protocol.Network.GetResponseBodyResponse | undefined,
+  httpRequest: HttpRequest,
 ): HttpResponse {
   const body =
     getResponseBodyResponse === undefined
@@ -108,7 +109,7 @@ export function newHttpResponse(
     headers: requestPausedEvent.responseHeaders ?? [],
     body,
     statusCode,
-    request: newHttpRequest(requestPausedEvent),
+    request: httpRequest,
   };
 }
 

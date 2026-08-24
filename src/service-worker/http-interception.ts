@@ -73,6 +73,7 @@ function onFetchRequestPausedEvent(
             requestPausedEvent,
             requestPausedEvent.responseStatusCode,
             getResponseBodyResponse,
+            newHttpRequest(requestPausedEvent),
           );
           await onInterceptHttpResponse(tabId, httpResponse);
         }

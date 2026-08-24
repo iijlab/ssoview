@@ -236,10 +236,12 @@ describe("newHttpResponse", () => {
       },
     );
 
-    const httpResponse = newHttpResponse(requestPausedEvent, 200, {
-      body: "<html></html>",
-      base64Encoded: false,
-    });
+    const httpResponse = newHttpResponse(
+      requestPausedEvent,
+      200,
+      { body: "<html></html>", base64Encoded: false },
+      makeRequest(),
+    );
 
     expect(httpResponse).toMatchObject({
       imported: false,
@@ -256,6 +258,7 @@ describe("newHttpResponse", () => {
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
       { body: "", base64Encoded: false },
+      makeRequest(),
     );
 
     expect(httpResponse).toMatchObject({ headers: [] });
@@ -266,35 +269,27 @@ describe("newHttpResponse", () => {
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
       { body: Base64.encode("<html></html>"), base64Encoded: true },
+      makeRequest(),
     );
 
     expect(httpResponse).toMatchObject({ body: "<html></html>" });
   });
 
-  it("includes the paired request with its body", () => {
-    const requestPausedEvent = makeRequestPausedEvent(
-      {
-        url: "https://sp.example.com/SAML2/ACS",
-        method: "POST",
-        hasPostData: true,
-        postDataEntries: [{ bytes: Base64.encode("SAMLResponse=abc") }],
-      },
-      { responseStatusCode: 200 },
+  it("carries over the given paired request", () => {
+    const httpRequest = makeRequest({
+      url: "https://sp.example.com/SAML2/ACS",
+      method: "POST",
+      body: "SAMLResponse=abc",
+    });
+
+    const httpResponse = newHttpResponse(
+      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
+      200,
+      { body: "", base64Encoded: false },
+      httpRequest,
     );
 
-    const httpResponse = newHttpResponse(requestPausedEvent, 200, {
-      body: "",
-      base64Encoded: false,
-    });
-
-    expect(httpResponse).toMatchObject({
-      request: {
-        stage: "Request",
-        url: "https://sp.example.com/SAML2/ACS",
-        method: "POST",
-        body: "SAMLResponse=abc",
-      },
-    });
+    expect(httpResponse.request).toBe(httpRequest);
   });
 
   it("leaves the body undefined when the response body is not given", () => {
@@ -302,6 +297,7 @@ describe("newHttpResponse", () => {
       makeRequestPausedEvent({}, { responseStatusCode: 302 }),
       302,
       undefined,
+      makeRequest(),
     );
 
     expect(httpResponse.statusCode).toBe(302);

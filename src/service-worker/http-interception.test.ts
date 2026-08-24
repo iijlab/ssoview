@@ -82,6 +82,26 @@ describe("registerHttpInterceptionHandlers", () => {
     );
   });
 
+  it("pairs the response with a request built from the same event", async () => {
+    const onInterceptHttpResponse = vi.fn();
+    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
+
+    fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(302));
+
+    await vi.waitFor(() => expect(onInterceptHttpResponse).toHaveBeenCalledOnce());
+    expect(onInterceptHttpResponse).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        request: expect.objectContaining({
+          stage: "Request",
+          requestId: "req-1",
+          url: "https://sp.example.com/SAML2/resource",
+          method: "GET",
+        }),
+      }),
+    );
+  });
+
   it("skips the response but continues it when the body cannot be retrieved", async () => {
     sendCommand.mockImplementation(async (_source: unknown, method: string) => {
       if (method === "Fetch.getResponseBody") {
