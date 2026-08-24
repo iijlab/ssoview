@@ -17,7 +17,7 @@ export function isHttpMessage(u: unknown): u is HttpMessage {
 type HttpMessageBase = {
   createdAt: string;
   imported: boolean;
-  requestId: Protocol.Fetch.RequestId;
+  fetchRequestId: Protocol.Fetch.RequestId;
   url: string;
   method: string;
   headers: Protocol.Fetch.HeaderEntry[];
@@ -29,7 +29,7 @@ function isHttpMessageBase(u: unknown): u is HttpMessageBase {
     isObject(u) &&
     typeof u.createdAt === "string" &&
     typeof u.imported === "boolean" &&
-    typeof u.requestId === "string" &&
+    typeof u.fetchRequestId === "string" &&
     typeof u.url === "string" &&
     typeof u.method === "string" &&
     isHeaderEntries(u.headers) &&
@@ -76,7 +76,7 @@ export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedE
     createdAt: new Date().toISOString(),
     imported: false,
     stage: "Request",
-    requestId: requestPausedEvent.requestId,
+    fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
     headers: Object.entries(requestPausedEvent.request.headers).map(
@@ -103,7 +103,7 @@ export function newHttpResponse(
     createdAt: new Date().toISOString(),
     imported: false,
     stage: "Response",
-    requestId: requestPausedEvent.requestId,
+    fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
     headers: requestPausedEvent.responseHeaders ?? [],
@@ -153,7 +153,7 @@ async function debugHttpRequestImpl(httpRequest: HttpRequest) {
 
   const debug = await createLabeledDebugLogger([
     "HTTP",
-    httpRequest.requestId,
+    httpRequest.fetchRequestId,
     host,
     httpRequest.method,
   ]);
@@ -174,7 +174,7 @@ async function debugHttpResponseImpl(httpResponse: HttpResponse) {
 
   const debug = await createLabeledDebugLogger([
     "HTTP",
-    httpResponse.requestId,
+    httpResponse.fetchRequestId,
     host,
     `${httpResponse.statusCode}`,
   ]);

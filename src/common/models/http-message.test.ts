@@ -18,7 +18,7 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     stage: "Request",
-    requestId: "req-1",
+    fetchRequestId: "req-1",
     url: "https://example.com/",
     method: "GET",
     headers: [],
@@ -51,7 +51,7 @@ describe("isHttpMessage", () => {
   const validHttpRequest = {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    requestId: "req-123",
+    fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",
@@ -62,7 +62,7 @@ describe("isHttpMessage", () => {
   const validHttpResponse = {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    requestId: "req-123",
+    fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",
@@ -169,7 +169,7 @@ describe("newHttpRequest", () => {
     expect(httpRequest).toMatchObject({
       imported: false,
       stage: "Request",
-      requestId: "req-1",
+      fetchRequestId: "req-1",
       url: "https://sp.example.com/SAML2/ACS",
       method: "POST",
     });
@@ -246,7 +246,7 @@ describe("newHttpResponse", () => {
     expect(httpResponse).toMatchObject({
       imported: false,
       stage: "Response",
-      requestId: "req-1",
+      fetchRequestId: "req-1",
       statusCode: 200,
       headers: [{ name: "Content-Type", value: "text/html" }],
       body: "<html></html>",

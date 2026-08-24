@@ -94,7 +94,7 @@ describe("registerHttpInterceptionHandlers", () => {
       expect.objectContaining({
         request: expect.objectContaining({
           stage: "Request",
-          requestId: "req-1",
+          fetchRequestId: "req-1",
           url: "https://sp.example.com/SAML2/resource",
           method: "GET",
         }),

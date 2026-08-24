@@ -57,7 +57,7 @@ export function Content({
         const step = Number(stepStr);
         return (
           <section
-            key={`${httpMessage.requestId}-${httpMessage.stage}`}
+            key={`${httpMessage.fetchRequestId}-${httpMessage.stage}`}
             ref={setSectionRef(`http-${step}`)}
           >
             <HttpDetails httpMessage={httpMessage} sequenceNumber={step} />

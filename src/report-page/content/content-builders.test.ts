@@ -473,7 +473,7 @@ describe("buildHttpMessageDetails", () => {
   const baseFields = {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    requestId: "req-1",
+    fetchRequestId: "req-1",
     url: "https://example.com/path",
     method: "POST",
     headers: [{ name: "Content-Type", value: "text/html" }],
