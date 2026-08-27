@@ -62,6 +62,7 @@ export type HttpResponse = HttpMessageBase & {
   stage: "Response";
   statusCode: number;
   request: HttpRequest;
+  pairedHttpRequestId: string;
 };
 
 function isHttpResponse(u: unknown): u is HttpResponse {
@@ -70,6 +71,7 @@ function isHttpResponse(u: unknown): u is HttpResponse {
     u.stage === "Response" &&
     typeof u.statusCode === "number" &&
     isHttpRequest(u.request) &&
+    typeof u.pairedHttpRequestId === "string" &&
     isHttpMessageBase(u)
   );
 }
@@ -115,6 +117,7 @@ export function newHttpResponse(
     body,
     statusCode,
     request: httpRequest,
+    pairedHttpRequestId: httpRequest.id,
   };
 }
 

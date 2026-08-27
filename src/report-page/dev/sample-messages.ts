@@ -62,6 +62,7 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
     ],
     body: undefined,
     request: httpRequest1,
+    pairedHttpRequestId: httpRequest1.id,
   } satisfies HttpMessage;
 
   // Step 3: User -> IdP
@@ -104,6 +105,7 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   </body>
 </html>`,
     request: httpRequest3,
+    pairedHttpRequestId: httpRequest3.id,
   } satisfies HttpMessage;
 
   // Step 5: User -> SP
@@ -149,6 +151,7 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   <body><p>Authentication failed</p></body>
 </html>`,
     request: httpRequest5,
+    pairedHttpRequestId: httpRequest5.id,
   } satisfies HttpMessage;
 
   const allMessages = [

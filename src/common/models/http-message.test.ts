@@ -73,6 +73,7 @@ describe("isHttpMessage", () => {
     statusCode: 200,
     body: "<html></html>",
     request: validHttpRequest,
+    pairedHttpRequestId: "msg-123",
   };
 
   it("returns true for valid HttpRequest", () => {
@@ -129,6 +130,11 @@ describe("isHttpMessage", () => {
 
   it("returns false for Response without statusCode", () => {
     const { statusCode, ...msg } = validHttpResponse;
+    expect(isHttpMessage(msg)).toBe(false);
+  });
+
+  it("returns false for Response without pairedHttpRequestId", () => {
+    const { pairedHttpRequestId, ...msg } = validHttpResponse;
     expect(isHttpMessage(msg)).toBe(false);
   });
 
@@ -322,6 +328,19 @@ describe("newHttpResponse", () => {
     );
 
     expect(httpResponse.request).toBe(httpRequest);
+  });
+
+  it("references the id of the given paired request", () => {
+    const httpRequest = makeRequest({ id: "msg-9" });
+
+    const httpResponse = newHttpResponse(
+      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
+      200,
+      { body: "", base64Encoded: false },
+      httpRequest,
+    );
+
+    expect(httpResponse.pairedHttpRequestId).toBe("msg-9");
   });
 
   it("leaves the body undefined when the response body is not given", () => {
