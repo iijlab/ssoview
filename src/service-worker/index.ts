@@ -32,7 +32,7 @@ import {
   stopCapturing,
 } from "@/service-worker/capture-manager.ts";
 import { registerHttpInterceptionHandlers } from "@/service-worker/http-interception.ts";
-import { processHttpMessage } from "@/service-worker/saml-recorder.ts";
+import { processHttpRequest, processHttpResponse } from "@/service-worker/saml-recorder.ts";
 import {
   registerSidePanelCloseHandler,
   registerSidePanelOpenHandler,
@@ -48,7 +48,7 @@ function init() {
 
   registerHttpInterceptionHandlers(
     async (tabId, httpRequest) => {
-      const sessionId = await processHttpMessage(tabId, httpRequest);
+      const sessionId = await processHttpRequest(tabId, httpRequest);
       if (sessionId instanceof Error) {
         console.warn("Failed to process HTTP request:", sessionId);
       } else if (sessionId !== undefined) {
@@ -58,8 +58,8 @@ function init() {
         }
       }
     },
-    async (tabId, httpResponse) => {
-      const sessionId = await processHttpMessage(tabId, httpResponse);
+    async (tabId, httpResponse, pairedHttpRequest) => {
+      const sessionId = await processHttpResponse(tabId, httpResponse, pairedHttpRequest);
       if (sessionId instanceof Error) {
         console.warn("Failed to process HTTP response:", sessionId);
       } else if (sessionId !== undefined) {

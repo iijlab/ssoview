@@ -9,7 +9,10 @@ import type { HttpMessage } from "@/common/models/http-message.ts";
 import type { SamlTrace } from "@/common/models/saml-trace.ts";
 import { storeEventRecord } from "@/common/services/event-store.ts";
 import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
-import { detectSamlStep } from "@/common/services/saml-detector.ts";
+import {
+  detectSamlStepFromHttpRequest,
+  detectSamlStepFromHttpResponse,
+} from "@/common/services/saml-detector.ts";
 import { storeSamlTrace } from "@/common/services/saml-store.ts";
 import { dumpSessionArchive, loadSessionArchive } from "./session-archiver.ts";
 
@@ -28,7 +31,8 @@ vi.mock("@/common/services/http-store.ts", () => ({
 }));
 
 vi.mock("@/common/services/saml-detector.ts", () => ({
-  detectSamlStep: vi.fn(),
+  detectSamlStepFromHttpRequest: vi.fn(),
+  detectSamlStepFromHttpResponse: vi.fn(),
 }));
 
 vi.mock("@/common/services/saml-store.ts", () => ({
@@ -68,7 +72,7 @@ describe("loadSessionArchive", () => {
   it("returns session IDs on success", async () => {
     const httpMessage = { stage: "Request", imported: false } as unknown as HttpMessage;
     vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
-    vi.mocked(detectSamlStep).mockResolvedValue({
+    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
       sessionId: "session-1",
       step: 3,
     } as unknown as SamlTrace);
@@ -91,17 +95,20 @@ describe("loadSessionArchive", () => {
 
   it("stores the paired request of a response as an imported message", async () => {
     const pairedRequest = {
+      id: "msg-1",
       stage: "Request",
       imported: false,
       url: "https://sp.example.com/resource",
     } as unknown as HttpMessage;
     const httpMessage = {
+      id: "msg-2",
       stage: "Response",
       imported: false,
-      request: pairedRequest,
+      pairedHttpRequestId: "msg-1",
     } as unknown as HttpMessage;
-    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
-    vi.mocked(detectSamlStep).mockResolvedValue({
+    vi.mocked(toHttpMessages).mockReturnValue([pairedRequest, httpMessage]);
+    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
+    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
       sessionId: "session-1",
       step: 6,
     } as unknown as SamlTrace);
@@ -110,6 +117,7 @@ describe("loadSessionArchive", () => {
 
     await loadSessionArchive(1, "har-string");
 
+    expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(httpMessage, pairedRequest);
     expect(storeHttpMessage).toHaveBeenCalledTimes(2);
     expect(storeHttpMessage).toHaveBeenNthCalledWith(
       1,
@@ -123,6 +131,24 @@ describe("loadSessionArchive", () => {
       1,
       "session-1",
     );
+  });
+
+  it("skips a response whose paired request is missing from the archive", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const httpMessage = {
+      id: "msg-2",
+      stage: "Response",
+      imported: false,
+      pairedHttpRequestId: "msg-1",
+    } as unknown as HttpMessage;
+    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
+
+    const result = await loadSessionArchive(1, "har-string");
+
+    expect(result).toEqual([]);
+    expect(detectSamlStepFromHttpResponse).not.toHaveBeenCalled();
+    expect(storeHttpMessage).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledOnce();
   });
 
   it("records the import as an event", async () => {
@@ -151,13 +177,13 @@ describe("loadSessionArchive", () => {
     vi.mocked(storeEventRecord).mockResolvedValue(error);
 
     expect(await loadSessionArchive(1, "har-string")).toBe(error);
-    expect(detectSamlStep).not.toHaveBeenCalled();
+    expect(detectSamlStepFromHttpRequest).not.toHaveBeenCalled();
   });
 
   it("returns empty array when no SAML traces are detected", async () => {
     const httpMessage = { stage: "Request", imported: false } as unknown as HttpMessage;
     vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
-    vi.mocked(detectSamlStep).mockResolvedValue(undefined);
+    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
 
     const result = await loadSessionArchive(1, "har-string");
 
@@ -170,7 +196,7 @@ describe("loadSessionArchive", () => {
       { stage: "Request", imported: false },
     ] as unknown as HttpMessage[];
     vi.mocked(toHttpMessages).mockReturnValue(httpMessages);
-    vi.mocked(detectSamlStep).mockResolvedValue({
+    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
       sessionId: "session-1",
       step: 3,
     } as unknown as SamlTrace);

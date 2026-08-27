@@ -5,7 +5,6 @@
 
 import { Base64 } from "js-base64";
 import {
-  type HttpMessage,
   type HttpRequest,
   type HttpResponse,
   getHeaderValue,
@@ -23,22 +22,25 @@ import {
 } from "@/common/models/saml-trace.ts";
 import { parseSamlpAuthnRequest, parseSamlpResponse } from "./saml-parser.ts";
 
-export async function detectSamlStep(
-  httpMessage: HttpMessage,
+export async function detectSamlStepFromHttpRequest(
+  httpRequest: HttpRequest,
 ): Promise<SamlTrace | undefined | Error> {
-  if (httpMessage.stage === "Request") {
-    return (
-      (await detectUnauthenticatedResourceRequest(httpMessage)) ??
-      (await detectOutgoingSamlAuthnRequest(httpMessage)) ??
-      (await detectOutgoingSamlResponse(httpMessage))
-    );
-  } else {
-    return (
-      (await detectIncomingSamlAuthnRequest(httpMessage)) ??
-      (await detectIncomingSamlResponse(httpMessage)) ??
-      (await detectAuthenticatedResourceResponse(httpMessage))
-    );
-  }
+  return (
+    (await detectUnauthenticatedResourceRequest(httpRequest)) ??
+    (await detectOutgoingSamlAuthnRequest(httpRequest)) ??
+    (await detectOutgoingSamlResponse(httpRequest))
+  );
+}
+
+export async function detectSamlStepFromHttpResponse(
+  httpResponse: HttpResponse,
+  pairedHttpRequest: HttpRequest,
+): Promise<SamlTrace | undefined | Error> {
+  return (
+    (await detectIncomingSamlAuthnRequest(httpResponse)) ??
+    (await detectIncomingSamlResponse(httpResponse)) ??
+    (await detectAuthenticatedResourceResponse(httpResponse, pairedHttpRequest))
+  );
 }
 
 // Step 1: UA ---(resource request)--> SP
@@ -688,8 +690,9 @@ function extractSamlResponseFromRequestBody(requestBody: string): string | undef
 // - It is the response to Step 5
 async function detectAuthenticatedResourceResponse(
   httpResponse: HttpResponse,
+  pairedHttpRequest: HttpRequest,
 ): Promise<AuthenticatedResourceResponse | undefined | Error> {
-  const samlOutgoingResponse = await detectOutgoingSamlResponse(httpResponse.request);
+  const samlOutgoingResponse = await detectOutgoingSamlResponse(pairedHttpRequest);
   if (samlOutgoingResponse instanceof Error || samlOutgoingResponse === undefined) {
     return samlOutgoingResponse;
   }

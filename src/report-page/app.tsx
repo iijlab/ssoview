@@ -4,11 +4,18 @@
  */
 
 import { useRef, useState, useEffect } from "react";
-import { type HttpMessage } from "@/common/models/http-message.ts";
+import {
+  type HttpMessage,
+  type HttpRequest,
+  type HttpResponse,
+} from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { type SessionSummary } from "@/common/models/session-summary.ts";
 import { retrieveHttpMessages } from "@/common/services/http-store.ts";
-import { detectSamlStep } from "@/common/services/saml-detector.ts";
+import {
+  detectSamlStepFromHttpRequest,
+  detectSamlStepFromHttpResponse,
+} from "@/common/services/saml-detector.ts";
 import { summarizeSamlSession } from "@/common/services/saml-summarizer.ts";
 import { type ContentSectionId } from "@/report-page/common/types.ts";
 import { Content } from "@/report-page/content/content.tsx";
@@ -185,7 +192,7 @@ async function buildSamlTraces(httpMessages: HttpMessage[]): Promise<SamlTrace[]
   const samlTraces = [];
 
   for (const httpMessage of httpMessages) {
-    const samlTrace = await detectSamlStep(httpMessage);
+    const samlTrace = await detectSamlStep(httpMessage, httpMessages);
     if (samlTrace instanceof Error) {
       console.error("Failed to detect SAML flow from HTTP message:", samlTrace);
       continue;
@@ -205,7 +212,7 @@ async function buildHttpMessageRecord(
   const httpMessageRecord: Record<number, HttpMessage> = {};
 
   for (const httpMessage of httpMessages) {
-    const samlTrace = await detectSamlStep(httpMessage);
+    const samlTrace = await detectSamlStep(httpMessage, httpMessages);
     if (samlTrace instanceof Error) {
       console.error("Failed to detect SAML flow from HTTP message:", samlTrace);
       continue;
@@ -228,6 +235,30 @@ async function buildHttpMessageRecord(
   }
 
   return httpMessageRecord;
+}
+
+async function detectSamlStep(
+  httpMessage: HttpMessage,
+  httpMessages: HttpMessage[],
+): Promise<SamlTrace | undefined | Error> {
+  if (httpMessage.stage === "Request") {
+    return detectSamlStepFromHttpRequest(httpMessage);
+  } else {
+    const pairedHttpRequest = findPairedHttpRequest(httpMessage, httpMessages);
+    if (pairedHttpRequest === undefined) {
+      return new Error(`No paired HTTP request for HTTP response: ${httpMessage.id}`);
+    }
+
+    return detectSamlStepFromHttpResponse(httpMessage, pairedHttpRequest);
+  }
+}
+
+function findPairedHttpRequest(
+  httpResponse: HttpResponse,
+  httpMessages: HttpMessage[],
+): HttpRequest | undefined {
+  const pairedHttpRequest = httpMessages.find((m) => m.id === httpResponse.pairedHttpRequestId);
+  return pairedHttpRequest?.stage === "Request" ? pairedHttpRequest : undefined;
 }
 
 function extractSamlAuthnRequestXml(samlTraces: SamlTrace[]): string | undefined {
