@@ -4,17 +4,17 @@
  */
 
 import {
-  getAllSessionStorageKeys,
-  getSessionStorageItems,
-  setSessionStorageItem,
-} from "@/common/utils/chrome-storage.ts";
-import { isObject } from "@/common/utils/type-guard.ts";
-import {
   type EventRecord,
   type EventRecordType,
   isEventRecord,
   isEventRecordType,
 } from "@/common/models/event-record.ts";
+import {
+  getAllSessionStorageKeys,
+  getSessionStorageItems,
+  setSessionStorageItem,
+} from "@/common/utils/chrome-storage.ts";
+import { isObject } from "@/common/utils/type-guard.ts";
 
 export async function storeEventRecord(record: EventRecord): Promise<void | Error> {
   return await setSessionStorageItem(makeEventRecordKey(record), record);
