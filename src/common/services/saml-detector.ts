@@ -5,6 +5,7 @@
 
 import { Base64 } from "js-base64";
 import {
+  type HttpMessage,
   type HttpRequest,
   type HttpResponse,
   getHeaderValue,
@@ -43,6 +44,22 @@ export async function detectSamlStepFromHttpResponse(
   );
 }
 
+export async function extractSamlAuthnRequestXml(
+  httpMessage: HttpMessage,
+): Promise<string | undefined | Error> {
+  return httpMessage.stage === "Request"
+    ? await extractSamlAuthnRequestXmlFromHttpRequest(httpMessage)
+    : await extractSamlAuthnRequestXmlFromHttpResponse(httpMessage);
+}
+
+export async function extractSamlResponseXml(
+  httpMessage: HttpMessage,
+): Promise<string | undefined | Error> {
+  return httpMessage.stage === "Request"
+    ? await extractSamlResponseXmlFromHttpRequest(httpMessage)
+    : await extractSamlResponseXmlFromHttpResponse(httpMessage);
+}
+
 // Step 1: UA ---(resource request)--> SP
 //
 // A resource request has no SAML marker, so it cannot be detected from the
@@ -58,11 +75,42 @@ async function detectUnauthenticatedResourceRequest(
 async function detectIncomingSamlAuthnRequest(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+  const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpResponse(httpResponse);
+  if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
+    return authnRequestXml;
+  }
+
+  const samlAuthnRequest = makeSamlAuthnRequest(authnRequestXml);
+  if (samlAuthnRequest instanceof Error) {
+    return samlAuthnRequest;
+  }
+
+  const sp = getHostname(httpResponse.url);
+  if (sp instanceof Error) {
+    return sp;
+  }
+
+  return {
+    sessionId: samlAuthnRequest.id,
+    createdAt: new Date().toISOString(),
+    imported: httpResponse.imported,
+    step: 2,
+    type: "IncomingAuthnRequest",
+    date: getResponseDate(httpResponse),
+    sp,
+    action: "Service Provider issues SAML AuthnRequest",
+    authnRequest: samlAuthnRequest,
+  };
+}
+
+async function extractSamlAuthnRequestXmlFromHttpResponse(
+  httpResponse: HttpResponse,
+): Promise<string | undefined | Error> {
   return (
-    (await detectIncomingSamlAuthnRequestForHttpRedirectBinding(httpResponse)) ??
-    (await detectIncomingSamlAuthnRequestForHttpPostBinding(httpResponse)) ??
-    (await detectIncomingSamlAuthnRequestForScriptRedirectBinding(httpResponse)) ??
-    (await detectIncomingSamlAuthnRequestForMetaRefreshBinding(httpResponse))
+    (await extractSamlAuthnRequestXmlFromHttpResponseForHttpRedirect(httpResponse)) ??
+    (await extractSamlAuthnRequestXmlFromHttpResponseForHttpPost(httpResponse)) ??
+    (await extractSamlAuthnRequestXmlFromHttpResponseForScriptRedirect(httpResponse)) ??
+    (await extractSamlAuthnRequestXmlFromHttpResponseForMetaRefresh(httpResponse))
   );
 }
 
@@ -71,9 +119,9 @@ async function detectIncomingSamlAuthnRequest(
 // Detected when:
 // - It is a redirect response
 // - The Location URL query string contains SAMLRequest
-async function detectIncomingSamlAuthnRequestForHttpRedirectBinding(
+async function extractSamlAuthnRequestXmlFromHttpResponseForHttpRedirect(
   httpResponse: HttpResponse,
-): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (
     httpResponse.statusCode !== 302 &&
     httpResponse.statusCode !== 303 &&
@@ -99,32 +147,7 @@ async function detectIncomingSamlAuthnRequestForHttpRedirectBinding(
     return undefined;
   }
 
-  const samlAuthnRequestStr = await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
-  if (samlAuthnRequestStr instanceof Error) {
-    return samlAuthnRequestStr;
-  }
-
-  const samlAuthnRequest = makeSamlAuthnRequest(samlAuthnRequestStr);
-  if (samlAuthnRequest instanceof Error) {
-    return samlAuthnRequest;
-  }
-
-  const sp = getHostname(httpResponse.url);
-  if (sp instanceof Error) {
-    return sp;
-  }
-
-  return {
-    sessionId: samlAuthnRequest.id,
-    createdAt: new Date().toISOString(),
-    imported: httpResponse.imported,
-    step: 2,
-    type: "IncomingAuthnRequest",
-    date: getResponseDate(httpResponse),
-    sp,
-    action: "Service Provider issues SAML AuthnRequest",
-    authnRequest: samlAuthnRequest,
-  };
+  return await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
 }
 
 // Step 2 (HTTP POST Binding):  UA <--(AuthnRequest)--- SP
@@ -132,9 +155,9 @@ async function detectIncomingSamlAuthnRequestForHttpRedirectBinding(
 // Detected when:
 // - The response body is HTML
 // - A form in that HTML has a parameter named SAMLRequest
-async function detectIncomingSamlAuthnRequestForHttpPostBinding(
+async function extractSamlAuthnRequestXmlFromHttpResponseForHttpPost(
   httpResponse: HttpResponse,
-): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (httpResponse.body === undefined) {
     return undefined;
   }
@@ -149,32 +172,7 @@ async function detectIncomingSamlAuthnRequestForHttpPostBinding(
     return undefined;
   }
 
-  const samlAuthnRequestStr = decodeBase64(encodedSamlAuthnRequest);
-  if (samlAuthnRequestStr instanceof Error) {
-    return samlAuthnRequestStr;
-  }
-
-  const samlAuthnRequest = makeSamlAuthnRequest(samlAuthnRequestStr);
-  if (samlAuthnRequest instanceof Error) {
-    return samlAuthnRequest;
-  }
-
-  const sp = getHostname(httpResponse.url);
-  if (sp instanceof Error) {
-    return sp;
-  }
-
-  return {
-    sessionId: samlAuthnRequest.id,
-    createdAt: new Date().toISOString(),
-    imported: httpResponse.imported,
-    step: 2,
-    type: "IncomingAuthnRequest",
-    date: getResponseDate(httpResponse),
-    sp,
-    action: "Service Provider issues SAML AuthnRequest",
-    authnRequest: samlAuthnRequest,
-  };
+  return decodeBase64(encodedSamlAuthnRequest);
 }
 
 function extractSamlRequestFromResponseBody(responseBody: string): string | undefined {
@@ -195,9 +193,9 @@ function extractSamlRequestFromResponseBody(responseBody: string): string | unde
 // - A URL is specified via location.href in that HTML
 // - The query string of that URL contains SAMLRequest
 // - e.g. <button onclick="location.href=&quot;https://idp.example.org/saml2?SAMLRequest=...&quot;">
-async function detectIncomingSamlAuthnRequestForScriptRedirectBinding(
+async function extractSamlAuthnRequestXmlFromHttpResponseForScriptRedirect(
   httpResponse: HttpResponse,
-): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (httpResponse.body === undefined) {
     return undefined;
   }
@@ -224,32 +222,7 @@ async function detectIncomingSamlAuthnRequestForScriptRedirectBinding(
     return undefined;
   }
 
-  const samlAuthnRequestStr = await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
-  if (samlAuthnRequestStr instanceof Error) {
-    return samlAuthnRequestStr;
-  }
-
-  const samlAuthnRequest = makeSamlAuthnRequest(samlAuthnRequestStr);
-  if (samlAuthnRequest instanceof Error) {
-    return samlAuthnRequest;
-  }
-
-  const sp = getHostname(httpResponse.url);
-  if (sp instanceof Error) {
-    return sp;
-  }
-
-  return {
-    sessionId: samlAuthnRequest.id,
-    createdAt: new Date().toISOString(),
-    imported: httpResponse.imported,
-    step: 2,
-    type: "IncomingAuthnRequest",
-    date: getResponseDate(httpResponse),
-    sp,
-    action: "Service Provider issues SAML AuthnRequest",
-    authnRequest: samlAuthnRequest,
-  };
+  return await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
 }
 
 // Step 2 (Meta Refresh Binding): UA <--(AuthnRequest)--- SP
@@ -261,9 +234,9 @@ async function detectIncomingSamlAuthnRequestForScriptRedirectBinding(
 // - The response body is HTML
 // - A URL is specified via <meta http-equiv="refresh"> in that HTML
 // - The query string of that URL contains SAMLRequest
-async function detectIncomingSamlAuthnRequestForMetaRefreshBinding(
+async function extractSamlAuthnRequestXmlFromHttpResponseForMetaRefresh(
   httpResponse: HttpResponse,
-): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (httpResponse.body === undefined) {
     return undefined;
   }
@@ -289,32 +262,7 @@ async function detectIncomingSamlAuthnRequestForMetaRefreshBinding(
     return undefined;
   }
 
-  const samlAuthnRequestStr = await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
-  if (samlAuthnRequestStr instanceof Error) {
-    return samlAuthnRequestStr;
-  }
-
-  const samlAuthnRequest = makeSamlAuthnRequest(samlAuthnRequestStr);
-  if (samlAuthnRequest instanceof Error) {
-    return samlAuthnRequest;
-  }
-
-  const sp = getHostname(httpResponse.url);
-  if (sp instanceof Error) {
-    return sp;
-  }
-
-  return {
-    sessionId: samlAuthnRequest.id,
-    createdAt: new Date().toISOString(),
-    imported: httpResponse.imported,
-    step: 2,
-    type: "IncomingAuthnRequest",
-    date: getResponseDate(httpResponse),
-    sp,
-    action: "Service Provider issues SAML AuthnRequest",
-    authnRequest: samlAuthnRequest,
-  };
+  return await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
 }
 
 function extractUrlFromMetaRefresh(responseBody: string): string | undefined {
@@ -328,9 +276,42 @@ function extractUrlFromMetaRefresh(responseBody: string): string | undefined {
 async function detectOutgoingSamlAuthnRequest(
   httpRequest: HttpRequest,
 ): Promise<OutgoingSamlAuthnRequest | undefined | Error> {
+  const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpRequest(httpRequest);
+  if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
+    return authnRequestXml;
+  }
+
+  const samlAuthnRequest = makeSamlAuthnRequest(authnRequestXml);
+  if (samlAuthnRequest instanceof Error) {
+    return samlAuthnRequest;
+  }
+
+  const idp = getHostname(httpRequest.url);
+  if (idp instanceof Error) {
+    return idp;
+  }
+
+  return {
+    sessionId: samlAuthnRequest.id,
+    createdAt: new Date().toISOString(),
+    imported: httpRequest.imported,
+    step: 3,
+    type: "OutgoingAuthnRequest",
+    idp,
+    action:
+      httpRequest.method === "POST"
+        ? "User Agent submits SAML AuthnRequest to Identity Provider"
+        : "User Agent redirects SAML AuthnRequest to Identity Provider",
+    authnRequest: samlAuthnRequest,
+  };
+}
+
+async function extractSamlAuthnRequestXmlFromHttpRequest(
+  httpRequest: HttpRequest,
+): Promise<string | undefined | Error> {
   return (
-    (await detectOutgoingSamlAuthnRequestForRedirectBinding(httpRequest)) ??
-    (await detectOutgoingSamlAuthnRequestForPostBinding(httpRequest))
+    (await extractSamlAuthnRequestXmlFromHttpRequestForHttpRedirect(httpRequest)) ??
+    (await extractSamlAuthnRequestXmlFromHttpRequestForHttpPost(httpRequest))
   );
 }
 
@@ -339,9 +320,9 @@ async function detectOutgoingSamlAuthnRequest(
 // Detected when:
 // - It is a GET request
 // - The URL query string contains SAMLRequest
-async function detectOutgoingSamlAuthnRequestForRedirectBinding(
+async function extractSamlAuthnRequestXmlFromHttpRequestForHttpRedirect(
   httpRequest: HttpRequest,
-): Promise<OutgoingSamlAuthnRequest | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (httpRequest.method !== "GET") {
     return undefined;
   }
@@ -357,31 +338,7 @@ async function detectOutgoingSamlAuthnRequestForRedirectBinding(
     return undefined;
   }
 
-  const samlAuthnRequestStr = await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
-  if (samlAuthnRequestStr instanceof Error) {
-    return samlAuthnRequestStr;
-  }
-
-  const samlAuthnRequest = makeSamlAuthnRequest(samlAuthnRequestStr);
-  if (samlAuthnRequest instanceof Error) {
-    return samlAuthnRequest;
-  }
-
-  const idp = getHostname(httpRequest.url);
-  if (idp instanceof Error) {
-    return idp;
-  }
-
-  return {
-    sessionId: samlAuthnRequest.id,
-    createdAt: new Date().toISOString(),
-    imported: httpRequest.imported,
-    step: 3,
-    type: "OutgoingAuthnRequest",
-    idp,
-    action: "User Agent redirects SAML AuthnRequest to Identity Provider",
-    authnRequest: samlAuthnRequest,
-  };
+  return await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
 }
 
 // Step 3 (HTTP POST Binding): UA ---(AuthnRequest)--> IdP
@@ -389,9 +346,9 @@ async function detectOutgoingSamlAuthnRequestForRedirectBinding(
 // Detected when:
 // - It is a POST request
 // - The POST parameters contain SAMLRequest
-async function detectOutgoingSamlAuthnRequestForPostBinding(
+async function extractSamlAuthnRequestXmlFromHttpRequestForHttpPost(
   httpRequest: HttpRequest,
-): Promise<OutgoingSamlAuthnRequest | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (httpRequest.body === undefined) {
     return undefined;
   }
@@ -405,31 +362,7 @@ async function detectOutgoingSamlAuthnRequestForPostBinding(
     return encodedSamlAuthnRequest;
   }
 
-  const samlAuthnRequestStr = decodeBase64(encodedSamlAuthnRequest);
-  if (samlAuthnRequestStr instanceof Error) {
-    return samlAuthnRequestStr;
-  }
-
-  const samlAuthnRequest = makeSamlAuthnRequest(samlAuthnRequestStr);
-  if (samlAuthnRequest instanceof Error) {
-    return samlAuthnRequest;
-  }
-
-  const idp = getHostname(httpRequest.url);
-  if (idp instanceof Error) {
-    return idp;
-  }
-
-  return {
-    sessionId: samlAuthnRequest.id,
-    createdAt: new Date().toISOString(),
-    imported: httpRequest.imported,
-    step: 3,
-    type: "OutgoingAuthnRequest",
-    idp,
-    action: "User Agent submits SAML AuthnRequest to Identity Provider",
-    authnRequest: samlAuthnRequest,
-  };
+  return decodeBase64(encodedSamlAuthnRequest);
 }
 
 function extractSamlRequestFromRequestBody(requestBody: string): string | undefined | Error {
@@ -444,9 +377,40 @@ function extractSamlRequestFromRequestBody(requestBody: string): string | undefi
 async function detectIncomingSamlResponse(
   httpResponse: HttpResponse,
 ): Promise<IncomingSamlResponse | undefined | Error> {
+  const responseXml = await extractSamlResponseXmlFromHttpResponse(httpResponse);
+  if (responseXml === undefined || responseXml instanceof Error) {
+    return responseXml;
+  }
+
+  const samlResponse = makeSamlResponse(responseXml);
+  if (samlResponse instanceof Error) {
+    return samlResponse;
+  }
+
+  const idp = getHostname(httpResponse.url);
+  if (idp instanceof Error) {
+    return idp;
+  }
+
+  return {
+    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
+    createdAt: new Date().toISOString(),
+    imported: httpResponse.imported,
+    step: 4,
+    type: "IncomingResponse",
+    date: getResponseDate(httpResponse),
+    idp,
+    action: "Identity Provider issues SAML Response",
+    response: samlResponse,
+  };
+}
+
+async function extractSamlResponseXmlFromHttpResponse(
+  httpResponse: HttpResponse,
+): Promise<string | undefined | Error> {
   return (
-    (await detectIncomingSamlResponseForRedirectBinding(httpResponse)) ??
-    (await detectIncomingSamlResponseForPostBinding(httpResponse))
+    (await extractSamlResponseXmlFromHttpResponseForHttpRedirect(httpResponse)) ??
+    (await extractSamlResponseXmlFromHttpResponseForHttpPost(httpResponse))
   );
 }
 
@@ -455,9 +419,9 @@ async function detectIncomingSamlResponse(
 // Detected when:
 // - It is a redirect response
 // - The Location URL query string contains SAMLResponse
-async function detectIncomingSamlResponseForRedirectBinding(
+async function extractSamlResponseXmlFromHttpResponseForHttpRedirect(
   httpResponse: HttpResponse,
-): Promise<IncomingSamlResponse | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (
     httpResponse.statusCode !== 302 &&
     httpResponse.statusCode !== 303 &&
@@ -483,32 +447,7 @@ async function detectIncomingSamlResponseForRedirectBinding(
     return undefined;
   }
 
-  const samlResponseStr = await decodeSamlRedirectBindingMessage(encodedSamlResponse);
-  if (samlResponseStr instanceof Error) {
-    return samlResponseStr;
-  }
-
-  const samlResponse = makeSamlResponse(samlResponseStr);
-  if (samlResponse instanceof Error) {
-    return samlResponse;
-  }
-
-  const idp = getHostname(httpResponse.url);
-  if (idp instanceof Error) {
-    return idp;
-  }
-
-  return {
-    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
-    createdAt: new Date().toISOString(),
-    imported: httpResponse.imported,
-    step: 4,
-    type: "IncomingResponse",
-    date: getResponseDate(httpResponse),
-    idp,
-    action: "Identity Provider issues SAML Response",
-    response: samlResponse,
-  };
+  return await decodeSamlRedirectBindingMessage(encodedSamlResponse);
 }
 
 // Step 4 (HTTP POST Binding): UA <--(Response)--- IdP
@@ -516,9 +455,9 @@ async function detectIncomingSamlResponseForRedirectBinding(
 // Detected when:
 // - The response body is HTML
 // - A form in that HTML has a parameter named SAMLResponse
-async function detectIncomingSamlResponseForPostBinding(
+async function extractSamlResponseXmlFromHttpResponseForHttpPost(
   httpResponse: HttpResponse,
-): Promise<IncomingSamlResponse | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (httpResponse.body === undefined) {
     return undefined;
   }
@@ -533,32 +472,7 @@ async function detectIncomingSamlResponseForPostBinding(
     return undefined;
   }
 
-  const samlResponseStr = decodeBase64(encodedSamlResponse);
-  if (samlResponseStr instanceof Error) {
-    return samlResponseStr;
-  }
-
-  const samlResponse = makeSamlResponse(samlResponseStr);
-  if (samlResponse instanceof Error) {
-    return samlResponse;
-  }
-
-  const idp = getHostname(httpResponse.url);
-  if (idp instanceof Error) {
-    return idp;
-  }
-
-  return {
-    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
-    createdAt: new Date().toISOString(),
-    imported: httpResponse.imported,
-    step: 4,
-    type: "IncomingResponse",
-    date: getResponseDate(httpResponse),
-    idp,
-    action: "Identity Provider issues SAML Response",
-    response: samlResponse,
-  };
+  return decodeBase64(encodedSamlResponse);
 }
 
 function extractSamlResponseFromResponseBody(responseBody: string): string | undefined {
@@ -572,9 +486,42 @@ function extractSamlResponseFromResponseBody(responseBody: string): string | und
 async function detectOutgoingSamlResponse(
   httpRequest: HttpRequest,
 ): Promise<OutgoingSamlResponse | undefined | Error> {
+  const responseXml = await extractSamlResponseXmlFromHttpRequest(httpRequest);
+  if (responseXml === undefined || responseXml instanceof Error) {
+    return responseXml;
+  }
+
+  const samlResponse = makeSamlResponse(responseXml);
+  if (samlResponse instanceof Error) {
+    return samlResponse;
+  }
+
+  const sp = getHostname(httpRequest.url);
+  if (sp instanceof Error) {
+    return sp;
+  }
+
+  return {
+    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
+    createdAt: new Date().toISOString(),
+    imported: httpRequest.imported,
+    step: 5,
+    type: "OutgoingResponse",
+    sp,
+    action:
+      httpRequest.method === "POST"
+        ? "User Agent submits SAML Response to Service Provider"
+        : "User Agent redirects SAML Response to Service Provider",
+    response: samlResponse,
+  };
+}
+
+async function extractSamlResponseXmlFromHttpRequest(
+  httpRequest: HttpRequest,
+): Promise<string | undefined | Error> {
   return (
-    (await detectOutgoingSamlResponseForRedirectBinding(httpRequest)) ??
-    (await detectOutgoingSamlResponseForPostBinding(httpRequest))
+    (await extractSamlResponseXmlFromHttpRequestForHttpRedirect(httpRequest)) ??
+    (await extractSamlResponseXmlFromHttpRequestForHttpPost(httpRequest))
   );
 }
 
@@ -583,9 +530,9 @@ async function detectOutgoingSamlResponse(
 // Detected when:
 // - It is a GET request
 // - The URL query string contains SAMLResponse
-async function detectOutgoingSamlResponseForRedirectBinding(
+async function extractSamlResponseXmlFromHttpRequestForHttpRedirect(
   httpRequest: HttpRequest,
-): Promise<OutgoingSamlResponse | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (httpRequest.method !== "GET") {
     return undefined;
   }
@@ -601,31 +548,7 @@ async function detectOutgoingSamlResponseForRedirectBinding(
     return undefined;
   }
 
-  const samlResponseStr = await decodeSamlRedirectBindingMessage(encodedSamlResponse);
-  if (samlResponseStr instanceof Error) {
-    return samlResponseStr;
-  }
-
-  const samlResponse = makeSamlResponse(samlResponseStr);
-  if (samlResponse instanceof Error) {
-    return samlResponse;
-  }
-
-  const sp = getHostname(httpRequest.url);
-  if (sp instanceof Error) {
-    return sp;
-  }
-
-  return {
-    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
-    createdAt: new Date().toISOString(),
-    imported: httpRequest.imported,
-    step: 5,
-    type: "OutgoingResponse",
-    sp,
-    action: "User Agent redirects SAML Response to Service Provider",
-    response: samlResponse,
-  };
+  return await decodeSamlRedirectBindingMessage(encodedSamlResponse);
 }
 
 // Step 5 (HTTP POST Binding): UA ---(Response)--> SP
@@ -633,9 +556,9 @@ async function detectOutgoingSamlResponseForRedirectBinding(
 // Detected when:
 // - It is a POST request
 // - The POST parameters contain SAMLResponse
-async function detectOutgoingSamlResponseForPostBinding(
+async function extractSamlResponseXmlFromHttpRequestForHttpPost(
   httpRequest: HttpRequest,
-): Promise<OutgoingSamlResponse | undefined | Error> {
+): Promise<string | undefined | Error> {
   if (httpRequest.body === undefined) {
     return undefined;
   }
@@ -649,31 +572,7 @@ async function detectOutgoingSamlResponseForPostBinding(
     return encodedSamlResponse;
   }
 
-  const samlResponseStr = decodeBase64(encodedSamlResponse);
-  if (samlResponseStr instanceof Error) {
-    return samlResponseStr;
-  }
-
-  const samlResponse = makeSamlResponse(samlResponseStr);
-  if (samlResponse instanceof Error) {
-    return samlResponse;
-  }
-
-  const sp = getHostname(httpRequest.url);
-  if (sp instanceof Error) {
-    return sp;
-  }
-
-  return {
-    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
-    createdAt: new Date().toISOString(),
-    imported: httpRequest.imported,
-    step: 5,
-    type: "OutgoingResponse",
-    sp,
-    action: "User Agent submits SAML Response to Service Provider",
-    response: samlResponse,
-  };
+  return decodeBase64(encodedSamlResponse);
 }
 
 function extractSamlResponseFromRequestBody(requestBody: string): string | undefined | Error {

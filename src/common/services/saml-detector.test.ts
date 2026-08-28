@@ -6,7 +6,12 @@
 import { Base64 } from "js-base64";
 import { describe, expect, it, vi } from "vitest";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
-import { detectSamlStepFromHttpRequest, detectSamlStepFromHttpResponse } from "./saml-detector.ts";
+import {
+  detectSamlStepFromHttpRequest,
+  detectSamlStepFromHttpResponse,
+  extractSamlAuthnRequestXml,
+  extractSamlResponseXml,
+} from "./saml-detector.ts";
 
 //
 // Test fixtures
@@ -974,5 +979,133 @@ describe("detectSamlStep", () => {
 
       expect(result).toBeUndefined();
     });
+  });
+});
+
+describe("extractSamlAuthnRequestXml", () => {
+  it("extracts XML from a redirect response Location URL", async () => {
+    const location = await buildIdpLocationUrl();
+    const response = makeResponse({
+      url: "https://sp.example.com/login",
+      statusCode: 302,
+      headers: [
+        { name: "Location", value: location },
+        { name: "Date", value: DATE_HEADER_VALUE },
+      ],
+    });
+
+    const result = await extractSamlAuthnRequestXml(response);
+
+    expect(result).toBe(AUTHN_REQUEST_XML);
+  });
+
+  it("extracts XML from an HTML form response body", async () => {
+    const response = makeResponse({
+      url: "https://sp.example.com/login",
+      headers: [
+        { name: "Content-Type", value: "text/html" },
+        { name: "Date", value: DATE_HEADER_VALUE },
+      ],
+      body: buildSamlRequestFormBody(),
+    });
+
+    const result = await extractSamlAuthnRequestXml(response);
+
+    expect(result).toBe(AUTHN_REQUEST_XML);
+  });
+
+  it("extracts XML from a GET request URL", async () => {
+    const url = await buildIdpLocationUrl();
+    const request = makeRequest({ url, method: "GET" });
+
+    const result = await extractSamlAuthnRequestXml(request);
+
+    expect(result).toBe(AUTHN_REQUEST_XML);
+  });
+
+  it("extracts XML from a POST request body", async () => {
+    const request = makeRequest({
+      url: "https://idp.example.org/sso",
+      method: "POST",
+      body: buildSamlRequestPostBody(),
+    });
+
+    const result = await extractSamlAuthnRequestXml(request);
+
+    expect(result).toBe(AUTHN_REQUEST_XML);
+  });
+
+  it("returns undefined for a request without SAMLRequest", async () => {
+    const result = await extractSamlAuthnRequestXml(makeRequest());
+    expect(result).toBeUndefined();
+  });
+
+  it("returns undefined for a response without SAMLRequest", async () => {
+    const result = await extractSamlAuthnRequestXml(makeResponse());
+    expect(result).toBeUndefined();
+  });
+});
+
+describe("extractSamlResponseXml", () => {
+  it("extracts XML from a redirect response Location URL", async () => {
+    const location = await buildSpLocationUrlWithResponse();
+    const response = makeResponse({
+      url: "https://idp.example.org/sso",
+      statusCode: 302,
+      headers: [
+        { name: "Location", value: location },
+        { name: "Date", value: DATE_HEADER_VALUE },
+      ],
+    });
+
+    const result = await extractSamlResponseXml(response);
+
+    expect(result).toBe(RESPONSE_XML);
+  });
+
+  it("extracts XML from an HTML form response body", async () => {
+    const response = makeResponse({
+      url: "https://idp.example.org/sso",
+      headers: [
+        { name: "Content-Type", value: "text/html" },
+        { name: "Date", value: DATE_HEADER_VALUE },
+      ],
+      body: buildSamlResponseFormBody(),
+    });
+
+    const result = await extractSamlResponseXml(response);
+
+    expect(result).toBe(RESPONSE_XML);
+  });
+
+  it("extracts XML from a GET request URL", async () => {
+    const url = await buildSpLocationUrlWithResponse();
+    const request = makeRequest({ url, method: "GET" });
+
+    const result = await extractSamlResponseXml(request);
+
+    expect(result).toBe(RESPONSE_XML);
+  });
+
+  it("extracts XML from a POST request body", async () => {
+    const request = makeRequest({
+      url: "https://sp.example.com/acs",
+      method: "POST",
+      body: buildSamlResponsePostBody(),
+    });
+
+    const result = await extractSamlResponseXml(request);
+
+    expect(result).toBe(RESPONSE_XML);
+  });
+
+  it("returns undefined for a request without SAMLResponse", async () => {
+    const result = await extractSamlResponseXml(makeRequest());
+    expect(result).toBeUndefined();
+  });
+
+  it("returns undefined for a response without SAMLResponse", async () => {
+    const result = await extractSamlResponseXml(makeResponse());
+    expect(result).toBeUndefined();
   });
 });
