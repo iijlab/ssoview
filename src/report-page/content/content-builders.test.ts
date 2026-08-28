@@ -473,16 +473,10 @@ describe("buildHttpMessageDetails", () => {
   const baseFields = {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    requestId: "req-1",
+    fetchRequestId: "req-1",
     url: "https://example.com/path",
     method: "POST",
     headers: [{ name: "Content-Type", value: "text/html" }],
-  };
-
-  const pairedRequest = {
-    ...baseFields,
-    stage: "Request",
-    body: "",
   };
 
   it("builds request details from an HTTP request", () => {
@@ -508,7 +502,6 @@ describe("buildHttpMessageDetails", () => {
       stage: "Response",
       statusCode: 200,
       body: "response body",
-      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);
@@ -529,7 +522,6 @@ describe("buildHttpMessageDetails", () => {
       stage: "Response",
       statusCode: 302,
       body: undefined,
-      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);
@@ -543,7 +535,6 @@ describe("buildHttpMessageDetails", () => {
       stage: "Response",
       statusCode: 302,
       body: "",
-      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);

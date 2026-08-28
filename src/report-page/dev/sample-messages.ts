@@ -34,10 +34,11 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
 
   // Step 1: User -> SP
   const httpRequest1 = {
+    id: "msg-001",
     imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:21:58.000Z",
-    requestId: "req-001",
+    fetchRequestId: "req-001",
     url: "https://sp.example.com/SAML2/resource",
     method: "GET",
     headers: [{ name: "Host", value: "sp.example.com" }],
@@ -46,10 +47,11 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
 
   // Step 2: SP -> User
   const httpResponse2 = {
+    id: "msg-002",
     imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:21:59.000Z",
-    requestId: "req-001",
+    fetchRequestId: "req-001",
     url: "https://sp.example.com/SAML2/resource",
     method: "GET",
     statusCode: 302,
@@ -59,15 +61,16 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
       { name: "Location", value: idpSsoUrl },
     ],
     body: undefined,
-    request: httpRequest1,
+    pairedHttpRequestId: httpRequest1.id,
   } satisfies HttpMessage;
 
   // Step 3: User -> IdP
   const httpRequest3 = {
+    id: "msg-003",
     imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:21:59.200Z",
-    requestId: "req-002",
+    fetchRequestId: "req-002",
     url: idpSsoUrl,
     method: "GET",
     headers: [{ name: "Host", value: "idp.example.org" }],
@@ -76,10 +79,11 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
 
   // Step 4: IdP -> User
   const httpResponse4 = {
+    id: "msg-004",
     imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:22:05.000Z",
-    requestId: "req-002",
+    fetchRequestId: "req-002",
     url: idpSsoUrl,
     method: "GET",
     statusCode: 200,
@@ -99,15 +103,16 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
     <script>document.forms[0].submit();</script>
   </body>
 </html>`,
-    request: httpRequest3,
+    pairedHttpRequestId: httpRequest3.id,
   } satisfies HttpMessage;
 
   // Step 5: User -> SP
   const httpRequest5 = {
+    id: "msg-005",
     imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:22:05.100Z",
-    requestId: "req-003",
+    fetchRequestId: "req-003",
     url: "https://sp.example.com/SAML2/SSO/POST",
     method: "POST",
     headers: [
@@ -120,10 +125,11 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   // Step 6:  SP -> User
   const isSuccess = sample !== "failure" && sample !== "unknown";
   const httpResponse6 = {
+    id: "msg-006",
     imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:22:05.500Z",
-    requestId: "req-003",
+    fetchRequestId: "req-003",
     url: "https://sp.example.com/SAML2/SSO/POST",
     method: "POST",
     statusCode: isSuccess ? 200 : 403,
@@ -142,7 +148,7 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   <head><title>Error</title></head>
   <body><p>Authentication failed</p></body>
 </html>`,
-    request: httpRequest5,
+    pairedHttpRequestId: httpRequest5.id,
   } satisfies HttpMessage;
 
   const allMessages = [

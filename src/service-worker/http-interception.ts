@@ -14,7 +14,11 @@ import { isObject } from "@/common/utils/type-guard.ts";
 
 export function registerHttpInterceptionHandlers(
   onInterceptHttpRequest: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
-  onInterceptHttpResponse: (tabId: number, httpResponse: HttpResponse) => Promise<void>,
+  onInterceptHttpResponse: (
+    tabId: number,
+    httpResponse: HttpResponse,
+    pairedHttpRequest: HttpRequest,
+  ) => Promise<void>,
 ): void {
   chrome.debugger.onEvent.addListener(
     onFetchRequestPausedEvent
@@ -25,7 +29,11 @@ export function registerHttpInterceptionHandlers(
 
 function onFetchRequestPausedEvent(
   onInterceptHttpRequest: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
-  onInterceptHttpResponse: (tabId: number, httpResponse: HttpResponse) => Promise<void>,
+  onInterceptHttpResponse: (
+    tabId: number,
+    httpResponse: HttpResponse,
+    pairedHttpRequest: HttpRequest,
+  ) => Promise<void>,
   source: chrome.debugger.Debuggee,
   method: string,
   params?: object,
@@ -69,12 +77,14 @@ function onFetchRequestPausedEvent(
         if (getResponseBodyResponse instanceof Error) {
           console.warn("Failed to get response body:", { error: getResponseBodyResponse });
         } else {
+          const pairedHttpRequest = newHttpRequest(requestPausedEvent);
           const httpResponse = newHttpResponse(
             requestPausedEvent,
             requestPausedEvent.responseStatusCode,
             getResponseBodyResponse,
+            pairedHttpRequest,
           );
-          await onInterceptHttpResponse(tabId, httpResponse);
+          await onInterceptHttpResponse(tabId, httpResponse, pairedHttpRequest);
         }
       }
 

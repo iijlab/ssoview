@@ -79,7 +79,25 @@ describe("registerHttpInterceptionHandlers", () => {
     expect(onInterceptHttpResponse).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ body: undefined }),
+      expect.anything(),
     );
+  });
+
+  it("passes the paired request the response refers to", async () => {
+    const onInterceptHttpResponse = vi.fn();
+    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
+
+    fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(302));
+
+    await vi.waitFor(() => expect(onInterceptHttpResponse).toHaveBeenCalledOnce());
+    const [, httpResponse, pairedHttpRequest] = onInterceptHttpResponse.mock.calls[0]!;
+    expect(pairedHttpRequest).toMatchObject({
+      stage: "Request",
+      fetchRequestId: "req-1",
+      url: "https://sp.example.com/SAML2/resource",
+      method: "GET",
+    });
+    expect(httpResponse.pairedHttpRequestId).toBe(pairedHttpRequest.id);
   });
 
   it("skips the response but continues it when the body cannot be retrieved", async () => {

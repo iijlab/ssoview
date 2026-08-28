@@ -16,10 +16,10 @@ const STORAGE_NAMESPACE = "http";
 function makeStorageKeyForHttpMessage(
   tabId: number,
   sessionId: string,
-  requestId: string,
+  fetchRequestId: string,
   stage: string,
 ): string {
-  return makeStorageKey(STORAGE_NAMESPACE, [`${tabId}`, sessionId, requestId, stage]);
+  return makeStorageKey(STORAGE_NAMESPACE, [`${tabId}`, sessionId, fetchRequestId, stage]);
 }
 
 function makeStorageKeyPrefixForHttpMessages(tabId: number, sessionId?: string): string {
@@ -35,7 +35,7 @@ export async function storeHttpMessage(
   const key = makeStorageKeyForHttpMessage(
     tabId,
     sessionId,
-    httpMessage.requestId,
+    httpMessage.fetchRequestId,
     httpMessage.stage,
   );
 

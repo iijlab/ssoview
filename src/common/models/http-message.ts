@@ -5,6 +5,7 @@
 
 import type Protocol from "devtools-protocol";
 import { Base64 } from "js-base64";
+import { v7 as uuidv7 } from "uuid";
 import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
@@ -15,9 +16,10 @@ export function isHttpMessage(u: unknown): u is HttpMessage {
 }
 
 type HttpMessageBase = {
+  id: string;
   createdAt: string;
   imported: boolean;
-  requestId: Protocol.Fetch.RequestId;
+  fetchRequestId: Protocol.Fetch.RequestId;
   url: string;
   method: string;
   headers: Protocol.Fetch.HeaderEntry[];
@@ -27,9 +29,10 @@ type HttpMessageBase = {
 function isHttpMessageBase(u: unknown): u is HttpMessageBase {
   return (
     isObject(u) &&
+    typeof u.id === "string" &&
     typeof u.createdAt === "string" &&
     typeof u.imported === "boolean" &&
-    typeof u.requestId === "string" &&
+    typeof u.fetchRequestId === "string" &&
     typeof u.url === "string" &&
     typeof u.method === "string" &&
     isHeaderEntries(u.headers) &&
@@ -58,7 +61,7 @@ function isHttpRequest(u: unknown): u is HttpRequest {
 export type HttpResponse = HttpMessageBase & {
   stage: "Response";
   statusCode: number;
-  request: HttpRequest;
+  pairedHttpRequestId: string;
 };
 
 function isHttpResponse(u: unknown): u is HttpResponse {
@@ -66,17 +69,18 @@ function isHttpResponse(u: unknown): u is HttpResponse {
     isObject(u) &&
     u.stage === "Response" &&
     typeof u.statusCode === "number" &&
-    isHttpRequest(u.request) &&
+    typeof u.pairedHttpRequestId === "string" &&
     isHttpMessageBase(u)
   );
 }
 
 export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedEvent): HttpRequest {
   return {
+    id: uuidv7(),
     createdAt: new Date().toISOString(),
     imported: false,
     stage: "Request",
-    requestId: requestPausedEvent.requestId,
+    fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
     headers: Object.entries(requestPausedEvent.request.headers).map(
@@ -90,6 +94,7 @@ export function newHttpResponse(
   requestPausedEvent: Protocol.Fetch.RequestPausedEvent,
   statusCode: number,
   getResponseBodyResponse: Protocol.Network.GetResponseBodyResponse | undefined,
+  httpRequest: HttpRequest,
 ): HttpResponse {
   const body =
     getResponseBodyResponse === undefined
@@ -99,16 +104,17 @@ export function newHttpResponse(
         : getResponseBodyResponse.body;
 
   return {
+    id: uuidv7(),
     createdAt: new Date().toISOString(),
     imported: false,
     stage: "Response",
-    requestId: requestPausedEvent.requestId,
+    fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
     headers: requestPausedEvent.responseHeaders ?? [],
     body,
     statusCode,
-    request: newHttpRequest(requestPausedEvent),
+    pairedHttpRequestId: httpRequest.id,
   };
 }
 
@@ -152,7 +158,7 @@ async function debugHttpRequestImpl(httpRequest: HttpRequest) {
 
   const debug = await createLabeledDebugLogger([
     "HTTP",
-    httpRequest.requestId,
+    httpRequest.fetchRequestId,
     host,
     httpRequest.method,
   ]);
@@ -173,7 +179,7 @@ async function debugHttpResponseImpl(httpResponse: HttpResponse) {
 
   const debug = await createLabeledDebugLogger([
     "HTTP",
-    httpResponse.requestId,
+    httpResponse.fetchRequestId,
     host,
     `${httpResponse.statusCode}`,
   ]);

@@ -15,10 +15,11 @@ import { getHeaderValue, isHttpMessage, newHttpRequest, newHttpResponse } from "
 
 function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
+    id: "msg-1",
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     stage: "Request",
-    requestId: "req-1",
+    fetchRequestId: "req-1",
     url: "https://example.com/",
     method: "GET",
     headers: [],
@@ -49,9 +50,10 @@ function makeRequestPausedEvent(
 
 describe("isHttpMessage", () => {
   const validHttpRequest = {
+    id: "msg-123",
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    requestId: "req-123",
+    fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",
@@ -60,16 +62,17 @@ describe("isHttpMessage", () => {
   };
 
   const validHttpResponse = {
+    id: "msg-124",
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
-    requestId: "req-123",
+    fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",
     stage: "Response",
     statusCode: 200,
     body: "<html></html>",
-    request: validHttpRequest,
+    pairedHttpRequestId: "msg-123",
   };
 
   it("returns true for valid HttpRequest", () => {
@@ -86,6 +89,11 @@ describe("isHttpMessage", () => {
 
   it("returns false for undefined", () => {
     expect(isHttpMessage(undefined)).toBe(false);
+  });
+
+  it("returns false when id is missing", () => {
+    const { id, ...msg } = validHttpRequest;
+    expect(isHttpMessage(msg)).toBe(false);
   });
 
   it("returns false when createdAt is missing", () => {
@@ -124,8 +132,8 @@ describe("isHttpMessage", () => {
     expect(isHttpMessage(msg)).toBe(false);
   });
 
-  it("returns false for Response with invalid request", () => {
-    const msg = { ...validHttpResponse, request: { invalid: true } };
+  it("returns false for Response without pairedHttpRequestId", () => {
+    const { pairedHttpRequestId, ...msg } = validHttpResponse;
     expect(isHttpMessage(msg)).toBe(false);
   });
 });
@@ -169,10 +177,20 @@ describe("newHttpRequest", () => {
     expect(httpRequest).toMatchObject({
       imported: false,
       stage: "Request",
-      requestId: "req-1",
+      fetchRequestId: "req-1",
       url: "https://sp.example.com/SAML2/ACS",
       method: "POST",
     });
+  });
+
+  it("issues a unique id", () => {
+    const requestPausedEvent = makeRequestPausedEvent();
+
+    const first = newHttpRequest(requestPausedEvent);
+    const second = newHttpRequest(requestPausedEvent);
+
+    expect(first.id).not.toBe("");
+    expect(first.id).not.toBe(second.id);
   });
 
   it("converts headers from an object to entries", () => {
@@ -236,15 +254,17 @@ describe("newHttpResponse", () => {
       },
     );
 
-    const httpResponse = newHttpResponse(requestPausedEvent, 200, {
-      body: "<html></html>",
-      base64Encoded: false,
-    });
+    const httpResponse = newHttpResponse(
+      requestPausedEvent,
+      200,
+      { body: "<html></html>", base64Encoded: false },
+      makeRequest(),
+    );
 
     expect(httpResponse).toMatchObject({
       imported: false,
       stage: "Response",
-      requestId: "req-1",
+      fetchRequestId: "req-1",
       statusCode: 200,
       headers: [{ name: "Content-Type", value: "text/html" }],
       body: "<html></html>",
@@ -256,6 +276,7 @@ describe("newHttpResponse", () => {
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
       { body: "", base64Encoded: false },
+      makeRequest(),
     );
 
     expect(httpResponse).toMatchObject({ headers: [] });
@@ -266,35 +287,37 @@ describe("newHttpResponse", () => {
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
       { body: Base64.encode("<html></html>"), base64Encoded: true },
+      makeRequest(),
     );
 
     expect(httpResponse).toMatchObject({ body: "<html></html>" });
   });
 
-  it("includes the paired request with its body", () => {
-    const requestPausedEvent = makeRequestPausedEvent(
-      {
-        url: "https://sp.example.com/SAML2/ACS",
-        method: "POST",
-        hasPostData: true,
-        postDataEntries: [{ bytes: Base64.encode("SAMLResponse=abc") }],
-      },
-      { responseStatusCode: 200 },
+  it("issues an id distinct from the paired request", () => {
+    const httpRequest = makeRequest();
+
+    const httpResponse = newHttpResponse(
+      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
+      200,
+      { body: "", base64Encoded: false },
+      httpRequest,
     );
 
-    const httpResponse = newHttpResponse(requestPausedEvent, 200, {
-      body: "",
-      base64Encoded: false,
-    });
+    expect(httpResponse.id).not.toBe("");
+    expect(httpResponse.id).not.toBe(httpRequest.id);
+  });
 
-    expect(httpResponse).toMatchObject({
-      request: {
-        stage: "Request",
-        url: "https://sp.example.com/SAML2/ACS",
-        method: "POST",
-        body: "SAMLResponse=abc",
-      },
-    });
+  it("references the id of the given paired request", () => {
+    const httpRequest = makeRequest({ id: "msg-9" });
+
+    const httpResponse = newHttpResponse(
+      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
+      200,
+      { body: "", base64Encoded: false },
+      httpRequest,
+    );
+
+    expect(httpResponse.pairedHttpRequestId).toBe("msg-9");
   });
 
   it("leaves the body undefined when the response body is not given", () => {
@@ -302,6 +325,7 @@ describe("newHttpResponse", () => {
       makeRequestPausedEvent({}, { responseStatusCode: 302 }),
       302,
       undefined,
+      makeRequest(),
     );
 
     expect(httpResponse.statusCode).toBe(302);

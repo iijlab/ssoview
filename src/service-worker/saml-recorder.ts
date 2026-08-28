@@ -3,42 +3,82 @@
  * @license BSD-3-Clause
  */
 
-import { debugHttpMessage, type HttpMessage } from "@/common/models/http-message.ts";
+import {
+  debugHttpRequest,
+  debugHttpResponse,
+  type HttpRequest,
+  type HttpResponse,
+} from "@/common/models/http-message.ts";
 import { debugSamlTrace } from "@/common/models/saml-trace.ts";
 import { storeHttpMessage } from "@/common/services/http-store.ts";
 import { storeSamlTrace } from "@/common/services/saml-store.ts";
-import { detectSamlStep } from "@/common/services/saml-detector.ts";
+import {
+  detectSamlStepFromHttpRequest,
+  detectSamlStepFromHttpResponse,
+} from "@/common/services/saml-detector.ts";
 
-export async function processHttpMessage(
+export async function processHttpRequest(
   tabId: number,
-  httpMessage: HttpMessage,
+  httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
-  await debugHttpMessage(httpMessage);
+  await debugHttpRequest(httpRequest);
 
-  const detected = await detectSamlStep(httpMessage);
+  const detected = await detectSamlStepFromHttpRequest(httpRequest);
   if (detected instanceof Error) {
     return detected;
   } else if (!detected) {
     return undefined;
   }
 
-  // Store the paired request for step=2 responses. This request is the initial
-  // unauthenticated resource request (step=1) that triggered the SSO flow.
-  if (httpMessage.stage === "Response" && detected.step === 2) {
-    const storeHttpResult = await storeHttpMessage(httpMessage.request, tabId, detected.sessionId);
-    if (storeHttpResult instanceof Error) {
-      return storeHttpResult;
+  {
+    const err = await storeHttpMessage(httpRequest, tabId, detected.sessionId);
+    if (err) {
+      return err;
+    }
+  }
+  {
+    const err = await storeSamlTrace(detected, tabId);
+    if (err) {
+      return err;
     }
   }
 
-  const storeHttpResult = await storeHttpMessage(httpMessage, tabId, detected.sessionId);
-  if (storeHttpResult instanceof Error) {
-    return storeHttpResult;
+  await debugSamlTrace(detected);
+
+  return detected.sessionId;
+}
+
+export async function processHttpResponse(
+  tabId: number,
+  httpResponse: HttpResponse,
+  pairedHttpRequest: HttpRequest,
+): Promise<string | undefined | Error> {
+  await debugHttpResponse(httpResponse);
+
+  const detected = await detectSamlStepFromHttpResponse(httpResponse, pairedHttpRequest);
+  if (detected instanceof Error) {
+    return detected;
+  } else if (!detected) {
+    return undefined;
   }
 
-  const storeSamlResult = await storeSamlTrace(detected, tabId);
-  if (storeSamlResult instanceof Error) {
-    return storeSamlResult;
+  {
+    const err = await storeHttpMessage(pairedHttpRequest, tabId, detected.sessionId);
+    if (err) {
+      return err;
+    }
+  }
+  {
+    const err = await storeHttpMessage(httpResponse, tabId, detected.sessionId);
+    if (err) {
+      return err;
+    }
+  }
+  {
+    const err = await storeSamlTrace(detected, tabId);
+    if (err) {
+      return err;
+    }
   }
 
   await debugSamlTrace(detected);
