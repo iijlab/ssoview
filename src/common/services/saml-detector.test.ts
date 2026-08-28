@@ -5,7 +5,7 @@
 
 import { Base64 } from "js-base64";
 import { describe, expect, it, vi } from "vitest";
-import type { HttpRequest, HttpResponse } from "@/common/models/http-message.ts";
+import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
 import { detectSamlStepFromHttpRequest, detectSamlStepFromHttpResponse } from "./saml-detector.ts";
 
 //

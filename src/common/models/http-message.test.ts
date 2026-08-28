@@ -6,8 +6,13 @@
 import type Protocol from "devtools-protocol";
 import { Base64 } from "js-base64";
 import { describe, expect, it } from "vitest";
-import type { HttpRequest } from "./http-message.ts";
-import { getHeaderValue, isHttpMessage, newHttpRequest, newHttpResponse } from "./http-message.ts";
+import {
+  type HttpRequest,
+  getHeaderValue,
+  isHttpMessage,
+  newHttpRequest,
+  newHttpResponse,
+} from "./http-message.ts";
 
 //
 // Helpers

@@ -5,11 +5,6 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  getAllSessionStorageKeys,
-  getSessionStorageItems,
-  setSessionStorageItem,
-} from "@/common/utils/chrome-storage.ts";
-import {
   newCaptureStartedRecord,
   newCaptureStoppedRecord,
   newDebuggerAttachedRecord,
@@ -17,9 +12,14 @@ import {
   newWatchStartedRecord,
 } from "@/common/models/event-record.ts";
 import {
-  retrieveAllEventRecords,
-  retrieveEventRecordKeyFields,
-  storeEventRecord,
+  getAllSessionStorageKeys,
+  getSessionStorageItems,
+  setSessionStorageItem,
+} from "@/common/utils/chrome-storage.ts";
+import {
+  findAllEventRecords,
+  findEventRecordKeyFieldsByTypes,
+  saveEventRecord,
 } from "./event-store.ts";
 
 vi.mock("@/common/utils/chrome-storage.ts", () => ({
@@ -32,12 +32,12 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("storeEventRecord", () => {
+describe("saveEventRecord", () => {
   it("stores the record under a JSON key of the ID, kind, and type", async () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
     const record = newCaptureStartedRecord();
 
-    const result = await storeEventRecord(record);
+    const result = await saveEventRecord(record);
 
     expect(result).toBeUndefined();
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
@@ -50,7 +50,7 @@ describe("storeEventRecord", () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
     const record = newWatchStartedRecord(42);
 
-    await storeEventRecord(record);
+    await saveEventRecord(record);
 
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
       `{"id":"${record.id}","kind":"event","type":"WatchStarted","tabId":42}`,
@@ -62,7 +62,7 @@ describe("storeEventRecord", () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
     const record = newDebuggerDetachedRecord(7, "target_closed");
 
-    await storeEventRecord(record);
+    await saveEventRecord(record);
 
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
       `{"id":"${record.id}","kind":"event","type":"DebuggerDetached","tabId":7}`,
@@ -74,13 +74,13 @@ describe("storeEventRecord", () => {
     const error = new Error("storage failed");
     vi.mocked(setSessionStorageItem).mockResolvedValue(error);
 
-    const result = await storeEventRecord(newCaptureStartedRecord());
+    const result = await saveEventRecord(newCaptureStartedRecord());
 
     expect(result).toBe(error);
   });
 });
 
-describe("retrieveEventRecordKeyFields", () => {
+describe("findEventRecordKeyFieldsByTypes", () => {
   it("returns the key fields of the given types sorted by ID", async () => {
     const first = newCaptureStartedRecord();
     const second = newWatchStartedRecord(1);
@@ -91,7 +91,7 @@ describe("retrieveEventRecordKeyFields", () => {
       `{"id":"${first.id}","kind":"event","type":"CaptureStarted"}`,
     ]);
 
-    const result = await retrieveEventRecordKeyFields(["CaptureStarted", "CaptureStopped"]);
+    const result = await findEventRecordKeyFieldsByTypes(["CaptureStarted", "CaptureStopped"]);
 
     expect(result).toEqual([
       { id: first.id, kind: "event", type: "CaptureStarted" },
@@ -105,7 +105,7 @@ describe("retrieveEventRecordKeyFields", () => {
       `{"id":"${record.id}","kind":"event","type":"WatchStarted","tabId":42}`,
     ]);
 
-    expect(await retrieveEventRecordKeyFields(["WatchStarted"])).toEqual([
+    expect(await findEventRecordKeyFieldsByTypes(["WatchStarted"])).toEqual([
       { id: record.id, kind: "event", type: "WatchStarted", tabId: 42 },
     ]);
   });
@@ -120,7 +120,7 @@ describe("retrieveEventRecordKeyFields", () => {
       key,
     ]);
 
-    expect(await retrieveEventRecordKeyFields(["CaptureStarted"])).toEqual([
+    expect(await findEventRecordKeyFieldsByTypes(["CaptureStarted"])).toEqual([
       { id: record.id, kind: "event", type: "CaptureStarted" },
     ]);
   });
@@ -131,13 +131,13 @@ describe("retrieveEventRecordKeyFields", () => {
       `{"id":"${record.id}","kind":"event","type":"WatchStarted","tabId":1}`,
     ]);
 
-    expect(await retrieveEventRecordKeyFields(["CaptureStarted"])).toEqual([]);
+    expect(await findEventRecordKeyFieldsByTypes(["CaptureStarted"])).toEqual([]);
   });
 
   it("does not read the stored values", async () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([]);
 
-    await retrieveEventRecordKeyFields(["CaptureStarted"]);
+    await findEventRecordKeyFieldsByTypes(["CaptureStarted"]);
 
     expect(getSessionStorageItems).not.toHaveBeenCalled();
   });
@@ -146,11 +146,11 @@ describe("retrieveEventRecordKeyFields", () => {
     const error = new Error("storage failed");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
-    expect(await retrieveEventRecordKeyFields(["CaptureStarted"])).toBe(error);
+    expect(await findEventRecordKeyFieldsByTypes(["CaptureStarted"])).toBe(error);
   });
 });
 
-describe("retrieveAllEventRecords", () => {
+describe("findAllEventRecords", () => {
   it("retrieves event records sorted by ID", async () => {
     const first = newCaptureStartedRecord();
     const second = newWatchStartedRecord(1);
@@ -165,7 +165,7 @@ describe("retrieveAllEventRecords", () => {
       [secondKey]: second,
     });
 
-    const result = await retrieveAllEventRecords();
+    const result = await findAllEventRecords();
 
     expect(result).toEqual([first, second, third]);
   });
@@ -184,7 +184,7 @@ describe("retrieveAllEventRecords", () => {
     ]);
     vi.mocked(getSessionStorageItems).mockResolvedValue({ [key]: record });
 
-    const result = await retrieveAllEventRecords();
+    const result = await findAllEventRecords();
 
     expect(result).toEqual([record]);
     expect(getSessionStorageItems).toHaveBeenCalledExactlyOnceWith([key]);
@@ -194,7 +194,7 @@ describe("retrieveAllEventRecords", () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([]);
     vi.mocked(getSessionStorageItems).mockResolvedValue({});
 
-    expect(await retrieveAllEventRecords()).toEqual([]);
+    expect(await findAllEventRecords()).toEqual([]);
   });
 
   it("filters out values that are not event records", async () => {
@@ -208,14 +208,14 @@ describe("retrieveAllEventRecords", () => {
       [brokenKey]: { type: "WatchStarted" },
     });
 
-    expect(await retrieveAllEventRecords()).toEqual([record]);
+    expect(await findAllEventRecords()).toEqual([record]);
   });
 
   it("propagates an error from the key retrieval", async () => {
     const error = new Error("storage failed");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
-    expect(await retrieveAllEventRecords()).toBe(error);
+    expect(await findAllEventRecords()).toBe(error);
   });
 
   it("propagates an error from the item retrieval", async () => {
@@ -223,6 +223,6 @@ describe("retrieveAllEventRecords", () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([]);
     vi.mocked(getSessionStorageItems).mockResolvedValue(error);
 
-    expect(await retrieveAllEventRecords()).toBe(error);
+    expect(await findAllEventRecords()).toBe(error);
   });
 });

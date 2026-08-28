@@ -6,8 +6,8 @@
 import { Base64 } from "js-base64";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import sampleAuthnRequestXmlRaw from "./authn-request.xml?raw";
-import samlSuccessResponseXmlRaw from "./response-success.xml?raw";
 import samlFailureResponseXmlRaw from "./response-failure.xml?raw";
+import samlSuccessResponseXmlRaw from "./response-success.xml?raw";
 import samlUnknownResponseXmlRaw from "./response-unknown.xml?raw";
 
 //

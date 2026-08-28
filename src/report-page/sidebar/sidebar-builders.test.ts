@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { HttpMessage } from "@/common/models/http-message.ts";
+import { type HttpMessage } from "@/common/models/http-message.ts";
 import { buildHttpMessageDataRecord } from "./sidebar-builders.ts";
 
 //

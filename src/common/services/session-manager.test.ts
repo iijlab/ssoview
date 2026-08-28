@@ -4,8 +4,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SessionSummary } from "@/common/models/session-summary.ts";
-import type { SamlTrace } from "@/common/models/saml-trace.ts";
+import { type SamlTrace } from "@/common/models/saml-trace.ts";
+import { type SessionSummary } from "@/common/models/session-summary.ts";
 import { purgeHttpMessages } from "@/common/services/http-store.ts";
 import { purgeSamlTraces, retrieveSamlTraces } from "@/common/services/saml-store.ts";
 import { getSamlSessionSummary } from "@/common/services/saml-summarizer.ts";

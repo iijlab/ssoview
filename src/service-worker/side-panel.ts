@@ -7,7 +7,7 @@
 import ContextType = chrome.runtime.ContextType;
 // local
 import { getActiveTabId } from "@/common/utils/chrome-tabs.ts";
-import { IconPath, hideBadge } from "@/service-worker/action-icon.ts";
+import { hideBadge, IconPath } from "@/service-worker/action-icon.ts";
 
 export function registerSidePanelOpenHandler(): void {
   chrome.action.onClicked.addListener((tab) => {

@@ -5,9 +5,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
-import type { HttpMessage } from "@/common/models/http-message.ts";
-import type { SamlTrace } from "@/common/models/saml-trace.ts";
-import { storeEventRecord } from "@/common/services/event-store.ts";
+import { type HttpMessage } from "@/common/models/http-message.ts";
+import { type SamlTrace } from "@/common/models/saml-trace.ts";
+import { saveEventRecord } from "@/common/services/event-store.ts";
 import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
@@ -22,7 +22,7 @@ vi.mock("@/common/models/http-archive.ts", () => ({
 }));
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  storeEventRecord: vi.fn(),
+  saveEventRecord: vi.fn(),
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -41,7 +41,7 @@ vi.mock("@/common/services/saml-store.ts", () => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(storeEventRecord).mockResolvedValue(undefined);
+  vi.mocked(saveEventRecord).mockResolvedValue(undefined);
 });
 
 describe("dumpSessionArchive", () => {
@@ -156,7 +156,7 @@ describe("loadSessionArchive", () => {
 
     await loadSessionArchive(1, "har-string");
 
-    expect(storeEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "ArchiveImported" }),
     );
   });
@@ -168,13 +168,13 @@ describe("loadSessionArchive", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("parse error");
-    expect(storeEventRecord).not.toHaveBeenCalled();
+    expect(saveEventRecord).not.toHaveBeenCalled();
   });
 
   it("returns Error when the import event cannot be stored", async () => {
     const error = new Error("storage failed");
     vi.mocked(toHttpMessages).mockReturnValue([]);
-    vi.mocked(storeEventRecord).mockResolvedValue(error);
+    vi.mocked(saveEventRecord).mockResolvedValue(error);
 
     expect(await loadSessionArchive(1, "har-string")).toBe(error);
     expect(detectSamlStepFromHttpRequest).not.toHaveBeenCalled();

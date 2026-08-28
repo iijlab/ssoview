@@ -8,17 +8,17 @@ import {
   newDebuggerAttachedRecord,
   newDebuggerDetachedRecord,
 } from "@/common/models/event-record.ts";
-import { retrieveAllEventRecords, storeEventRecord } from "@/common/services/event-store.ts";
+import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
 import {
   isDebugging,
+  registerDebuggerDetachHandler,
   startDebugging,
   stopDebugging,
-  registerDebuggerDetachHandler,
 } from "./debugger-controller.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  retrieveAllEventRecords: vi.fn(),
-  storeEventRecord: vi.fn(),
+  findAllEventRecords: vi.fn(),
+  saveEventRecord: vi.fn(),
 }));
 
 //
@@ -42,8 +42,8 @@ beforeEach(() => {
   getTargets.mockReset().mockResolvedValue([]);
   attach.mockReset();
   detach.mockReset();
-  vi.mocked(storeEventRecord).mockReset().mockResolvedValue(undefined);
-  vi.mocked(retrieveAllEventRecords).mockReset().mockResolvedValue([]);
+  vi.mocked(saveEventRecord).mockReset().mockResolvedValue(undefined);
+  vi.mocked(findAllEventRecords).mockReset().mockResolvedValue([]);
   vi.stubGlobal("chrome", {
     debugger: {
       onDetach: {
@@ -80,7 +80,7 @@ describe("registerDebuggerDetachHandler", () => {
     await vi.waitFor(() =>
       expect(onDebuggerDetached).toHaveBeenCalledExactlyOnceWith(1, "canceled_by_user"),
     );
-    expect(storeEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         type: "DebuggerDetached",
         tabId: 1,
@@ -91,7 +91,7 @@ describe("registerDebuggerDetachHandler", () => {
   });
 
   it("calls the handler even when the record cannot be stored", async () => {
-    vi.mocked(storeEventRecord).mockResolvedValue(new Error("storage failed"));
+    vi.mocked(saveEventRecord).mockResolvedValue(new Error("storage failed"));
     const onDebuggerDetached = vi.fn();
     registerDebuggerDetachHandler(onDebuggerDetached);
 
@@ -111,7 +111,7 @@ describe("registerDebuggerDetachHandler", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onDebuggerDetached).not.toHaveBeenCalled();
-    expect(storeEventRecord).not.toHaveBeenCalled();
+    expect(saveEventRecord).not.toHaveBeenCalled();
   });
 });
 
@@ -126,7 +126,7 @@ describe("startDebugging", () => {
       "Fetch.enable",
       expect.anything(),
     );
-    expect(storeEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "DebuggerAttached", tabId: 1, retry: false }),
     );
   });
@@ -138,7 +138,7 @@ describe("startDebugging", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect(sendCommand).not.toHaveBeenCalled();
-    expect(storeEventRecord).not.toHaveBeenCalled();
+    expect(saveEventRecord).not.toHaveBeenCalled();
   });
 
   it("detaches and stores nothing when Fetch cannot be enabled", async () => {
@@ -148,12 +148,12 @@ describe("startDebugging", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect(detach).toHaveBeenCalledExactlyOnceWith({ tabId: 1 });
-    expect(storeEventRecord).not.toHaveBeenCalled();
+    expect(saveEventRecord).not.toHaveBeenCalled();
   });
 
   it("detaches and returns the error when the record cannot be stored", async () => {
     const error = new Error("storage failed");
-    vi.mocked(storeEventRecord).mockResolvedValue(error);
+    vi.mocked(saveEventRecord).mockResolvedValue(error);
 
     const result = await startDebugging(1);
 
@@ -168,10 +168,10 @@ describe("stopDebugging", () => {
 
     expect(result).toBeUndefined();
     expect(detach).toHaveBeenCalledExactlyOnceWith({ tabId: 1 });
-    expect(storeEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "DebuggerDetached", tabId: 1, detachedBy: "self" }),
     );
-    expect(vi.mocked(storeEventRecord).mock.calls[0]?.[0]).not.toHaveProperty("detachReason");
+    expect(vi.mocked(saveEventRecord).mock.calls[0]?.[0]).not.toHaveProperty("detachReason");
   });
 
   it("stores nothing when detaching fails", async () => {
@@ -180,12 +180,12 @@ describe("stopDebugging", () => {
     const result = await stopDebugging(1);
 
     expect(result).toBeInstanceOf(Error);
-    expect(storeEventRecord).not.toHaveBeenCalled();
+    expect(saveEventRecord).not.toHaveBeenCalled();
   });
 
   it("returns an error when the record cannot be stored after detaching", async () => {
     const error = new Error("storage failed");
-    vi.mocked(storeEventRecord).mockResolvedValue(error);
+    vi.mocked(saveEventRecord).mockResolvedValue(error);
 
     const result = await stopDebugging(1);
 
@@ -197,7 +197,7 @@ describe("stopDebugging", () => {
 
 describe("isDebugging", () => {
   it("returns true when the tab is attached and the records say so", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([newDebuggerAttachedRecord(1, false)]);
+    vi.mocked(findAllEventRecords).mockResolvedValue([newDebuggerAttachedRecord(1, false)]);
     getTargets.mockResolvedValue([{ tabId: 1, attached: true }]);
 
     expect(await isDebugging(1)).toBe(true);
@@ -210,7 +210,7 @@ describe("isDebugging", () => {
   });
 
   it("returns false when the latest record is a detach", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([
+    vi.mocked(findAllEventRecords).mockResolvedValue([
       newDebuggerAttachedRecord(1, false),
       newDebuggerDetachedRecord(1),
     ]);
@@ -220,7 +220,7 @@ describe("isDebugging", () => {
   });
 
   it("returns true when the tab was re-attached after a detach", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([
+    vi.mocked(findAllEventRecords).mockResolvedValue([
       newDebuggerAttachedRecord(1, false),
       newDebuggerDetachedRecord(1),
       newDebuggerAttachedRecord(1, true),
@@ -231,14 +231,14 @@ describe("isDebugging", () => {
   });
 
   it("returns false when the records say so but the tab is no longer attached", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([newDebuggerAttachedRecord(1, false)]);
+    vi.mocked(findAllEventRecords).mockResolvedValue([newDebuggerAttachedRecord(1, false)]);
     getTargets.mockResolvedValue([]);
 
     expect(await isDebugging(1)).toBe(false);
   });
 
   it("ignores records of other tabs", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([newDebuggerAttachedRecord(2, false)]);
+    vi.mocked(findAllEventRecords).mockResolvedValue([newDebuggerAttachedRecord(2, false)]);
     getTargets.mockResolvedValue([{ tabId: 1, attached: true }]);
 
     expect(await isDebugging(1)).toBe(false);
@@ -246,7 +246,7 @@ describe("isDebugging", () => {
 
   it("returns the error when the records cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllEventRecords).mockResolvedValue(error);
 
     expect(await isDebugging(1)).toBe(error);
   });

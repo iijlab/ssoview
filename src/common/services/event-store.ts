@@ -4,23 +4,23 @@
  */
 
 import {
-  getAllSessionStorageKeys,
-  getSessionStorageItems,
-  setSessionStorageItem,
-} from "@/common/utils/chrome-storage.ts";
-import { isObject } from "@/common/utils/type-guard.ts";
-import {
   type EventRecord,
   type EventRecordType,
   isEventRecord,
   isEventRecordType,
 } from "@/common/models/event-record.ts";
+import {
+  getAllSessionStorageKeys,
+  getSessionStorageItems,
+  setSessionStorageItem,
+} from "@/common/utils/chrome-storage.ts";
+import { isObject } from "@/common/utils/type-guard.ts";
 
-export async function storeEventRecord(record: EventRecord): Promise<void | Error> {
+export async function saveEventRecord(record: EventRecord): Promise<void | Error> {
   return await setSessionStorageItem(makeEventRecordKey(record), record);
 }
 
-export async function retrieveEventRecordKeyFields(
+export async function findEventRecordKeyFieldsByTypes(
   eventRecordTypes: EventRecordType[],
 ): Promise<EventRecordKeyFields[] | Error> {
   const allKeys = await getAllSessionStorageKeys();
@@ -35,23 +35,23 @@ export async function retrieveEventRecordKeyFields(
     .toSorted((a, b) => (a.id < b.id ? -1 : 1));
 }
 
-export async function retrieveAllEventRecords(): Promise<EventRecord[] | Error> {
+export async function findAllEventRecords(): Promise<EventRecord[] | Error> {
   const allKeys = await getAllSessionStorageKeys();
   if (allKeys instanceof Error) {
     return allKeys;
   }
 
-  const keys = allKeys.filter(isEventRecordKey);
+  const keys = allKeys.filter((k) => parseEventRecordKey(k) !== undefined);
   const items = await getSessionStorageItems(keys);
   if (items instanceof Error) {
     return items;
   }
 
   return Object.values(items)
-    .filter((u: unknown): u is EventRecord => {
-      const valid = isEventRecord(u);
+    .filter((r): r is EventRecord => {
+      const valid = isEventRecord(r);
       if (!valid) {
-        console.warn("Invalid event record:", u);
+        console.warn("Invalid event record:", r);
       }
       return valid;
     })
@@ -79,10 +79,6 @@ function isEventRecordKeyFields(u: unknown): u is EventRecordKeyFields {
 
 function makeEventRecordKey(record: EventRecord): string {
   return JSON.stringify({ ...record, kind: eventRecordKind }, ["id", "kind", "type", "tabId"]);
-}
-
-function isEventRecordKey(key: string): boolean {
-  return parseEventRecordKey(key) !== undefined;
 }
 
 function parseEventRecordKey(key: string): EventRecordKeyFields | undefined {

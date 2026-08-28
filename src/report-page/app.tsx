@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   type HttpMessage,
   type HttpRequest,

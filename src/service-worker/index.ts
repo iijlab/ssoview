@@ -4,12 +4,6 @@
  */
 
 import { type SessionSummary } from "@/common/models/session-summary.ts";
-import { isAttached } from "@/common/utils/chrome-debugger.ts";
-import {
-  getAllSessionStorageItems,
-  getSessionStorageBytesInUse,
-} from "@/common/utils/chrome-storage.ts";
-import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import {
   publishCaptureTerminatedEvent,
   publishSessionRemoveEvent,
@@ -23,8 +17,14 @@ import {
   registerStartMonitoringHandler,
   registerStopMonitoringHandler,
 } from "@/common/rpc.ts";
-import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
 import { dumpSessionArchive, loadSessionArchive } from "@/common/services/session-archiver.ts";
+import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
+import { isAttached } from "@/common/utils/chrome-debugger.ts";
+import {
+  getAllSessionStorageItems,
+  getSessionStorageBytesInUse,
+} from "@/common/utils/chrome-storage.ts";
+import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
 import {
   registerCaptureStopHandler,
@@ -52,9 +52,9 @@ function init() {
       if (sessionId instanceof Error) {
         console.warn("Failed to process HTTP request:", sessionId);
       } else if (sessionId !== undefined) {
-        const result = await publishSessionUpdateEvent(tabId, sessionId);
-        if (result instanceof Error) {
-          console.warn("Failed to publish session update event:", result);
+        const publishError = await publishSessionUpdateEvent(tabId, sessionId);
+        if (publishError) {
+          console.warn("Failed to publish session update event:", publishError);
         }
       }
     },
@@ -63,9 +63,9 @@ function init() {
       if (sessionId instanceof Error) {
         console.warn("Failed to process HTTP response:", sessionId);
       } else if (sessionId !== undefined) {
-        const result = await publishSessionUpdateEvent(tabId, sessionId);
-        if (result instanceof Error) {
-          console.warn("Failed to publish session update event:", result);
+        const publishError = await publishSessionUpdateEvent(tabId, sessionId);
+        if (publishError) {
+          console.warn("Failed to publish session update event:", publishError);
         }
       }
     },
@@ -75,9 +75,9 @@ function init() {
     hideBadge();
 
     // TODO: The detach reason is no longer used. This parameter will be removed.
-    const result = await publishCaptureTerminatedEvent(tabId, "unknown");
-    if (result instanceof Error) {
-      console.warn("Failed to publish monitoring terminated event:", result);
+    const publishError = await publishCaptureTerminatedEvent(tabId, "unknown");
+    if (publishError) {
+      console.warn("Failed to publish monitoring terminated event:", publishError);
     }
   });
 
@@ -87,27 +87,27 @@ function init() {
     if (attached instanceof Error) {
       console.warn("Failed to get debugging state:", attached);
     } else if (attached) {
-      const result = await onStopMonitoring(tabId);
-      if (result instanceof Error) {
-        console.warn("Failed to stop monitoring:", result);
+      const stopError = await onStopMonitoring(tabId);
+      if (stopError) {
+        console.warn("Failed to stop monitoring:", stopError);
       }
     }
   });
 }
 
 async function onStartMonitoring(tabId: number): Promise<void | Error> {
-  const result = await startCapturing(tabId);
-  if (result instanceof Error) {
-    return result;
+  const startError = await startCapturing(tabId);
+  if (startError) {
+    return startError;
   }
 
   showBadge("REC", BadgeColor.REC_TEXT, BadgeColor.REC_BACKGROUND);
 }
 
 async function onStopMonitoring(tabId: number): Promise<void | Error> {
-  const result = await stopCapturing(tabId);
-  if (result instanceof Error) {
-    return result;
+  const stopError = await stopCapturing(tabId);
+  if (stopError) {
+    return stopError;
   }
 
   hideBadge();
@@ -127,9 +127,9 @@ async function onGetSessionSummaries(tabId: number): Promise<SessionSummary[] | 
 }
 
 async function onRemoveSession(tabId: number, sessionId: string): Promise<void | Error> {
-  const result = await deleteSession(tabId, sessionId);
-  if (result instanceof Error) {
-    return result;
+  const deleteError = await deleteSession(tabId, sessionId);
+  if (deleteError) {
+    return deleteError;
   }
 
   return publishSessionRemoveEvent(tabId, sessionId);
@@ -146,9 +146,9 @@ async function onLoadSession(tabId: number, har: string): Promise<void | Error> 
   }
 
   for (const sessionId of sessionIds) {
-    const result = await publishSessionUpdateEvent(tabId, sessionId);
-    if (result instanceof Error) {
-      return result;
+    const publishError = await publishSessionUpdateEvent(tabId, sessionId);
+    if (publishError) {
+      return publishError;
     }
   }
 }
