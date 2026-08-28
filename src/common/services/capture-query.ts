@@ -5,7 +5,7 @@
 
 import type { CaptureSession } from "@/common/models/capture-session.ts";
 import type { EventRecord } from "@/common/models/event-record.ts";
-import { retrieveAllEventRecords } from "@/common/services/event-store.ts";
+import { findAllEventRecords } from "@/common/services/event-store.ts";
 
 export async function getCaptureSession(
   captureSessionId: string,
@@ -19,7 +19,7 @@ export async function getCaptureSession(
 }
 
 export async function getCaptureSessions(): Promise<CaptureSession[] | Error> {
-  const eventRecords = await retrieveAllEventRecords();
+  const eventRecords = await findAllEventRecords();
   if (eventRecords instanceof Error) {
     return eventRecords;
   }

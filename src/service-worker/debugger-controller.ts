@@ -3,12 +3,12 @@
  * @license BSD-3-Clause
  */
 
-import { isAttached } from "@/common/utils/chrome-debugger.ts";
 import {
   newDebuggerAttachedRecord,
   newDebuggerDetachedRecord,
 } from "@/common/models/event-record.ts";
-import { retrieveAllEventRecords, storeEventRecord } from "@/common/services/event-store.ts";
+import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
+import { isAttached } from "@/common/utils/chrome-debugger.ts";
 
 // chrome.debugger.DetachReason is an enum, which is not compatible with the callback parameter
 // type of chrome.debugger.onDetach.addListener. So we define our own type alias with the same
@@ -28,7 +28,7 @@ export function registerDebuggerDetachHandler(
     }
 
     (async (tabId: number) => {
-      const storeResult = await storeEventRecord(newDebuggerDetachedRecord(tabId, reason));
+      const storeResult = await saveEventRecord(newDebuggerDetachedRecord(tabId, reason));
       if (storeResult instanceof Error) {
         console.warn("Failed to store the debugger detached event:", { error: storeResult });
       }
@@ -54,7 +54,7 @@ export async function isDebugging(tabId: number): Promise<boolean | Error> {
   // [2] The attachment may be DevTools or another extension. The attach record is reliable
   //     because a failed write triggers an immediate detach, so trust it here.
 
-  const records = await retrieveAllEventRecords();
+  const records = await findAllEventRecords();
   if (records instanceof Error) {
     return records;
   }
@@ -88,7 +88,7 @@ export async function startDebugging(tabId: number, retry = false): Promise<void
     return fetchResult;
   }
 
-  const storeResult = await storeEventRecord(newDebuggerAttachedRecord(tabId, retry));
+  const storeResult = await saveEventRecord(newDebuggerAttachedRecord(tabId, retry));
   if (storeResult instanceof Error) {
     const detachResult = await detachFromTab(tabId);
     if (detachResult instanceof Error) {
@@ -104,7 +104,7 @@ export async function stopDebugging(tabId: number): Promise<void | Error> {
     return new Error("Failed to detach from tab", { cause: detachResult });
   }
 
-  const storeResult = await storeEventRecord(newDebuggerDetachedRecord(tabId));
+  const storeResult = await saveEventRecord(newDebuggerDetachedRecord(tabId));
   if (storeResult instanceof Error) {
     return new Error("Failed to store the debugger detached event", { cause: storeResult });
   }

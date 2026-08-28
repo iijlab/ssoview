@@ -11,7 +11,7 @@ import {
   type HttpResponse,
 } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
-import { storeEventRecord } from "@/common/services/event-store.ts";
+import { saveEventRecord } from "@/common/services/event-store.ts";
 import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
@@ -54,7 +54,7 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     return httpMessages;
   }
 
-  const storeEventResult = await storeEventRecord(newArchiveImportedRecord());
+  const storeEventResult = await saveEventRecord(newArchiveImportedRecord());
   if (storeEventResult instanceof Error) {
     return storeEventResult;
   }

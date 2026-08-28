@@ -4,6 +4,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { newWatchStartedRecord, newWatchStoppedRecord } from "@/common/models/event-record.ts";
+import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
 import { tabExists } from "@/common/utils/chrome-tabs.ts";
 import {
   isDebugging,
@@ -11,8 +13,6 @@ import {
   startDebugging,
   stopDebugging,
 } from "@/service-worker/debugger-controller.ts";
-import { newWatchStartedRecord, newWatchStoppedRecord } from "@/common/models/event-record.ts";
-import { retrieveAllEventRecords, storeEventRecord } from "@/common/services/event-store.ts";
 import {
   getWatchedTabIds,
   isWatching,
@@ -22,8 +22,8 @@ import {
 } from "./tab-watcher.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  retrieveAllEventRecords: vi.fn(),
-  storeEventRecord: vi.fn(),
+  findAllEventRecords: vi.fn(),
+  saveEventRecord: vi.fn(),
 }));
 
 vi.mock("@/common/utils/chrome-tabs.ts", () => ({
@@ -48,8 +48,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
-  vi.mocked(storeEventRecord).mockResolvedValue(undefined);
-  vi.mocked(retrieveAllEventRecords).mockResolvedValue([]);
+  vi.mocked(saveEventRecord).mockResolvedValue(undefined);
+  vi.mocked(findAllEventRecords).mockResolvedValue([]);
   vi.mocked(isDebugging).mockResolvedValue(true);
   vi.mocked(startDebugging).mockResolvedValue(undefined);
   vi.mocked(stopDebugging).mockResolvedValue(undefined);
@@ -66,7 +66,7 @@ function registerAndGetHandler(onWatchStopped: WatchStopHandler): DebuggerDetach
 
 // Types of the event records stored so far, in order
 function storedRecordTypes(): string[] {
-  return vi.mocked(storeEventRecord).mock.calls.map(([record]) => record.type);
+  return vi.mocked(saveEventRecord).mock.calls.map(([record]) => record.type);
 }
 
 //
@@ -78,11 +78,11 @@ describe("startWatching", () => {
     const result = await startWatching(1);
 
     expect(result).toBeUndefined();
-    expect(storeEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "WatchStarted", tabId: 1 }),
     );
     expect(startDebugging).toHaveBeenCalledExactlyOnceWith(1);
-    expect(vi.mocked(storeEventRecord).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(vi.mocked(saveEventRecord).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(startDebugging).mock.invocationCallOrder[0] ?? 0,
     );
   });
@@ -95,14 +95,14 @@ describe("startWatching", () => {
 
     expect(result).toBe(error);
     expect(storedRecordTypes()).toEqual(["WatchStarted", "WatchStopped"]);
-    expect(storeEventRecord).toHaveBeenLastCalledWith(
+    expect(saveEventRecord).toHaveBeenLastCalledWith(
       expect.objectContaining({ type: "WatchStopped", tabId: 1 }),
     );
   });
 
   it("does not start debugging when the record cannot be stored", async () => {
     const error = new Error("storage failed");
-    vi.mocked(storeEventRecord).mockResolvedValue(error);
+    vi.mocked(saveEventRecord).mockResolvedValue(error);
 
     const result = await startWatching(1);
 
@@ -117,11 +117,11 @@ describe("stopWatching", () => {
 
     expect(result).toBeUndefined();
     expect(stopDebugging).toHaveBeenCalledExactlyOnceWith(1);
-    expect(storeEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "WatchStopped", tabId: 1 }),
     );
     expect(vi.mocked(stopDebugging).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(storeEventRecord).mock.invocationCallOrder[0] ?? 0,
+      vi.mocked(saveEventRecord).mock.invocationCallOrder[0] ?? 0,
     );
   });
 
@@ -132,12 +132,12 @@ describe("stopWatching", () => {
     const result = await stopWatching(1);
 
     expect(result).toBe(error);
-    expect(storeEventRecord).not.toHaveBeenCalled();
+    expect(saveEventRecord).not.toHaveBeenCalled();
   });
 
   it("returns an error when the record cannot be stored", async () => {
     const error = new Error("storage failed");
-    vi.mocked(storeEventRecord).mockResolvedValue(error);
+    vi.mocked(saveEventRecord).mockResolvedValue(error);
 
     const result = await stopWatching(1);
 
@@ -153,7 +153,7 @@ describe("registerWatchStopHandler", () => {
 
     await handler(1, "canceled_by_user");
 
-    expect(storeEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "WatchStopped", tabId: 1 }),
     );
     expect(onWatchStopped).toHaveBeenCalledExactlyOnceWith(1);
@@ -168,7 +168,7 @@ describe("registerWatchStopHandler", () => {
     await handler(1, "target_closed");
 
     expect(startDebugging).toHaveBeenCalledExactlyOnceWith(1, true);
-    expect(storeEventRecord).not.toHaveBeenCalled();
+    expect(saveEventRecord).not.toHaveBeenCalled();
     expect(onWatchStopped).not.toHaveBeenCalled();
   });
 
@@ -199,7 +199,7 @@ describe("registerWatchStopHandler", () => {
   });
 
   it("reports the stop even when the record cannot be stored", async () => {
-    vi.mocked(storeEventRecord).mockResolvedValue(new Error("storage failed"));
+    vi.mocked(saveEventRecord).mockResolvedValue(new Error("storage failed"));
     const onWatchStopped = vi.fn();
     const handler = registerAndGetHandler(onWatchStopped);
 
@@ -212,7 +212,7 @@ describe("registerWatchStopHandler", () => {
 
 describe("getWatchedTabIds", () => {
   it("returns the tabs whose watch has started and not stopped", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([
+    vi.mocked(findAllEventRecords).mockResolvedValue([
       newWatchStartedRecord(1),
       newWatchStartedRecord(2),
       newWatchStoppedRecord(1),
@@ -222,7 +222,7 @@ describe("getWatchedTabIds", () => {
   });
 
   it("returns the tab when its watch started again after stopping", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([
+    vi.mocked(findAllEventRecords).mockResolvedValue([
       newWatchStartedRecord(1),
       newWatchStoppedRecord(1),
       newWatchStartedRecord(1),
@@ -232,7 +232,7 @@ describe("getWatchedTabIds", () => {
   });
 
   it("drops the tabs that are no longer debugged", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([
+    vi.mocked(findAllEventRecords).mockResolvedValue([
       newWatchStartedRecord(1),
       newWatchStartedRecord(2),
     ]);
@@ -247,14 +247,14 @@ describe("getWatchedTabIds", () => {
 
   it("returns the error when the records cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllEventRecords).mockResolvedValue(error);
 
     expect(await getWatchedTabIds()).toBe(error);
   });
 
   it("returns the error when the debugging state cannot be determined", async () => {
     const error = new Error("targets failed");
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([newWatchStartedRecord(1)]);
+    vi.mocked(findAllEventRecords).mockResolvedValue([newWatchStartedRecord(1)]);
     vi.mocked(isDebugging).mockResolvedValue(error);
 
     expect(await getWatchedTabIds()).toBe(error);
@@ -263,20 +263,20 @@ describe("getWatchedTabIds", () => {
 
 describe("isWatching", () => {
   it("returns true when the tab is watched", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([newWatchStartedRecord(1)]);
+    vi.mocked(findAllEventRecords).mockResolvedValue([newWatchStartedRecord(1)]);
 
     expect(await isWatching(1)).toBe(true);
   });
 
   it("returns false when another tab is watched", async () => {
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue([newWatchStartedRecord(2)]);
+    vi.mocked(findAllEventRecords).mockResolvedValue([newWatchStartedRecord(2)]);
 
     expect(await isWatching(1)).toBe(false);
   });
 
   it("returns the error when the watched tabs cannot be determined", async () => {
     const error = new Error("storage failed");
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllEventRecords).mockResolvedValue(error);
 
     expect(await isWatching(1)).toBe(error);
   });

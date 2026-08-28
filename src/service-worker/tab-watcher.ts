@@ -3,6 +3,8 @@
  * @license BSD-3-Clause
  */
 
+import { newWatchStartedRecord, newWatchStoppedRecord } from "@/common/models/event-record.ts";
+import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
 import { tabExists } from "@/common/utils/chrome-tabs.ts";
 import {
   isDebugging,
@@ -10,8 +12,6 @@ import {
   startDebugging,
   stopDebugging,
 } from "@/service-worker/debugger-controller.ts";
-import { newWatchStartedRecord, newWatchStoppedRecord } from "@/common/models/event-record.ts";
-import { retrieveAllEventRecords, storeEventRecord } from "@/common/services/event-store.ts";
 
 export function registerWatchStopHandler(onWatchStopped: (tabId: number) => Promise<void>): void {
   registerDebuggerDetachHandler(async (tabId, reason) => {
@@ -27,7 +27,7 @@ export function registerWatchStopHandler(onWatchStopped: (tabId: number) => Prom
       }
     }
 
-    const storeResult = await storeEventRecord(newWatchStoppedRecord(tabId));
+    const storeResult = await saveEventRecord(newWatchStoppedRecord(tabId));
     if (storeResult instanceof Error) {
       console.warn("Failed to store the watch stopped event:", { error: storeResult });
     }
@@ -49,7 +49,7 @@ export async function getWatchedTabIds(): Promise<number[] | Error> {
   // [1] The debugger is already gone, so nothing is being watched on that tab.
   // [2] The debugger is attached without a watch. The user can detach from the banner.
 
-  const records = await retrieveAllEventRecords();
+  const records = await findAllEventRecords();
   if (records instanceof Error) {
     return records;
   }
@@ -86,14 +86,14 @@ export async function isWatching(tabId: number): Promise<boolean | Error> {
 }
 
 export async function startWatching(tabId: number): Promise<void | Error> {
-  const startedResult = await storeEventRecord(newWatchStartedRecord(tabId));
+  const startedResult = await saveEventRecord(newWatchStartedRecord(tabId));
   if (startedResult instanceof Error) {
     return startedResult;
   }
 
   const debuggingResult = await startDebugging(tabId);
   if (debuggingResult instanceof Error) {
-    const stoppedResult = await storeEventRecord(newWatchStoppedRecord(tabId));
+    const stoppedResult = await saveEventRecord(newWatchStoppedRecord(tabId));
     if (stoppedResult instanceof Error) {
       console.warn("Failed to store the watch stopped event:", { error: stoppedResult });
     }
@@ -107,7 +107,7 @@ export async function stopWatching(tabId: number): Promise<void | Error> {
     return debuggingResult;
   }
 
-  const stoppedResult = await storeEventRecord(newWatchStoppedRecord(tabId));
+  const stoppedResult = await saveEventRecord(newWatchStoppedRecord(tabId));
   if (stoppedResult instanceof Error) {
     return new Error("Failed to store the watch stopped event", { cause: stoppedResult });
   }

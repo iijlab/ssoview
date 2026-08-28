@@ -4,8 +4,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { EventRecord } from "@/common/models/event-record.ts";
 import {
+  type EventRecord,
   newArchiveImportedRecord,
   newCaptureStartedRecord,
   newCaptureStoppedRecord,
@@ -14,16 +14,16 @@ import {
   newWatchStartedRecord,
   newWatchStoppedRecord,
 } from "@/common/models/event-record.ts";
-import { retrieveAllEventRecords } from "@/common/services/event-store.ts";
+import { findAllEventRecords } from "@/common/services/event-store.ts";
 import { getCaptureSession, getCaptureSessions } from "./capture-query.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  retrieveAllEventRecords: vi.fn(),
+  findAllEventRecords: vi.fn(),
 }));
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(retrieveAllEventRecords).mockResolvedValue([]);
+  vi.mocked(findAllEventRecords).mockResolvedValue([]);
 });
 
 //
@@ -45,7 +45,7 @@ function record(type: EventRecord["type"]): EventRecord {
 }
 
 function mockRecords(...records: EventRecord[]): void {
-  vi.mocked(retrieveAllEventRecords).mockResolvedValue(records);
+  vi.mocked(findAllEventRecords).mockResolvedValue(records);
 }
 
 //
@@ -127,7 +127,7 @@ describe("getCaptureSessions", () => {
 
   it("returns the error when the records cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllEventRecords).mockResolvedValue(error);
 
     expect(await getCaptureSessions()).toBe(error);
   });
@@ -166,7 +166,7 @@ describe("getCaptureSession", () => {
 
   it("returns the error when the records cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(retrieveAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllEventRecords).mockResolvedValue(error);
 
     expect(await getCaptureSession("unknown")).toBe(error);
   });

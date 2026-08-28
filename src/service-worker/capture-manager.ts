@@ -4,7 +4,7 @@
  */
 
 import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/common/models/event-record.ts";
-import { retrieveEventRecordKeyFields, storeEventRecord } from "@/common/services/event-store.ts";
+import { findEventRecordKeyFieldsByTypes, saveEventRecord } from "@/common/services/event-store.ts";
 import {
   getWatchedTabIds,
   registerWatchStopHandler,
@@ -16,7 +16,7 @@ export function registerCaptureStopHandler(
   onCaptureStopped: (tabId: number) => Promise<void>,
 ): void {
   registerWatchStopHandler(async (tabId) => {
-    const storeResult = await storeEventRecord(newCaptureStoppedRecord());
+    const storeResult = await saveEventRecord(newCaptureStoppedRecord());
     if (storeResult instanceof Error) {
       console.warn("Failed to store the capture stopped event:", { error: storeResult });
     }
@@ -26,7 +26,7 @@ export function registerCaptureStopHandler(
 }
 
 export async function getOngoingCaptureSessionId(): Promise<string | undefined | Error> {
-  const keyFields = await retrieveEventRecordKeyFields(["CaptureStarted", "CaptureStopped"]);
+  const keyFields = await findEventRecordKeyFieldsByTypes(["CaptureStarted", "CaptureStopped"]);
   if (keyFields instanceof Error) {
     return keyFields;
   }
@@ -78,14 +78,14 @@ export async function startCapturing(tabId: number): Promise<void | Error> {
     return;
   }
 
-  const storeResult = await storeEventRecord(newCaptureStartedRecord());
+  const storeResult = await saveEventRecord(newCaptureStartedRecord());
   if (storeResult instanceof Error) {
     return storeResult;
   }
 
   const startResult = await startWatching(tabId);
   if (startResult instanceof Error) {
-    const storeResult = await storeEventRecord(newCaptureStoppedRecord());
+    const storeResult = await saveEventRecord(newCaptureStoppedRecord());
     if (storeResult instanceof Error) {
       console.warn("Failed to store the capture stopped event:", { error: storeResult });
     }
@@ -107,7 +107,7 @@ async function closeInconsistentCapture(): Promise<void | Error> {
 
     if (watchedTabIds.length === 0) {
       // No tab is being watched, so the capture is stale. Write the stop record that went missing.
-      return await storeEventRecord(newCaptureStoppedRecord());
+      return await saveEventRecord(newCaptureStoppedRecord());
     }
   }
 }
@@ -118,7 +118,7 @@ export async function stopCapturing(tabId: number): Promise<void | Error> {
     return stopResult;
   }
 
-  const storeResult = await storeEventRecord(newCaptureStoppedRecord());
+  const storeResult = await saveEventRecord(newCaptureStoppedRecord());
   if (storeResult instanceof Error) {
     return new Error("Failed to store the capture stopped event", { cause: storeResult });
   }

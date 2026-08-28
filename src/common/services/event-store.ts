@@ -16,11 +16,11 @@ import {
 } from "@/common/utils/chrome-storage.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
-export async function storeEventRecord(record: EventRecord): Promise<void | Error> {
+export async function saveEventRecord(record: EventRecord): Promise<void | Error> {
   return await setSessionStorageItem(makeEventRecordKey(record), record);
 }
 
-export async function retrieveEventRecordKeyFields(
+export async function findEventRecordKeyFieldsByTypes(
   eventRecordTypes: EventRecordType[],
 ): Promise<EventRecordKeyFields[] | Error> {
   const allKeys = await getAllSessionStorageKeys();
@@ -35,7 +35,7 @@ export async function retrieveEventRecordKeyFields(
     .toSorted((a, b) => (a.id < b.id ? -1 : 1));
 }
 
-export async function retrieveAllEventRecords(): Promise<EventRecord[] | Error> {
+export async function findAllEventRecords(): Promise<EventRecord[] | Error> {
   const allKeys = await getAllSessionStorageKeys();
   if (allKeys instanceof Error) {
     return allKeys;
