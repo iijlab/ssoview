@@ -41,17 +41,17 @@ export async function retrieveAllEventRecords(): Promise<EventRecord[] | Error> 
     return allKeys;
   }
 
-  const keys = allKeys.filter(isEventRecordKey);
+  const keys = allKeys.filter((k) => parseEventRecordKey(k) !== undefined);
   const items = await getSessionStorageItems(keys);
   if (items instanceof Error) {
     return items;
   }
 
   return Object.values(items)
-    .filter((u: unknown): u is EventRecord => {
-      const valid = isEventRecord(u);
+    .filter((r): r is EventRecord => {
+      const valid = isEventRecord(r);
       if (!valid) {
-        console.warn("Invalid event record:", u);
+        console.warn("Invalid event record:", r);
       }
       return valid;
     })
@@ -79,10 +79,6 @@ function isEventRecordKeyFields(u: unknown): u is EventRecordKeyFields {
 
 function makeEventRecordKey(record: EventRecord): string {
   return JSON.stringify({ ...record, kind: eventRecordKind }, ["id", "kind", "type", "tabId"]);
-}
-
-function isEventRecordKey(key: string): boolean {
-  return parseEventRecordKey(key) !== undefined;
 }
 
 function parseEventRecordKey(key: string): EventRecordKeyFields | undefined {
