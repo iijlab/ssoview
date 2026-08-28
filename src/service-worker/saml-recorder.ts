@@ -30,17 +30,14 @@ export async function processHttpRequest(
     return undefined;
   }
 
-  {
-    const err = await storeHttpMessage(httpRequest, tabId, detected.sessionId);
-    if (err) {
-      return err;
-    }
+  const httpStoreError = await storeHttpMessage(httpRequest, tabId, detected.sessionId);
+  if (httpStoreError) {
+    return httpStoreError;
   }
-  {
-    const err = await storeSamlTrace(detected, tabId);
-    if (err) {
-      return err;
-    }
+
+  const samlStoreError = await storeSamlTrace(detected, tabId);
+  if (samlStoreError) {
+    return samlStoreError;
   }
 
   await debugSamlTrace(detected);
@@ -62,23 +59,19 @@ export async function processHttpResponse(
     return undefined;
   }
 
-  {
-    const err = await storeHttpMessage(pairedHttpRequest, tabId, detected.sessionId);
-    if (err) {
-      return err;
-    }
+  const pairStoreError = await storeHttpMessage(pairedHttpRequest, tabId, detected.sessionId);
+  if (pairStoreError) {
+    return pairStoreError;
   }
-  {
-    const err = await storeHttpMessage(httpResponse, tabId, detected.sessionId);
-    if (err) {
-      return err;
-    }
+
+  const httpStoreError = await storeHttpMessage(httpResponse, tabId, detected.sessionId);
+  if (httpStoreError) {
+    return httpStoreError;
   }
-  {
-    const err = await storeSamlTrace(detected, tabId);
-    if (err) {
-      return err;
-    }
+
+  const samlStoreError = await storeSamlTrace(detected, tabId);
+  if (samlStoreError) {
+    return samlStoreError;
   }
 
   await debugSamlTrace(detected);

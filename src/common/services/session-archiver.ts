@@ -54,9 +54,9 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     return httpMessages;
   }
 
-  const storeEventResult = await saveEventRecord(newArchiveImportedRecord());
-  if (storeEventResult instanceof Error) {
-    return storeEventResult;
+  const saveError = await saveEventRecord(newArchiveImportedRecord());
+  if (saveError) {
+    return saveError;
   }
 
   // Ideally we could just store all imported logs, but because the storage key
@@ -78,32 +78,29 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     if (httpMessage.stage === "Response") {
       const pairedHttpRequest = findPairedHttpRequest(httpMessage, httpMessages);
       if (pairedHttpRequest !== undefined) {
-        const err = await storeHttpMessage(
+        const httpStoreError = await storeHttpMessage(
           { ...pairedHttpRequest, imported: true },
           tabId,
           samlTrace.sessionId,
         );
-        if (err) {
-          return err;
+        if (httpStoreError) {
+          return httpStoreError;
         }
       }
     }
 
-    {
-      const err = await storeHttpMessage(
-        { ...httpMessage, imported: true },
-        tabId,
-        samlTrace.sessionId,
-      );
-      if (err) {
-        return err;
-      }
+    const httpStoreError = await storeHttpMessage(
+      { ...httpMessage, imported: true },
+      tabId,
+      samlTrace.sessionId,
+    );
+    if (httpStoreError) {
+      return httpStoreError;
     }
-    {
-      const err = await storeSamlTrace({ ...samlTrace, imported: true }, tabId);
-      if (err) {
-        return err;
-      }
+
+    const samlStoreError = await storeSamlTrace({ ...samlTrace, imported: true }, tabId);
+    if (samlStoreError) {
+      return samlStoreError;
     }
 
     sessionIds.add(samlTrace.sessionId);

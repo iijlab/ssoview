@@ -19,17 +19,17 @@ export function registerWatchStopHandler(onWatchStopped: (tabId: number) => Prom
       // Possible Chrome bug: sometimes the tab is incorrectly detected as closed when it's still
       // open.
       console.info("Target still exists. Attempting to restart.");
-      const result = await startDebugging(tabId, true);
-      if (result instanceof Error) {
-        console.warn("Failed to restart debugging:", { error: result });
+      const startError = await startDebugging(tabId, true);
+      if (startError) {
+        console.warn("Failed to restart debugging:", { error: startError });
       } else {
         return;
       }
     }
 
-    const storeResult = await saveEventRecord(newWatchStoppedRecord(tabId));
-    if (storeResult instanceof Error) {
-      console.warn("Failed to store the watch stopped event:", { error: storeResult });
+    const saveError = await saveEventRecord(newWatchStoppedRecord(tabId));
+    if (saveError) {
+      console.warn("Failed to store the watch stopped event:", { error: saveError });
     }
 
     await onWatchStopped(tabId);
@@ -86,29 +86,29 @@ export async function isWatching(tabId: number): Promise<boolean | Error> {
 }
 
 export async function startWatching(tabId: number): Promise<void | Error> {
-  const startedResult = await saveEventRecord(newWatchStartedRecord(tabId));
-  if (startedResult instanceof Error) {
-    return startedResult;
+  const saveError = await saveEventRecord(newWatchStartedRecord(tabId));
+  if (saveError) {
+    return saveError;
   }
 
-  const debuggingResult = await startDebugging(tabId);
-  if (debuggingResult instanceof Error) {
-    const stoppedResult = await saveEventRecord(newWatchStoppedRecord(tabId));
-    if (stoppedResult instanceof Error) {
-      console.warn("Failed to store the watch stopped event:", { error: stoppedResult });
+  const startError = await startDebugging(tabId);
+  if (startError) {
+    const saveError = await saveEventRecord(newWatchStoppedRecord(tabId));
+    if (saveError) {
+      console.warn("Failed to store the watch stopped event:", { error: saveError });
     }
-    return debuggingResult;
+    return startError;
   }
 }
 
 export async function stopWatching(tabId: number): Promise<void | Error> {
-  const debuggingResult = await stopDebugging(tabId);
-  if (debuggingResult instanceof Error) {
-    return debuggingResult;
+  const stopError = await stopDebugging(tabId);
+  if (stopError) {
+    return stopError;
   }
 
-  const stoppedResult = await saveEventRecord(newWatchStoppedRecord(tabId));
-  if (stoppedResult instanceof Error) {
-    return new Error("Failed to store the watch stopped event", { cause: stoppedResult });
+  const saveError = await saveEventRecord(newWatchStoppedRecord(tabId));
+  if (saveError) {
+    return new Error("Failed to store the watch stopped event", { cause: saveError });
   }
 }

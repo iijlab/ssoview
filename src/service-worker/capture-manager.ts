@@ -16,9 +16,9 @@ export function registerCaptureStopHandler(
   onCaptureStopped: (tabId: number) => Promise<void>,
 ): void {
   registerWatchStopHandler(async (tabId) => {
-    const storeResult = await saveEventRecord(newCaptureStoppedRecord());
-    if (storeResult instanceof Error) {
-      console.warn("Failed to store the capture stopped event:", { error: storeResult });
+    const saveError = await saveEventRecord(newCaptureStoppedRecord());
+    if (saveError) {
+      console.warn("Failed to store the capture stopped event:", { error: saveError });
     }
 
     await onCaptureStopped(tabId);
@@ -65,9 +65,9 @@ export async function isCapturing(): Promise<boolean | Error> {
 }
 
 export async function startCapturing(tabId: number): Promise<void | Error> {
-  const closeResult = await closeInconsistentCapture();
-  if (closeResult instanceof Error) {
-    return closeResult;
+  const closeError = await closeInconsistentCapture();
+  if (closeError) {
+    return closeError;
   }
 
   const capturing = await isCapturing();
@@ -78,18 +78,18 @@ export async function startCapturing(tabId: number): Promise<void | Error> {
     return;
   }
 
-  const storeResult = await saveEventRecord(newCaptureStartedRecord());
-  if (storeResult instanceof Error) {
-    return storeResult;
+  const saveError = await saveEventRecord(newCaptureStartedRecord());
+  if (saveError) {
+    return saveError;
   }
 
-  const startResult = await startWatching(tabId);
-  if (startResult instanceof Error) {
-    const storeResult = await saveEventRecord(newCaptureStoppedRecord());
-    if (storeResult instanceof Error) {
-      console.warn("Failed to store the capture stopped event:", { error: storeResult });
+  const startError = await startWatching(tabId);
+  if (startError) {
+    const saveError = await saveEventRecord(newCaptureStoppedRecord());
+    if (saveError) {
+      console.warn("Failed to store the capture stopped event:", { error: saveError });
     }
-    return startResult;
+    return startError;
   }
 }
 
@@ -113,13 +113,13 @@ async function closeInconsistentCapture(): Promise<void | Error> {
 }
 
 export async function stopCapturing(tabId: number): Promise<void | Error> {
-  const stopResult = await stopWatching(tabId);
-  if (stopResult instanceof Error) {
-    return stopResult;
+  const stopError = await stopWatching(tabId);
+  if (stopError) {
+    return stopError;
   }
 
-  const storeResult = await saveEventRecord(newCaptureStoppedRecord());
-  if (storeResult instanceof Error) {
-    return new Error("Failed to store the capture stopped event", { cause: storeResult });
+  const saveError = await saveEventRecord(newCaptureStoppedRecord());
+  if (saveError) {
+    return new Error("Failed to store the capture stopped event", { cause: saveError });
   }
 }

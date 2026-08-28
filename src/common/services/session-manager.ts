@@ -26,9 +26,9 @@ export async function getSessionSummaries(tabId: number): Promise<SessionSummary
   }
 
   const summaries = await Promise.all(sessionIds.map((s) => getSessionSummary(tabId, s)));
-  const err = summaries.find((s): s is Error => s instanceof Error);
-  if (err !== undefined) {
-    return err;
+  const summaryError = summaries.find((s): s is Error => s instanceof Error);
+  if (summaryError) {
+    return summaryError;
   }
 
   return summaries
@@ -106,14 +106,14 @@ async function findLatestSessionId(tabId: number): Promise<string | undefined | 
  * @returns void on success, or an Error
  */
 export async function deleteSession(tabId: number, sessionId: string): Promise<void | Error> {
-  const samlPurgeResult = await purgeSamlTraces(tabId, sessionId);
-  if (samlPurgeResult instanceof Error) {
-    return samlPurgeResult;
+  const samlPurgeError = await purgeSamlTraces(tabId, sessionId);
+  if (samlPurgeError) {
+    return samlPurgeError;
   }
 
-  const httpPurgeResult = await purgeHttpMessages(tabId, sessionId);
-  if (httpPurgeResult instanceof Error) {
+  const httpPurgeError = await purgeHttpMessages(tabId, sessionId);
+  if (httpPurgeError) {
     // HTTP messages don't need to be purged, so we ignore failures
-    console.warn("Failed to purge HTTP messages:", httpPurgeResult);
+    console.warn("Failed to purge HTTP messages:", httpPurgeError);
   }
 }
