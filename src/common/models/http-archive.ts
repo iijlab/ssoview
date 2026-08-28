@@ -5,7 +5,7 @@
 
 // WIP
 
-import { isHttpMessage, type HttpMessage } from "@/common/models/http-message.ts";
+import { type HttpMessage, isHttpMessage } from "@/common/models/http-message.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
 export type Har = string;

@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { HttpMessage } from "@/common/models/http-message.ts";
-import type { SessionSummary } from "@/common/models/session-summary.ts";
+import { type HttpMessage } from "@/common/models/http-message.ts";
+import { type SessionSummary } from "@/common/models/session-summary.ts";
 import {
   buildAuthnRequestDetails,
   buildHttpMessageDetails,

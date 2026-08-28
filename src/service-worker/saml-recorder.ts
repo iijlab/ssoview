@@ -4,18 +4,18 @@
  */
 
 import {
-  debugHttpRequest,
-  debugHttpResponse,
   type HttpRequest,
   type HttpResponse,
+  debugHttpRequest,
+  debugHttpResponse,
 } from "@/common/models/http-message.ts";
 import { debugSamlTrace } from "@/common/models/saml-trace.ts";
 import { storeHttpMessage } from "@/common/services/http-store.ts";
-import { storeSamlTrace } from "@/common/services/saml-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
+import { storeSamlTrace } from "@/common/services/saml-store.ts";
 
 export async function processHttpRequest(
   tabId: number,

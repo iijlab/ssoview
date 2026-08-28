@@ -4,8 +4,8 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { HttpRequest, HttpResponse } from "@/common/models/http-message.ts";
-import type { SamlTrace } from "@/common/models/saml-trace.ts";
+import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
+import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,

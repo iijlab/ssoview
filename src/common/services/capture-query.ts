@@ -3,8 +3,8 @@
  * @license BSD-3-Clause
  */
 
-import type { CaptureSession } from "@/common/models/capture-session.ts";
-import type { EventRecord } from "@/common/models/event-record.ts";
+import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type EventRecord } from "@/common/models/event-record.ts";
 import { findAllEventRecords } from "@/common/services/event-store.ts";
 
 export async function getCaptureSession(

@@ -11,9 +11,9 @@ import {
 import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
 import {
   isDebugging,
+  registerDebuggerDetachHandler,
   startDebugging,
   stopDebugging,
-  registerDebuggerDetachHandler,
 } from "./debugger-controller.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({

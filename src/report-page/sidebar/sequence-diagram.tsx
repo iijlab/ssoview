@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { useRef, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SessionSummary } from "@/common/models/session-summary.ts";
 import { type ArrowClickHandler, type ContentSectionId } from "@/report-page/common/types.ts";

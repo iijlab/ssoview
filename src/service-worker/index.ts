@@ -4,12 +4,6 @@
  */
 
 import { type SessionSummary } from "@/common/models/session-summary.ts";
-import { isAttached } from "@/common/utils/chrome-debugger.ts";
-import {
-  getAllSessionStorageItems,
-  getSessionStorageBytesInUse,
-} from "@/common/utils/chrome-storage.ts";
-import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import {
   publishCaptureTerminatedEvent,
   publishSessionRemoveEvent,
@@ -23,8 +17,14 @@ import {
   registerStartMonitoringHandler,
   registerStopMonitoringHandler,
 } from "@/common/rpc.ts";
-import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
 import { dumpSessionArchive, loadSessionArchive } from "@/common/services/session-archiver.ts";
+import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
+import { isAttached } from "@/common/utils/chrome-debugger.ts";
+import {
+  getAllSessionStorageItems,
+  getSessionStorageBytesInUse,
+} from "@/common/utils/chrome-storage.ts";
+import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
 import {
   registerCaptureStopHandler,

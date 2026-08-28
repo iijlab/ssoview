@@ -11,8 +11,8 @@ import {
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
 import {
-  findFlowEntryByCorrelationKey,
   findFlowEntriesByCaptureSessionId,
+  findFlowEntryByCorrelationKey,
   saveFlowEntry,
 } from "./flow-store.ts";
 
