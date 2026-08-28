@@ -49,10 +49,7 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   } as unknown as HttpRequest;
 }
 
-function makeResponse(
-  overrides: Record<string, unknown> = {},
-  request?: HttpRequest,
-): HttpResponse {
+function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   return {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
@@ -63,7 +60,6 @@ function makeResponse(
     method: "GET",
     statusCode: 200,
     body: "",
-    request: request ?? makeRequest(),
     ...overrides,
   } as unknown as HttpResponse;
 }
@@ -151,7 +147,7 @@ describe("processHttpRequest", () => {
 describe("processHttpResponse", () => {
   it("detects the step with the given paired request", async () => {
     const pairedRequest = makeRequest({ url: "https://sp.example.com/resource" });
-    const response = makeResponse({}, pairedRequest);
+    const response = makeResponse();
     vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue(undefined);
 
     const result = await processHttpResponse(1, response, pairedRequest);
@@ -163,7 +159,7 @@ describe("processHttpResponse", () => {
 
   it("stores the paired request before the response", async () => {
     const pairedRequest = makeRequest({ url: "https://sp.example.com/resource" });
-    const response = makeResponse({ statusCode: 302 }, pairedRequest);
+    const response = makeResponse({ statusCode: 302 });
     const detected = makeSamlTrace({
       sessionId: "session-1",
       step: 2,
@@ -183,7 +179,7 @@ describe("processHttpResponse", () => {
 
   it("returns Error when storing the paired request fails", async () => {
     const pairedRequest = makeRequest();
-    const response = makeResponse({}, pairedRequest);
+    const response = makeResponse();
     const detected = makeSamlTrace({
       sessionId: "session-1",
       step: 2,

@@ -61,7 +61,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
       { name: "Location", value: idpSsoUrl },
     ],
     body: undefined,
-    request: httpRequest1,
     pairedHttpRequestId: httpRequest1.id,
   } satisfies HttpMessage;
 
@@ -104,7 +103,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
     <script>document.forms[0].submit();</script>
   </body>
 </html>`,
-    request: httpRequest3,
     pairedHttpRequestId: httpRequest3.id,
   } satisfies HttpMessage;
 
@@ -150,7 +148,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   <head><title>Error</title></head>
   <body><p>Authentication failed</p></body>
 </html>`,
-    request: httpRequest5,
     pairedHttpRequestId: httpRequest5.id,
   } satisfies HttpMessage;
 

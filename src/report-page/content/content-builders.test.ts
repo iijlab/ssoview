@@ -479,12 +479,6 @@ describe("buildHttpMessageDetails", () => {
     headers: [{ name: "Content-Type", value: "text/html" }],
   };
 
-  const pairedRequest = {
-    ...baseFields,
-    stage: "Request",
-    body: "",
-  };
-
   it("builds request details from an HTTP request", () => {
     const httpMessage = {
       ...baseFields,
@@ -508,7 +502,6 @@ describe("buildHttpMessageDetails", () => {
       stage: "Response",
       statusCode: 200,
       body: "response body",
-      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);
@@ -529,7 +522,6 @@ describe("buildHttpMessageDetails", () => {
       stage: "Response",
       statusCode: 302,
       body: undefined,
-      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);
@@ -543,7 +535,6 @@ describe("buildHttpMessageDetails", () => {
       stage: "Response",
       statusCode: 302,
       body: "",
-      request: pairedRequest,
     } as HttpMessage;
 
     const result = buildHttpMessageDetails(httpMessage);

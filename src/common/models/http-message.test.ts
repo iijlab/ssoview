@@ -72,7 +72,6 @@ describe("isHttpMessage", () => {
     stage: "Response",
     statusCode: 200,
     body: "<html></html>",
-    request: validHttpRequest,
     pairedHttpRequestId: "msg-123",
   };
 
@@ -135,11 +134,6 @@ describe("isHttpMessage", () => {
 
   it("returns false for Response without pairedHttpRequestId", () => {
     const { pairedHttpRequestId, ...msg } = validHttpResponse;
-    expect(isHttpMessage(msg)).toBe(false);
-  });
-
-  it("returns false for Response with invalid request", () => {
-    const msg = { ...validHttpResponse, request: { invalid: true } };
     expect(isHttpMessage(msg)).toBe(false);
   });
 });
@@ -311,23 +305,6 @@ describe("newHttpResponse", () => {
 
     expect(httpResponse.id).not.toBe("");
     expect(httpResponse.id).not.toBe(httpRequest.id);
-  });
-
-  it("carries over the given paired request", () => {
-    const httpRequest = makeRequest({
-      url: "https://sp.example.com/SAML2/ACS",
-      method: "POST",
-      body: "SAMLResponse=abc",
-    });
-
-    const httpResponse = newHttpResponse(
-      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
-      200,
-      { body: "", base64Encoded: false },
-      httpRequest,
-    );
-
-    expect(httpResponse.request).toBe(httpRequest);
   });
 
   it("references the id of the given paired request", () => {

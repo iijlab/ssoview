@@ -61,7 +61,6 @@ function isHttpRequest(u: unknown): u is HttpRequest {
 export type HttpResponse = HttpMessageBase & {
   stage: "Response";
   statusCode: number;
-  request: HttpRequest;
   pairedHttpRequestId: string;
 };
 
@@ -70,7 +69,6 @@ function isHttpResponse(u: unknown): u is HttpResponse {
     isObject(u) &&
     u.stage === "Response" &&
     typeof u.statusCode === "number" &&
-    isHttpRequest(u.request) &&
     typeof u.pairedHttpRequestId === "string" &&
     isHttpMessageBase(u)
   );
@@ -116,7 +114,6 @@ export function newHttpResponse(
     headers: requestPausedEvent.responseHeaders ?? [],
     body,
     statusCode,
-    request: httpRequest,
     pairedHttpRequestId: httpRequest.id,
   };
 }

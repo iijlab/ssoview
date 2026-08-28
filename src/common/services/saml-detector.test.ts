@@ -75,10 +75,7 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   } as unknown as HttpRequest;
 }
 
-function makeResponse(
-  overrides: Record<string, unknown> = {},
-  request?: HttpRequest,
-): HttpResponse {
+function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   return {
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
@@ -89,7 +86,6 @@ function makeResponse(
     method: "GET",
     statusCode: 200,
     body: "",
-    request: request ?? makeRequest(),
     ...overrides,
   } as unknown as HttpResponse;
 }
@@ -727,19 +723,16 @@ describe("detectSamlStep", () => {
     it("detects SAMLResponse in HTML response body", async () => {
       const requestUrl = await buildIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
-      const response = makeResponse(
-        {
-          url: "https://idp.example.org/sso",
-          headers: [
-            { name: "Content-Type", value: "text/html; charset=utf-8" },
-            { name: "Date", value: DATE_HEADER_VALUE },
-          ],
-          body: buildSamlResponseFormBody(),
-        },
-        request,
-      );
+      const response = makeResponse({
+        url: "https://idp.example.org/sso",
+        headers: [
+          { name: "Content-Type", value: "text/html; charset=utf-8" },
+          { name: "Date", value: DATE_HEADER_VALUE },
+        ],
+        body: buildSamlResponseFormBody(),
+      });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlStepFromHttpResponse(response, request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toMatchObject({
@@ -757,19 +750,16 @@ describe("detectSamlStep", () => {
       const request = makeRequest({ url: requestUrl, method: "GET" });
       const encoded = Base64.encode(RESPONSE_XML);
       const body = `<html><body><form><input value="${encoded}" name="SAMLResponse"/></form></body></html>`;
-      const response = makeResponse(
-        {
-          url: "https://idp.example.org/sso",
-          headers: [
-            { name: "Content-Type", value: "text/html" },
-            { name: "Date", value: DATE_HEADER_VALUE },
-          ],
-          body,
-        },
-        request,
-      );
+      const response = makeResponse({
+        url: "https://idp.example.org/sso",
+        headers: [
+          { name: "Content-Type", value: "text/html" },
+          { name: "Date", value: DATE_HEADER_VALUE },
+        ],
+        body,
+      });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlStepFromHttpResponse(response, request);
 
       expect(result).toMatchObject({ step: 4, type: "IncomingResponse" });
     });
@@ -777,18 +767,15 @@ describe("detectSamlStep", () => {
     it("returns undefined when Content-Type is not text/html", async () => {
       const requestUrl = await buildIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
-      const response = makeResponse(
-        {
-          headers: [
-            { name: "Content-Type", value: "application/json" },
-            { name: "Date", value: DATE_HEADER_VALUE },
-          ],
-          body: "{}",
-        },
-        request,
-      );
+      const response = makeResponse({
+        headers: [
+          { name: "Content-Type", value: "application/json" },
+          { name: "Date", value: DATE_HEADER_VALUE },
+        ],
+        body: "{}",
+      });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlStepFromHttpResponse(response, request);
 
       expect(result).toBeUndefined();
     });
@@ -796,19 +783,16 @@ describe("detectSamlStep", () => {
     it("returns undefined when body has no SAMLResponse form field", async () => {
       const requestUrl = await buildIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
-      const response = makeResponse(
-        {
-          url: "https://idp.example.org/sso",
-          headers: [
-            { name: "Content-Type", value: "text/html" },
-            { name: "Date", value: DATE_HEADER_VALUE },
-          ],
-          body: "<html><body>No SAML here</body></html>",
-        },
-        request,
-      );
+      const response = makeResponse({
+        url: "https://idp.example.org/sso",
+        headers: [
+          { name: "Content-Type", value: "text/html" },
+          { name: "Date", value: DATE_HEADER_VALUE },
+        ],
+        body: "<html><body>No SAML here</body></html>",
+      });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlStepFromHttpResponse(response, request);
 
       expect(result).toBeUndefined();
     });
@@ -816,19 +800,16 @@ describe("detectSamlStep", () => {
     it("includes response with id, inResponseTo and raw XML", async () => {
       const requestUrl = await buildIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
-      const response = makeResponse(
-        {
-          url: "https://idp.example.org/sso",
-          headers: [
-            { name: "Content-Type", value: "text/html" },
-            { name: "Date", value: DATE_HEADER_VALUE },
-          ],
-          body: buildSamlResponseFormBody(),
-        },
-        request,
-      );
+      const response = makeResponse({
+        url: "https://idp.example.org/sso",
+        headers: [
+          { name: "Content-Type", value: "text/html" },
+          { name: "Date", value: DATE_HEADER_VALUE },
+        ],
+        body: buildSamlResponseFormBody(),
+      });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlStepFromHttpResponse(response, request);
 
       expect(result).not.toBeUndefined();
       expect(result).not.toBeInstanceOf(Error);
@@ -841,19 +822,16 @@ describe("detectSamlStep", () => {
     it("detects SAMLResponse with upper-case HTML attributes", async () => {
       const requestUrl = await buildIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
-      const response = makeResponse(
-        {
-          url: "https://idp.example.org/sso",
-          headers: [
-            { name: "Content-Type", value: "text/html" },
-            { name: "Date", value: DATE_HEADER_VALUE },
-          ],
-          body: buildSamlResponseFormBodyWithUpperCaseAttributes(),
-        },
-        request,
-      );
+      const response = makeResponse({
+        url: "https://idp.example.org/sso",
+        headers: [
+          { name: "Content-Type", value: "text/html" },
+          { name: "Date", value: DATE_HEADER_VALUE },
+        ],
+        body: buildSamlResponseFormBodyWithUpperCaseAttributes(),
+      });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlStepFromHttpResponse(response, request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toMatchObject({
@@ -968,14 +946,11 @@ describe("detectSamlStep", () => {
         method: "POST",
         body: buildSamlResponsePostBody(),
       });
-      const response = makeResponse(
-        {
-          url: "https://sp.example.com/acs",
-          headers: [{ name: "Date", value: DATE_HEADER_VALUE }],
-          body: "<html><body>Welcome</body></html>",
-        },
-        request,
-      );
+      const response = makeResponse({
+        url: "https://sp.example.com/acs",
+        headers: [{ name: "Date", value: DATE_HEADER_VALUE }],
+        body: "<html><body>Welcome</body></html>",
+      });
 
       const result = await detectSamlStepFromHttpResponse(response, request);
 
