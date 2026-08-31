@@ -11,14 +11,13 @@ import {
   type HttpResponse,
 } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
-import { newSamlTrace } from "@/common/models/saml-trace.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
 import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
-import { storeSamlTrace } from "@/common/services/saml-store.ts";
+import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
 
 /**
  * Export session data as an HTTP Archive (HAR) JSON string.
@@ -55,7 +54,9 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     return httpMessages;
   }
 
-  const saveError = await saveEventRecord(newArchiveImportedRecord());
+  const archiveImportedRecord = newArchiveImportedRecord();
+
+  const saveError = await saveEventRecord(archiveImportedRecord);
   if (saveError) {
     return saveError;
   }
@@ -81,12 +82,6 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       imported: true,
     };
 
-    const samlTrace = newSamlTrace(detection, importedHttpMessage);
-    if (samlTrace instanceof Error) {
-      console.error("Failed to build SAML trace from HTTP message:", samlTrace);
-      continue;
-    }
-
     if (httpMessage.stage === "Response") {
       const pairedHttpRequest = findPairedHttpRequest(httpMessage, httpMessages);
       if (pairedHttpRequest !== undefined) {
@@ -110,9 +105,14 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       return httpStoreError;
     }
 
-    const samlStoreError = await storeSamlTrace(samlTrace, tabId);
-    if (samlStoreError) {
-      return samlStoreError;
+    const recordError = await recordSamlTrace(
+      archiveImportedRecord.id,
+      tabId,
+      detection,
+      importedHttpMessage,
+    );
+    if (recordError) {
+      return recordError;
     }
 
     sessionIds.add(detection.correlationKey);

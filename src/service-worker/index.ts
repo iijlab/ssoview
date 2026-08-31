@@ -32,7 +32,7 @@ import {
   stopCapturing,
 } from "@/service-worker/capture-manager.ts";
 import { registerHttpInterceptionHandlers } from "@/service-worker/http-interception.ts";
-import { processHttpRequest, processHttpResponse } from "@/service-worker/saml-recorder.ts";
+import { processHttpRequest, processHttpResponse } from "@/service-worker/saml-tracer.ts";
 import {
   registerSidePanelCloseHandler,
   registerSidePanelOpenHandler,
