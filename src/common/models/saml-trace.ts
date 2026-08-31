@@ -3,6 +3,7 @@
  * @license BSD-3-Clause
  */
 
+import { v7 as uuidv7 } from "uuid";
 import { type HttpMessage, getHeaderValue } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
 import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
@@ -17,6 +18,11 @@ export type SamlTrace =
   | AuthenticatedResourceResponse;
 
 type SamlTraceBase = {
+  id: string;
+  flowId: string;
+  httpMessageId: string;
+  observedAt: string;
+  serverHostname: string;
   sessionId: string;
   createdAt: string;
   imported: boolean;
@@ -67,6 +73,11 @@ export type AuthenticatedResourceResponse = SamlTraceBase & {
 export function isSamlTrace(u: unknown): u is SamlTrace {
   return (
     isObject(u) &&
+    typeof u.id === "string" &&
+    typeof u.flowId === "string" &&
+    typeof u.httpMessageId === "string" &&
+    typeof u.observedAt === "string" &&
+    typeof u.serverHostname === "string" &&
     typeof u.sessionId === "string" &&
     typeof u.createdAt === "string" &&
     typeof u.imported === "boolean" &&
@@ -78,6 +89,7 @@ export function isSamlTrace(u: unknown): u is SamlTrace {
 }
 
 export function newSamlTrace(
+  flowId: string,
   detection: SamlDetection,
   httpMessage: HttpMessage,
 ): SamlTrace | Error {
@@ -87,6 +99,11 @@ export function newSamlTrace(
   }
 
   const base = {
+    id: uuidv7(),
+    flowId,
+    httpMessageId: httpMessage.id,
+    observedAt: httpMessage.createdAt,
+    serverHostname: hostname,
     sessionId: detection.correlationKey,
     createdAt: new Date().toISOString(),
     imported: httpMessage.imported,

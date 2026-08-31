@@ -8,8 +8,13 @@ import { type HttpRequest, type HttpResponse } from "@/common/models/http-messag
 import { isSamlTrace, newSamlTrace } from "./saml-trace.ts";
 
 describe("isSamlTrace", () => {
-  it("returns true for valid SamlTrace with required fields only", () => {
-    const msg = {
+  function makeTraceFields(): Record<string, unknown> {
+    return {
+      id: "trace-1",
+      flowId: "flow-1",
+      httpMessageId: "msg-1",
+      observedAt: "2026-01-01T00:00:00Z",
+      serverHostname: "sp.example.com",
       sessionId: "abc123",
       createdAt: "2026-01-01T00:00:00Z",
       imported: false,
@@ -17,17 +22,15 @@ describe("isSamlTrace", () => {
       step: 2,
       type: "IncomingAuthnRequest",
     };
-    expect(isSamlTrace(msg)).toBe(true);
+  }
+
+  it("returns true for valid SamlTrace with required fields only", () => {
+    expect(isSamlTrace(makeTraceFields())).toBe(true);
   });
 
   it("returns true for valid SamlTrace with optional fields", () => {
     const msg = {
-      sessionId: "abc123",
-      createdAt: "2026-01-01T00:00:00Z",
-      imported: true,
-      action: "test action",
-      step: 3,
-      type: "OutgoingAuthnRequest",
+      ...makeTraceFields(),
       date: "2026-01-01",
       sp: "sp.example.com",
       idp: "idp.example.org",
@@ -43,86 +46,66 @@ describe("isSamlTrace", () => {
     expect(isSamlTrace(undefined)).toBe(false);
   });
 
+  it("returns false when id is missing", () => {
+    const msg = makeTraceFields();
+    delete msg.id;
+    expect(isSamlTrace(msg)).toBe(false);
+  });
+
+  it("returns false when flowId is missing", () => {
+    const msg = makeTraceFields();
+    delete msg.flowId;
+    expect(isSamlTrace(msg)).toBe(false);
+  });
+
+  it("returns false when httpMessageId is not a string", () => {
+    expect(isSamlTrace({ ...makeTraceFields(), httpMessageId: 123 })).toBe(false);
+  });
+
+  it("returns false when observedAt is missing", () => {
+    const msg = makeTraceFields();
+    delete msg.observedAt;
+    expect(isSamlTrace(msg)).toBe(false);
+  });
+
+  it("returns false when serverHostname is not a string", () => {
+    expect(isSamlTrace({ ...makeTraceFields(), serverHostname: null })).toBe(false);
+  });
+
   it("returns false when sessionId is missing", () => {
-    const msg = {
-      createdAt: "2026-01-01T00:00:00Z",
-      imported: false,
-      action: "test action",
-    };
+    const msg = makeTraceFields();
+    delete msg.sessionId;
     expect(isSamlTrace(msg)).toBe(false);
   });
 
   it("returns false when sessionId is not a string", () => {
-    const msg = {
-      sessionId: 123,
-      createdAt: "2026-01-01T00:00:00Z",
-      imported: false,
-      action: "test action",
-    };
-    expect(isSamlTrace(msg)).toBe(false);
+    expect(isSamlTrace({ ...makeTraceFields(), sessionId: 123 })).toBe(false);
   });
 
   it("returns false when createdAt is missing", () => {
-    const msg = {
-      sessionId: "abc123",
-      imported: false,
-      action: "test action",
-    };
+    const msg = makeTraceFields();
+    delete msg.createdAt;
     expect(isSamlTrace(msg)).toBe(false);
   });
 
   it("returns false when imported is not a boolean", () => {
-    const msg = {
-      sessionId: "abc123",
-      createdAt: "2026-01-01T00:00:00Z",
-      imported: "false",
-      action: "test action",
-    };
-    expect(isSamlTrace(msg)).toBe(false);
+    expect(isSamlTrace({ ...makeTraceFields(), imported: "false" })).toBe(false);
   });
 
   it("returns false when optional date is not a string", () => {
-    const msg = {
-      sessionId: "abc123",
-      createdAt: "2026-01-01T00:00:00Z",
-      imported: false,
-      action: "test action",
-      date: 12345,
-    };
-    expect(isSamlTrace(msg)).toBe(false);
+    expect(isSamlTrace({ ...makeTraceFields(), date: 12345 })).toBe(false);
   });
 
   it("returns false when optional sp is not a string", () => {
-    const msg = {
-      sessionId: "abc123",
-      createdAt: "2026-01-01T00:00:00Z",
-      imported: false,
-      action: "test action",
-      sp: null,
-    };
-    expect(isSamlTrace(msg)).toBe(false);
+    expect(isSamlTrace({ ...makeTraceFields(), sp: null })).toBe(false);
   });
 
   it("returns false when optional idp is not a string", () => {
-    const msg = {
-      sessionId: "abc123",
-      createdAt: "2026-01-01T00:00:00Z",
-      imported: false,
-      action: "test action",
-      idp: { name: "idp" },
-    };
-    expect(isSamlTrace(msg)).toBe(false);
+    expect(isSamlTrace({ ...makeTraceFields(), idp: { name: "idp" } })).toBe(false);
   });
 
   it("returns false when optional samlStatusCode is not a string", () => {
-    const msg = {
-      sessionId: "abc123",
-      createdAt: "2026-01-01T00:00:00Z",
-      imported: false,
-      action: "test action",
-      samlStatusCode: 200,
-    };
-    expect(isSamlTrace(msg)).toBe(false);
+    expect(isSamlTrace({ ...makeTraceFields(), samlStatusCode: 200 })).toBe(false);
   });
 });
 
@@ -133,6 +116,7 @@ describe("newSamlTrace", () => {
 
   function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
     return {
+      id: "msg-1",
       createdAt: "2026-01-01T00:00:00Z",
       imported: false,
       stage: "Request",
@@ -147,6 +131,7 @@ describe("newSamlTrace", () => {
 
   function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
     return {
+      id: "msg-1",
       createdAt: "2026-01-01T00:00:00Z",
       imported: false,
       stage: "Response",
@@ -163,10 +148,14 @@ describe("newSamlTrace", () => {
   it("builds a step 2 trace from a response", () => {
     const response = makeResponse({ url: "https://sp.example.com/login" });
 
-    const result = newSamlTrace({ step: 2, correlationKey: "authn-req-1" }, response);
+    const result = newSamlTrace("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
 
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toMatchObject({
+      flowId: "flow-1",
+      httpMessageId: "msg-1",
+      observedAt: "2026-01-01T00:00:00Z",
+      serverHostname: "sp.example.com",
       sessionId: "authn-req-1",
       imported: false,
       step: 2,
@@ -175,18 +164,20 @@ describe("newSamlTrace", () => {
       sp: "sp.example.com",
       action: "Service Provider issues SAML AuthnRequest",
     });
+    expect((result as { id: string }).id).toEqual(expect.any(String));
     expect((result as { createdAt: string }).createdAt).toEqual(expect.any(String));
   });
 
   it("builds a step 3 trace with the redirect action for a GET request", () => {
     const request = makeRequest({ url: "https://idp.example.org/sso", method: "GET" });
 
-    const result = newSamlTrace({ step: 3, correlationKey: "authn-req-1" }, request);
+    const result = newSamlTrace("flow-1", { step: 3, correlationKey: "authn-req-1" }, request);
 
     expect(result).toMatchObject({
       sessionId: "authn-req-1",
       step: 3,
       type: "OutgoingAuthnRequest",
+      serverHostname: "idp.example.org",
       idp: "idp.example.org",
       action: "User Agent redirects SAML AuthnRequest to Identity Provider",
     });
@@ -195,7 +186,7 @@ describe("newSamlTrace", () => {
   it("builds a step 3 trace with the submit action for a POST request", () => {
     const request = makeRequest({ url: "https://idp.example.org/sso", method: "POST" });
 
-    const result = newSamlTrace({ step: 3, correlationKey: "authn-req-1" }, request);
+    const result = newSamlTrace("flow-1", { step: 3, correlationKey: "authn-req-1" }, request);
 
     expect(result).toMatchObject({
       step: 3,
@@ -207,6 +198,7 @@ describe("newSamlTrace", () => {
     const response = makeResponse({ url: "https://idp.example.org/sso" });
 
     const result = newSamlTrace(
+      "flow-1",
       { step: 4, correlationKey: "authn-req-1", samlStatusCode: STATUS_SUCCESS },
       response,
     );
@@ -226,6 +218,7 @@ describe("newSamlTrace", () => {
     const request = makeRequest({ url: "https://sp.example.com/acs", method: "POST" });
 
     const result = newSamlTrace(
+      "flow-1",
       { step: 5, correlationKey: "authn-req-1", samlStatusCode: STATUS_SUCCESS },
       request,
     );
@@ -243,7 +236,7 @@ describe("newSamlTrace", () => {
   it("builds a step 6 trace from a response", () => {
     const response = makeResponse({ url: "https://sp.example.com/resource" });
 
-    const result = newSamlTrace({ step: 6, correlationKey: "authn-req-1" }, response);
+    const result = newSamlTrace("flow-1", { step: 6, correlationKey: "authn-req-1" }, response);
 
     expect(result).toMatchObject({
       sessionId: "authn-req-1",
@@ -258,7 +251,7 @@ describe("newSamlTrace", () => {
   it("takes the imported flag from the HTTP message", () => {
     const response = makeResponse({ imported: true });
 
-    const result = newSamlTrace({ step: 2, correlationKey: "authn-req-1" }, response);
+    const result = newSamlTrace("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
 
     expect(result).toMatchObject({ imported: true });
   });
@@ -266,7 +259,7 @@ describe("newSamlTrace", () => {
   it("omits the date when the message has no Date header", () => {
     const response = makeResponse({ headers: [] });
 
-    const result = newSamlTrace({ step: 2, correlationKey: "authn-req-1" }, response);
+    const result = newSamlTrace("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
 
     expect(result).not.toBeInstanceOf(Error);
     expect((result as { date?: string }).date).toBeUndefined();
@@ -275,7 +268,7 @@ describe("newSamlTrace", () => {
   it("returns Error when the message URL is invalid", () => {
     const response = makeResponse({ url: "not-a-url" });
 
-    const result = newSamlTrace({ step: 2, correlationKey: "authn-req-1" }, response);
+    const result = newSamlTrace("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
 
     expect(result).toBeInstanceOf(Error);
   });

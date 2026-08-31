@@ -41,6 +41,7 @@ function storedFlowEntries(): FlowEntry[] {
 
 function makeResponse(): HttpResponse {
   return {
+    id: "msg-1",
     createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     stage: "Response",
@@ -70,7 +71,9 @@ describe("recordSamlTrace", () => {
         correlationKey: "authn-req-1",
       }),
     ]);
-    expect(Object.values(storage).filter((v) => isSamlTrace(v))).toHaveLength(1);
+    const samlTraces = Object.values(storage).filter((v) => isSamlTrace(v));
+    expect(samlTraces).toHaveLength(1);
+    expect(samlTraces[0]).toMatchObject({ flowId: storedFlowEntries()[0]!.id });
   });
 
   it("reuses the flow of the same correlation key", async () => {

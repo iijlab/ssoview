@@ -21,7 +21,7 @@ export async function recordSamlTrace(
     return flowEntry;
   }
 
-  const samlTrace = newSamlTrace(detection, httpMessage);
+  const samlTrace = newSamlTrace(flowEntry.id, detection, httpMessage);
   if (samlTrace instanceof Error) {
     return samlTrace;
   }
