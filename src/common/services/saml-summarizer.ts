@@ -41,7 +41,7 @@ function updateSamlSessionSummary(summary: SessionSummary, samlTrace: SamlTrace)
       switch (samlTrace.type) {
         case "IncomingResponse":
         case "OutgoingResponse":
-          if (!samlTrace.response.statusCode.endsWith(":Success")) {
+          if (!samlTrace.samlStatusCode.endsWith(":Success")) {
             return "failed";
           }
           break;

@@ -31,18 +31,14 @@ function makeSamlTrace(overrides: Partial<SamlTrace>): SamlTrace {
     ...overrides,
   };
 
-  // Add default response for IncomingResponse / OutgoingResponse
+  // Add default samlStatusCode for IncomingResponse / OutgoingResponse
   if (
     (base.type === "IncomingResponse" || base.type === "OutgoingResponse") &&
-    !("response" in base)
+    !("samlStatusCode" in base)
   ) {
     return {
       ...base,
-      response: {
-        id: "response-1",
-        inResponseTo: "session-1",
-        statusCode: "urn:oasis:names:tc:SAML:2.0:status:Success",
-      },
+      samlStatusCode: "urn:oasis:names:tc:SAML:2.0:status:Success",
     } as SamlTrace;
   }
 

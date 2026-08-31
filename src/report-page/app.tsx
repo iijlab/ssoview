@@ -9,12 +9,15 @@ import {
   type HttpRequest,
   type HttpResponse,
 } from "@/common/models/http-message.ts";
-import { type SamlTrace } from "@/common/models/saml-trace.ts";
+import { type SamlDetection } from "@/common/models/saml-detection.ts";
+import { type SamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
 import { type SessionSummary } from "@/common/models/session-summary.ts";
 import { retrieveHttpMessages } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
+  extractSamlAuthnRequestXml,
+  extractSamlResponseXml,
 } from "@/common/services/saml-detector.ts";
 import { summarizeSamlSession } from "@/common/services/saml-summarizer.ts";
 import { type ContentSectionId } from "@/report-page/common/types.ts";
@@ -57,8 +60,8 @@ export function App() {
       }
 
       const sessionSummary = summarizeSamlSession(samlTraces[0]!.sessionId, samlTraces);
-      const authnRequestXml = extractSamlAuthnRequestXml(samlTraces);
-      const responseXml = extractSamlResponseXml(samlTraces);
+      const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpMessages(httpMessages);
+      const responseXml = await extractSamlResponseXmlFromHttpMessages(httpMessages);
 
       setSessionData({ httpMessageRecord, sessionSummary, authnRequestXml, responseXml });
     };
@@ -192,11 +195,17 @@ async function buildSamlTraces(httpMessages: HttpMessage[]): Promise<SamlTrace[]
   const samlTraces = [];
 
   for (const httpMessage of httpMessages) {
-    const samlTrace = await detectSamlStep(httpMessage, httpMessages);
-    if (samlTrace instanceof Error) {
-      console.error("Failed to detect SAML flow from HTTP message:", samlTrace);
+    const samlDetection = await detectSamlStep(httpMessage, httpMessages);
+    if (samlDetection instanceof Error) {
+      console.error("Failed to detect SAML flow from HTTP message:", samlDetection);
       continue;
-    } else if (!samlTrace) {
+    } else if (!samlDetection) {
+      continue;
+    }
+
+    const samlTrace = newSamlTrace(samlDetection, httpMessage);
+    if (samlTrace instanceof Error) {
+      console.error("Failed to build SAML trace from HTTP message:", samlTrace);
       continue;
     }
 
@@ -212,15 +221,15 @@ async function buildHttpMessageRecord(
   const httpMessageRecord: Record<number, HttpMessage> = {};
 
   for (const httpMessage of httpMessages) {
-    const samlTrace = await detectSamlStep(httpMessage, httpMessages);
-    if (samlTrace instanceof Error) {
-      console.error("Failed to detect SAML flow from HTTP message:", samlTrace);
+    const samlDetection = await detectSamlStep(httpMessage, httpMessages);
+    if (samlDetection instanceof Error) {
+      console.error("Failed to detect SAML flow from HTTP message:", samlDetection);
       continue;
-    } else if (!samlTrace) {
+    } else if (!samlDetection) {
       continue;
     }
 
-    httpMessageRecord[samlTrace.step] = httpMessage;
+    httpMessageRecord[samlDetection.step] = httpMessage;
   }
 
   // Infer step 1 from the message just before step 2
@@ -240,7 +249,7 @@ async function buildHttpMessageRecord(
 async function detectSamlStep(
   httpMessage: HttpMessage,
   httpMessages: HttpMessage[],
-): Promise<SamlTrace | undefined | Error> {
+): Promise<SamlDetection | undefined | Error> {
   if (httpMessage.stage === "Request") {
     return detectSamlStepFromHttpRequest(httpMessage);
   } else {
@@ -261,24 +270,62 @@ function findPairedHttpRequest(
   return pairedHttpRequest?.stage === "Request" ? pairedHttpRequest : undefined;
 }
 
-function extractSamlAuthnRequestXml(samlTraces: SamlTrace[]): string | undefined {
-  const samlTrace = samlTraces.find(
-    (t) => t.type === "IncomingAuthnRequest" || t.type === "OutgoingAuthnRequest",
-  );
-  if (!samlTrace || !("authnRequest" in samlTrace) || !samlTrace.authnRequest.raw) {
+async function extractSamlAuthnRequestXmlFromHttpMessages(
+  httpMessages: HttpMessage[],
+): Promise<string | undefined> {
+  const httpMessage = await (async () => {
+    for (const httpMessage of httpMessages) {
+      const samlDetection = await detectSamlStep(httpMessage, httpMessages);
+      if (samlDetection instanceof Error) {
+        console.error("Failed to detect SAML flow from HTTP message:", samlDetection);
+        continue;
+      } else if (!samlDetection) {
+        continue;
+      } else if (samlDetection.step === 2 || samlDetection.step === 3) {
+        return httpMessage;
+      }
+    }
+    return undefined;
+  })();
+  if (!httpMessage) {
     return undefined;
   }
 
-  return samlTrace.authnRequest.raw;
+  const authnRequestXml = await extractSamlAuthnRequestXml(httpMessage);
+  if (authnRequestXml instanceof Error) {
+    console.warn("Failed to extract SAML AuthnRequest XML:", authnRequestXml);
+    return undefined;
+  }
+
+  return authnRequestXml;
 }
 
-function extractSamlResponseXml(samlTraces: SamlTrace[]): string | undefined {
-  const samlTrace = samlTraces.find(
-    (t) => t.type === "IncomingResponse" || t.type === "OutgoingResponse",
-  );
-  if (!samlTrace || !("response" in samlTrace) || !samlTrace.response.raw) {
+async function extractSamlResponseXmlFromHttpMessages(
+  httpMessages: HttpMessage[],
+): Promise<string | undefined> {
+  const httpMessage = await (async () => {
+    for (const httpMessage of httpMessages) {
+      const samlDetection = await detectSamlStep(httpMessage, httpMessages);
+      if (samlDetection instanceof Error) {
+        console.error("Failed to detect SAML flow from HTTP message:", samlDetection);
+        continue;
+      } else if (!samlDetection) {
+        continue;
+      } else if (samlDetection.step === 4 || samlDetection.step === 5) {
+        return httpMessage;
+      }
+    }
+    return undefined;
+  })();
+  if (!httpMessage) {
     return undefined;
   }
 
-  return samlTrace.response.raw;
+  const responseXml = await extractSamlResponseXml(httpMessage);
+  if (responseXml instanceof Error) {
+    console.warn("Failed to extract SAML Response XML:", responseXml);
+    return undefined;
+  }
+
+  return responseXml;
 }
