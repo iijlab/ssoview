@@ -4,52 +4,105 @@
  */
 
 import { type SamlTrace, isSamlTrace } from "@/common/models/saml-trace.ts";
-import { makeStorageKey, makeStorageKeyPrefix } from "@/common/services/storage-key.ts";
 import {
-  getSessionStorageItemsByKeyPrefix,
-  removeSessionStorageItemsByKeyPrefix,
+  getAllSessionStorageKeys,
+  getSessionStorageItems,
+  removeSessionStorageItems,
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
+import { isObject } from "@/common/utils/type-guard.ts";
 
-const STORAGE_NAMESPACE = "saml";
-
-function makeStorageKeyForSamlTrace(tabId: number, sessionId: string, step: number): string {
-  return makeStorageKey(STORAGE_NAMESPACE, [`${tabId}`, sessionId, `${step}`]);
+export async function saveSamlTrace(samlTrace: SamlTrace, tabId: number): Promise<void | Error> {
+  return await setSessionStorageItem(makeSamlTraceKey(samlTrace, tabId), samlTrace);
 }
 
-function makeStorageKeyPrefixForSamlTraces(tabId: number, sessionId?: string): string {
-  const segments = sessionId !== undefined ? [`${tabId}`, sessionId] : [`${tabId}`];
-  return makeStorageKeyPrefix(STORAGE_NAMESPACE, segments);
+export async function deleteSamlTraces(tabId: number, sessionId: string): Promise<void | Error> {
+  const entries = await findSamlTraceEntriesBy((k) => k.tabId === tabId);
+  if (entries instanceof Error) {
+    return entries;
+  }
+
+  const keys = entries
+    .filter(([, samlTrace]) => samlTrace.sessionId === sessionId)
+    .map(([key]) => key);
+  return await removeSessionStorageItems(keys);
 }
 
-export async function storeSamlTrace(samlTrace: SamlTrace, tabId: number): Promise<void | Error> {
-  const key = makeStorageKeyForSamlTrace(tabId, samlTrace.sessionId, samlTrace.step);
-  return await setSessionStorageItem(key, samlTrace);
-}
-
-export async function retrieveSamlTraces(
+export async function findSamlTraces(
   tabId: number,
   sessionId?: string,
 ): Promise<SamlTrace[] | Error> {
-  const keyPrefix = makeStorageKeyPrefixForSamlTraces(tabId, sessionId);
-  const items = await getSessionStorageItemsByKeyPrefix(keyPrefix);
+  const entries = await findSamlTraceEntriesBy((k) => k.tabId === tabId);
+  if (entries instanceof Error) {
+    return entries;
+  }
+
+  const samlTraces = entries.map(([, samlTrace]) => samlTrace);
+  return sessionId === undefined ? samlTraces : samlTraces.filter((t) => t.sessionId === sessionId);
+}
+
+async function findSamlTraceEntriesBy(
+  predicate: (keyFields: SamlTraceKeyFields) => boolean,
+): Promise<[string, SamlTrace][] | Error> {
+  const allKeys = await getAllSessionStorageKeys();
+  if (allKeys instanceof Error) {
+    return allKeys;
+  }
+
+  const keys = allKeys.filter((k) => {
+    const keyFields = parseSamlTraceKey(k);
+    return keyFields !== undefined && predicate(keyFields);
+  });
+
+  const items = await getSessionStorageItems(keys);
   if (items instanceof Error) {
     return items;
   }
 
-  return Object.keys(items)
-    .toSorted()
-    .map((k) => items[k])
-    .filter((u: unknown): u is SamlTrace => {
-      const valid = isSamlTrace(u);
+  return Object.entries(items)
+    .filter((entry): entry is [string, SamlTrace] => {
+      const valid = isSamlTrace(entry[1]);
       if (!valid) {
-        console.warn("Invalid SAML trace:", u);
+        console.warn("Invalid SAML trace:", entry[1]);
       }
       return valid;
-    });
+    })
+    .toSorted(([, a], [, b]) => (a.id < b.id ? -1 : 1));
 }
 
-export async function purgeSamlTraces(tabId: number, sessionId: string): Promise<void | Error> {
-  const keyPrefix = makeStorageKeyPrefixForSamlTraces(tabId, sessionId);
-  return await removeSessionStorageItemsByKeyPrefix(keyPrefix);
+const samlTraceKind = "trace";
+
+type SamlTraceKeyFields = {
+  id: string;
+  kind: typeof samlTraceKind;
+  tabId: number;
+  flowId: string;
+};
+
+function isSamlTraceKeyFields(u: unknown): u is SamlTraceKeyFields {
+  return (
+    isObject(u) &&
+    typeof u.id === "string" &&
+    u.kind === samlTraceKind &&
+    typeof u.tabId === "number" &&
+    typeof u.flowId === "string"
+  );
+}
+
+function makeSamlTraceKey(samlTrace: SamlTrace, tabId: number): string {
+  return JSON.stringify({ ...samlTrace, kind: samlTraceKind, tabId }, [
+    "id",
+    "kind",
+    "tabId",
+    "flowId",
+  ]);
+}
+
+function parseSamlTraceKey(key: string): SamlTraceKeyFields | undefined {
+  try {
+    const parsed: unknown = JSON.parse(key);
+    return isSamlTraceKeyFields(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { type SessionSummary } from "@/common/models/session-summary.ts";
 import { purgeHttpMessages } from "@/common/services/http-store.ts";
-import { purgeSamlTraces, retrieveSamlTraces } from "@/common/services/saml-store.ts";
+import { deleteSamlTraces, findSamlTraces } from "@/common/services/saml-store.ts";
 import { getSamlSessionSummary } from "@/common/services/saml-summarizer.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
 import { deleteSession, getSessionSummaries, getSessionSummary } from "./session-manager.ts";
@@ -17,8 +17,8 @@ vi.mock("@/common/services/http-store.ts", () => ({
 }));
 
 vi.mock("@/common/services/saml-store.ts", () => ({
-  purgeSamlTraces: vi.fn(),
-  retrieveSamlTraces: vi.fn(),
+  deleteSamlTraces: vi.fn(),
+  findSamlTraces: vi.fn(),
 }));
 
 vi.mock("@/common/services/saml-summarizer.ts", () => ({
@@ -35,18 +35,18 @@ beforeEach(() => {
 
 describe("deleteSession", () => {
   it("deletes SAML and HTTP messages on success", async () => {
-    vi.mocked(purgeSamlTraces).mockResolvedValue(undefined);
+    vi.mocked(deleteSamlTraces).mockResolvedValue(undefined);
     vi.mocked(purgeHttpMessages).mockResolvedValue(undefined);
 
     const result = await deleteSession(1, "session-1");
 
     expect(result).toBeUndefined();
-    expect(purgeSamlTraces).toHaveBeenCalledWith(1, "session-1");
+    expect(deleteSamlTraces).toHaveBeenCalledWith(1, "session-1");
     expect(purgeHttpMessages).toHaveBeenCalledWith(1, "session-1");
   });
 
-  it("returns Error when purgeSamlTraces fails", async () => {
-    vi.mocked(purgeSamlTraces).mockResolvedValue(new Error("saml purge error"));
+  it("returns Error when deleteSamlTraces fails", async () => {
+    vi.mocked(deleteSamlTraces).mockResolvedValue(new Error("saml purge error"));
 
     const result = await deleteSession(1, "session-1");
 
@@ -56,7 +56,7 @@ describe("deleteSession", () => {
   });
 
   it("succeeds even when purgeHttpMessages fails", async () => {
-    vi.mocked(purgeSamlTraces).mockResolvedValue(undefined);
+    vi.mocked(deleteSamlTraces).mockResolvedValue(undefined);
     vi.mocked(purgeHttpMessages).mockResolvedValue(new Error("http purge error"));
     const warnMock = vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -79,7 +79,7 @@ const baseSummary: Omit<SessionSummary, "capturing"> = {
 describe("getSessionSummary", () => {
   it("returns summary with capturing flag", async () => {
     vi.mocked(getSamlSessionSummary).mockResolvedValue(baseSummary as SessionSummary);
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTraces).mockResolvedValue([
       { sessionId: "session-1", createdAt: "2026-01-01T00:00:00Z" },
     ] as SamlTrace[]);
     vi.mocked(isAttached).mockResolvedValue(true);
@@ -106,7 +106,7 @@ describe("getSessionSummaries", () => {
       { sessionId: "session-1", createdAt: "2026-01-01T00:00:00Z" },
       { sessionId: "session-2", createdAt: "2026-01-02T00:00:00Z" },
     ] as SamlTrace[];
-    vi.mocked(retrieveSamlTraces).mockResolvedValue(samlTraces);
+    vi.mocked(findSamlTraces).mockResolvedValue(samlTraces);
     vi.mocked(getSamlSessionSummary).mockImplementation(async (_tabId, sessionId) => {
       return {
         ...baseSummary,
@@ -125,8 +125,8 @@ describe("getSessionSummaries", () => {
     expect(summaries[1]!.sessionId).toBe("session-1");
   });
 
-  it("returns Error when retrieveSamlTraces fails", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue(new Error("storage error"));
+  it("returns Error when findSamlTraces fails", async () => {
+    vi.mocked(findSamlTraces).mockResolvedValue(new Error("storage error"));
 
     const result = await getSessionSummaries(1);
 
@@ -135,7 +135,7 @@ describe("getSessionSummaries", () => {
   });
 
   it("returns empty array when no sessions exist", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([]);
+    vi.mocked(findSamlTraces).mockResolvedValue([]);
 
     const result = await getSessionSummaries(1);
 

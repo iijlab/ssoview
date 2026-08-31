@@ -5,11 +5,11 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
-import { retrieveSamlTraces } from "@/common/services/saml-store.ts";
+import { findSamlTraces } from "@/common/services/saml-store.ts";
 import { getSamlSessionSummary, summarizeSamlSession } from "./saml-summarizer.ts";
 
 vi.mock("@/common/services/saml-store.ts", () => ({
-  retrieveSamlTraces: vi.fn(),
+  findSamlTraces: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -50,8 +50,8 @@ function makeSamlTrace(overrides: Partial<SamlTrace>): SamlTrace {
 //
 
 describe("getSamlSessionSummary", () => {
-  it("returns Error when retrieveSamlTraces fails", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue(new Error("storage error"));
+  it("returns Error when findSamlTraces fails", async () => {
+    vi.mocked(findSamlTraces).mockResolvedValue(new Error("storage error"));
 
     const result = await getSamlSessionSummary(1, "session-1");
 
@@ -60,7 +60,7 @@ describe("getSamlSessionSummary", () => {
   });
 
   it("returns Error when no messages exist", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([]);
+    vi.mocked(findSamlTraces).mockResolvedValue([]);
 
     const result = await getSamlSessionSummary(1, "session-1");
 
@@ -69,7 +69,7 @@ describe("getSamlSessionSummary", () => {
   });
 
   it("builds summary from a single message", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTraces).mockResolvedValue([
       makeSamlTrace({
         step: 2,
         type: "IncomingAuthnRequest",
@@ -98,7 +98,7 @@ describe("getSamlSessionSummary", () => {
   });
 
   it("sets status to in_progress before AuthenticatedResourceResponse", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTraces).mockResolvedValue([
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest" }),
       makeSamlTrace({ step: 3, type: "OutgoingAuthnRequest" }),
       makeSamlTrace({ step: 4, type: "IncomingResponse" }),
@@ -111,7 +111,7 @@ describe("getSamlSessionSummary", () => {
   });
 
   it("sets status to succeeded when AuthenticatedResourceResponse is present", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTraces).mockResolvedValue([
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest" }),
       makeSamlTrace({ step: 6, type: "AuthenticatedResourceResponse" }),
     ]);
@@ -123,7 +123,7 @@ describe("getSamlSessionSummary", () => {
   });
 
   it("sets end only when status is succeeded", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTraces).mockResolvedValue([
       makeSamlTrace({
         step: 2,
         type: "IncomingAuthnRequest",
@@ -146,7 +146,7 @@ describe("getSamlSessionSummary", () => {
   });
 
   it("does not set end when status is in_progress", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTraces).mockResolvedValue([
       makeSamlTrace({
         step: 2,
         type: "IncomingAuthnRequest",
@@ -162,7 +162,7 @@ describe("getSamlSessionSummary", () => {
   });
 
   it("sets imported to true if any message is imported", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTraces).mockResolvedValue([
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest", imported: false }),
       makeSamlTrace({ step: 3, type: "OutgoingAuthnRequest", imported: true }),
     ]);
@@ -174,7 +174,7 @@ describe("getSamlSessionSummary", () => {
   });
 
   it("takes sp and idp from the first message that has them", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTraces).mockResolvedValue([
       makeSamlTrace({
         step: 2,
         type: "IncomingAuthnRequest",
@@ -196,7 +196,7 @@ describe("getSamlSessionSummary", () => {
   });
 
   it("sets action to the last message's action", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTraces).mockResolvedValue([
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest", action: "first action" }),
       makeSamlTrace({ step: 3, type: "OutgoingAuthnRequest", action: "second action" }),
       makeSamlTrace({ step: 4, type: "IncomingResponse", action: "third action" }),
@@ -208,14 +208,14 @@ describe("getSamlSessionSummary", () => {
     expect(result).toMatchObject({ action: "third action" });
   });
 
-  it("passes tabId and sessionId to retrieveSamlTraces", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
+  it("passes tabId and sessionId to findSamlTraces", async () => {
+    vi.mocked(findSamlTraces).mockResolvedValue([
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest" }),
     ]);
 
     await getSamlSessionSummary(42, "my-session");
 
-    expect(retrieveSamlTraces).toHaveBeenCalledWith(42, "my-session");
+    expect(findSamlTraces).toHaveBeenCalledWith(42, "my-session");
   });
 });
 

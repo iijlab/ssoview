@@ -52,7 +52,7 @@ export async function getSessionStorageItemsByKeyPrefix(
   return await getSessionStorageItems(keys);
 }
 
-async function removeSessionStorageItems(keys: string[]): Promise<void | Error> {
+export async function removeSessionStorageItems(keys: string[]): Promise<void | Error> {
   try {
     await chrome.storage.session.remove(keys);
   } catch (err) {

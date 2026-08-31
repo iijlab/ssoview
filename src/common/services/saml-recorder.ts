@@ -8,7 +8,7 @@ import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
 import { debugSamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
 import { findFlowEntryByCorrelationKey, saveFlowEntry } from "@/common/services/flow-store.ts";
-import { storeSamlTrace } from "@/common/services/saml-store.ts";
+import { saveSamlTrace } from "@/common/services/saml-store.ts";
 
 export async function recordSamlTrace(
   captureSessionId: string,
@@ -26,9 +26,9 @@ export async function recordSamlTrace(
     return samlTrace;
   }
 
-  const storeError = await storeSamlTrace(samlTrace, tabId);
-  if (storeError) {
-    return storeError;
+  const saveError = await saveSamlTrace(samlTrace, tabId);
+  if (saveError) {
+    return saveError;
   }
 
   await debugSamlTrace(samlTrace);

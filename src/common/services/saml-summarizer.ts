@@ -5,13 +5,13 @@
 
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { type SessionSummary } from "@/common/models/session-summary.ts";
-import { retrieveSamlTraces } from "@/common/services/saml-store.ts";
+import { findSamlTraces } from "@/common/services/saml-store.ts";
 
 export async function getSamlSessionSummary(
   tabId: number,
   sessionId: string,
 ): Promise<SessionSummary | Error> {
-  const samlTraces = await retrieveSamlTraces(tabId, sessionId);
+  const samlTraces = await findSamlTraces(tabId, sessionId);
   if (samlTraces instanceof Error) {
     return samlTraces;
   }

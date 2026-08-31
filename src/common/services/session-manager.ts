@@ -5,7 +5,7 @@
 
 import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
 import { purgeHttpMessages } from "@/common/services/http-store.ts";
-import { purgeSamlTraces, retrieveSamlTraces } from "@/common/services/saml-store.ts";
+import { deleteSamlTraces, findSamlTraces } from "@/common/services/saml-store.ts";
 import { getSamlSessionSummary } from "@/common/services/saml-summarizer.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
 
@@ -42,7 +42,7 @@ export async function getSessionSummaries(tabId: number): Promise<SessionSummary
 }
 
 async function findSessionIds(tabId: number): Promise<string[] | Error> {
-  const samlTraces = await retrieveSamlTraces(tabId);
+  const samlTraces = await findSamlTraces(tabId);
   if (samlTraces instanceof Error) {
     return samlTraces;
   }
@@ -85,7 +85,7 @@ export async function getSessionSummary(
 }
 
 async function findLatestSessionId(tabId: number): Promise<string | undefined | Error> {
-  const messages = await retrieveSamlTraces(tabId);
+  const messages = await findSamlTraces(tabId);
   if (messages instanceof Error) {
     return messages;
   }
@@ -106,7 +106,7 @@ async function findLatestSessionId(tabId: number): Promise<string | undefined | 
  * @returns void on success, or an Error
  */
 export async function deleteSession(tabId: number, sessionId: string): Promise<void | Error> {
-  const samlPurgeError = await purgeSamlTraces(tabId, sessionId);
+  const samlPurgeError = await deleteSamlTraces(tabId, sessionId);
   if (samlPurgeError) {
     return samlPurgeError;
   }
