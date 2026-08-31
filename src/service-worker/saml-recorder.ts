@@ -9,7 +9,7 @@ import {
   debugHttpRequest,
   debugHttpResponse,
 } from "@/common/models/http-message.ts";
-import { debugSamlTrace } from "@/common/models/saml-trace.ts";
+import { debugSamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
 import { storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
@@ -23,26 +23,31 @@ export async function processHttpRequest(
 ): Promise<string | undefined | Error> {
   await debugHttpRequest(httpRequest);
 
-  const detected = await detectSamlStepFromHttpRequest(httpRequest);
-  if (detected instanceof Error) {
-    return detected;
-  } else if (!detected) {
+  const detection = await detectSamlStepFromHttpRequest(httpRequest);
+  if (detection instanceof Error) {
+    return detection;
+  } else if (!detection) {
     return undefined;
   }
 
-  const httpStoreError = await storeHttpMessage(httpRequest, tabId, detected.sessionId);
+  const samlTrace = newSamlTrace(detection, httpRequest);
+  if (samlTrace instanceof Error) {
+    return samlTrace;
+  }
+
+  const httpStoreError = await storeHttpMessage(httpRequest, tabId, detection.correlationKey);
   if (httpStoreError) {
     return httpStoreError;
   }
 
-  const samlStoreError = await storeSamlTrace(detected, tabId);
+  const samlStoreError = await storeSamlTrace(samlTrace, tabId);
   if (samlStoreError) {
     return samlStoreError;
   }
 
-  await debugSamlTrace(detected);
+  await debugSamlTrace(samlTrace);
 
-  return detected.sessionId;
+  return detection.correlationKey;
 }
 
 export async function processHttpResponse(
@@ -52,29 +57,34 @@ export async function processHttpResponse(
 ): Promise<string | undefined | Error> {
   await debugHttpResponse(httpResponse);
 
-  const detected = await detectSamlStepFromHttpResponse(httpResponse, pairedHttpRequest);
-  if (detected instanceof Error) {
-    return detected;
-  } else if (!detected) {
+  const detection = await detectSamlStepFromHttpResponse(httpResponse, pairedHttpRequest);
+  if (detection instanceof Error) {
+    return detection;
+  } else if (!detection) {
     return undefined;
   }
 
-  const pairStoreError = await storeHttpMessage(pairedHttpRequest, tabId, detected.sessionId);
+  const samlTrace = newSamlTrace(detection, httpResponse);
+  if (samlTrace instanceof Error) {
+    return samlTrace;
+  }
+
+  const pairStoreError = await storeHttpMessage(pairedHttpRequest, tabId, detection.correlationKey);
   if (pairStoreError) {
     return pairStoreError;
   }
 
-  const httpStoreError = await storeHttpMessage(httpResponse, tabId, detected.sessionId);
+  const httpStoreError = await storeHttpMessage(httpResponse, tabId, detection.correlationKey);
   if (httpStoreError) {
     return httpStoreError;
   }
 
-  const samlStoreError = await storeSamlTrace(detected, tabId);
+  const samlStoreError = await storeSamlTrace(samlTrace, tabId);
   if (samlStoreError) {
     return samlStoreError;
   }
 
-  await debugSamlTrace(detected);
+  await debugSamlTrace(samlTrace);
 
-  return detected.sessionId;
+  return detection.correlationKey;
 }

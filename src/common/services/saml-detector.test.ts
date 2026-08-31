@@ -29,13 +29,15 @@ const AUTHN_REQUEST_XML = [
 
 const RESPONSE_ID = "response-1";
 
+const STATUS_SUCCESS = "urn:oasis:names:tc:SAML:2.0:status:Success";
+
 const RESPONSE_XML = [
   "<samlp:Response",
   '  xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"',
   `  ID="${RESPONSE_ID}"`,
   `  InResponseTo="${AUTHN_REQUEST_ID}">`,
   "  <samlp:Status>",
-  '    <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>',
+  `    <samlp:StatusCode Value="${STATUS_SUCCESS}"/>`,
   "  </samlp:Status>",
   "</samlp:Response>",
 ].join("");
@@ -46,13 +48,12 @@ const UNSOLICITED_RESPONSE_XML = [
   '  xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"',
   `  ID="${RESPONSE_ID}">`,
   "  <samlp:Status>",
-  '    <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>',
+  `    <samlp:StatusCode Value="${STATUS_SUCCESS}"/>`,
   "  </samlp:Status>",
   "</samlp:Response>",
 ].join("");
 
 const DATE_HEADER_VALUE = "Thu, 01 Jan 2026 00:00:00 GMT";
-const DATE_ISO = "2026-01-01T00:00:00.000Z";
 
 //
 // Helpers
@@ -211,15 +212,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
-        step: 2,
-        type: "IncomingAuthnRequest",
-        sessionId: AUTHN_REQUEST_ID,
-        sp: "sp.example.com",
-        imported: false,
-        date: DATE_ISO,
-        action: "Service Provider issues SAML AuthnRequest",
-      });
+      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("detects AuthnRequest in a 307 redirect", async () => {
@@ -236,7 +229,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({ step: 2, type: "IncomingAuthnRequest" });
+      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("detects AuthnRequest in a 303 redirect", async () => {
@@ -253,44 +246,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({ step: 2, type: "IncomingAuthnRequest" });
-    });
-
-    it("preserves the imported flag from the HTTP message", async () => {
-      const location = await buildIdpLocationUrl();
-      const response = makeResponse({
-        url: "https://sp.example.com/login",
-        statusCode: 302,
-        imported: true,
-        headers: [
-          { name: "Location", value: location },
-          { name: "Date", value: DATE_HEADER_VALUE },
-        ],
-      });
-
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
-
-      expect(result).toMatchObject({ imported: true });
-    });
-
-    it("includes authnRequest with id and raw XML", async () => {
-      const location = await buildIdpLocationUrl();
-      const response = makeResponse({
-        url: "https://sp.example.com/login",
-        statusCode: 302,
-        headers: [
-          { name: "Location", value: location },
-          { name: "Date", value: DATE_HEADER_VALUE },
-        ],
-      });
-
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
-
-      expect(result).not.toBeUndefined();
-      expect(result).not.toBeInstanceOf(Error);
-      const saml = result as { authnRequest: { id: string; raw: string } };
-      expect(saml.authnRequest.id).toBe(AUTHN_REQUEST_ID);
-      expect(saml.authnRequest.raw).toContain(AUTHN_REQUEST_ID);
+      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("returns undefined for non-redirect status codes", async () => {
@@ -382,15 +338,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
-        step: 2,
-        type: "IncomingAuthnRequest",
-        sessionId: AUTHN_REQUEST_ID,
-        sp: "sp.example.com",
-        imported: false,
-        date: DATE_ISO,
-        action: "Service Provider issues SAML AuthnRequest",
-      });
+      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("returns undefined when Content-Type is not text/html", async () => {
@@ -436,12 +384,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
-        step: 2,
-        type: "IncomingAuthnRequest",
-        sessionId: AUTHN_REQUEST_ID,
-        sp: "sp.example.com",
-      });
+      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
     });
   });
 
@@ -459,15 +402,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
-        step: 2,
-        type: "IncomingAuthnRequest",
-        sessionId: AUTHN_REQUEST_ID,
-        sp: "sp.example.com",
-        imported: false,
-        date: DATE_ISO,
-        action: "Service Provider issues SAML AuthnRequest",
-      });
+      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("returns undefined when onclick has no SAMLRequest", async () => {
@@ -517,15 +452,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
-        step: 2,
-        type: "IncomingAuthnRequest",
-        sessionId: AUTHN_REQUEST_ID,
-        sp: "sp.example.com",
-        imported: false,
-        date: DATE_ISO,
-        action: "Service Provider issues SAML AuthnRequest",
-      });
+      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("detects AuthnRequest in a meta refresh tag with escaped quotes", async () => {
@@ -541,12 +468,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
-        step: 2,
-        type: "IncomingAuthnRequest",
-        sessionId: AUTHN_REQUEST_ID,
-        sp: "sp.example.com",
-      });
+      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("returns undefined when Content-Type is not text/html", async () => {
@@ -605,13 +527,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
-        step: 3,
-        type: "OutgoingAuthnRequest",
-        sessionId: AUTHN_REQUEST_ID,
-        idp: "idp.example.org",
-        action: "User Agent redirects SAML AuthnRequest to Identity Provider",
-      });
+      expect(result).toEqual({ step: 3, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("returns undefined for non-GET request", async () => {
@@ -644,13 +560,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
-        step: 3,
-        type: "OutgoingAuthnRequest",
-        sessionId: AUTHN_REQUEST_ID,
-        idp: "idp.example.org",
-        action: "User Agent submits SAML AuthnRequest to Identity Provider",
-      });
+      expect(result).toEqual({ step: 3, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("returns undefined when POST body has no SAMLRequest", async () => {
@@ -681,13 +591,10 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
+      expect(result).toEqual({
         step: 4,
-        type: "IncomingResponse",
-        sessionId: AUTHN_REQUEST_ID,
-        idp: "idp.example.org",
-        date: DATE_ISO,
-        action: "Identity Provider issues SAML Response",
+        correlationKey: AUTHN_REQUEST_ID,
+        samlStatusCode: STATUS_SUCCESS,
       });
     });
 
@@ -705,7 +612,11 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({ step: 4, type: "IncomingResponse" });
+      expect(result).toEqual({
+        step: 4,
+        correlationKey: AUTHN_REQUEST_ID,
+        samlStatusCode: STATUS_SUCCESS,
+      });
     });
 
     it("returns undefined when Location has no SAMLResponse parameter", async () => {
@@ -740,13 +651,10 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
+      expect(result).toEqual({
         step: 4,
-        type: "IncomingResponse",
-        sessionId: AUTHN_REQUEST_ID,
-        idp: "idp.example.org",
-        date: DATE_ISO,
-        action: "Identity Provider issues SAML Response",
+        correlationKey: AUTHN_REQUEST_ID,
+        samlStatusCode: STATUS_SUCCESS,
       });
     });
 
@@ -766,7 +674,11 @@ describe("detectSamlStep", () => {
 
       const result = await detectSamlStepFromHttpResponse(response, request);
 
-      expect(result).toMatchObject({ step: 4, type: "IncomingResponse" });
+      expect(result).toEqual({
+        step: 4,
+        correlationKey: AUTHN_REQUEST_ID,
+        samlStatusCode: STATUS_SUCCESS,
+      });
     });
 
     it("returns undefined when Content-Type is not text/html", async () => {
@@ -802,28 +714,6 @@ describe("detectSamlStep", () => {
       expect(result).toBeUndefined();
     });
 
-    it("includes response with id, inResponseTo and raw XML", async () => {
-      const requestUrl = await buildIdpLocationUrl();
-      const request = makeRequest({ url: requestUrl, method: "GET" });
-      const response = makeResponse({
-        url: "https://idp.example.org/sso",
-        headers: [
-          { name: "Content-Type", value: "text/html" },
-          { name: "Date", value: DATE_HEADER_VALUE },
-        ],
-        body: buildSamlResponseFormBody(),
-      });
-
-      const result = await detectSamlStepFromHttpResponse(response, request);
-
-      expect(result).not.toBeUndefined();
-      expect(result).not.toBeInstanceOf(Error);
-      const saml = result as { response: { id: string; inResponseTo: string; raw: string } };
-      expect(saml.response.id).toBe(RESPONSE_ID);
-      expect(saml.response.inResponseTo).toBe(AUTHN_REQUEST_ID);
-      expect(saml.response.raw).toContain(AUTHN_REQUEST_ID);
-    });
-
     it("detects SAMLResponse with upper-case HTML attributes", async () => {
       const requestUrl = await buildIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
@@ -839,10 +729,10 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
+      expect(result).toEqual({
         step: 4,
-        type: "IncomingResponse",
-        idp: "idp.example.org",
+        correlationKey: AUTHN_REQUEST_ID,
+        samlStatusCode: STATUS_SUCCESS,
       });
     });
   });
@@ -855,12 +745,10 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
+      expect(result).toEqual({
         step: 5,
-        type: "OutgoingResponse",
-        sessionId: AUTHN_REQUEST_ID,
-        sp: "sp.example.com",
-        action: "User Agent redirects SAML Response to Service Provider",
+        correlationKey: AUTHN_REQUEST_ID,
+        samlStatusCode: STATUS_SUCCESS,
       });
     });
 
@@ -884,12 +772,10 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
+      expect(result).toEqual({
         step: 5,
-        type: "OutgoingResponse",
-        sessionId: AUTHN_REQUEST_ID,
-        sp: "sp.example.com",
-        action: "User Agent submits SAML Response to Service Provider",
+        correlationKey: AUTHN_REQUEST_ID,
+        samlStatusCode: STATUS_SUCCESS,
       });
     });
 
@@ -919,11 +805,10 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
+      expect(result).toEqual({
         step: 5,
-        type: "OutgoingResponse",
-        sessionId: RESPONSE_ID,
-        sp: "sp.example.com",
+        correlationKey: RESPONSE_ID,
+        samlStatusCode: STATUS_SUCCESS,
       });
     });
 
@@ -960,14 +845,7 @@ describe("detectSamlStep", () => {
       const result = await detectSamlStepFromHttpResponse(response, request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toMatchObject({
-        step: 6,
-        type: "AuthenticatedResourceResponse",
-        sessionId: AUTHN_REQUEST_ID,
-        sp: "sp.example.com",
-        date: DATE_ISO,
-        action: "Service Provider returns the requested resource",
-      });
+      expect(result).toEqual({ step: 6, correlationKey: AUTHN_REQUEST_ID });
     });
 
     it("returns undefined when request is not an OutgoingResponse", async () => {

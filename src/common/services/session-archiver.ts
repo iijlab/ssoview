@@ -10,7 +10,8 @@ import {
   type HttpRequest,
   type HttpResponse,
 } from "@/common/models/http-message.ts";
-import { type SamlTrace } from "@/common/models/saml-trace.ts";
+import { type SamlDetection } from "@/common/models/saml-detection.ts";
+import { newSamlTrace } from "@/common/models/saml-trace.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
 import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
 import {
@@ -67,11 +68,22 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
   const sessionIds = new Set<string>();
 
   for (const httpMessage of httpMessages) {
-    const samlTrace = await detectSamlStep(httpMessage, httpMessages);
-    if (samlTrace instanceof Error) {
-      console.error("Failed to detect SAML flow from HTTP message:", samlTrace);
+    const detection = await detectSamlStep(httpMessage, httpMessages);
+    if (detection instanceof Error) {
+      console.error("Failed to detect SAML flow from HTTP message:", detection);
       continue;
-    } else if (!samlTrace) {
+    } else if (!detection) {
+      continue;
+    }
+
+    const importedHttpMessage = {
+      ...httpMessage,
+      imported: true,
+    };
+
+    const samlTrace = newSamlTrace(detection, importedHttpMessage);
+    if (samlTrace instanceof Error) {
+      console.error("Failed to build SAML trace from HTTP message:", samlTrace);
       continue;
     }
 
@@ -81,7 +93,7 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
         const httpStoreError = await storeHttpMessage(
           { ...pairedHttpRequest, imported: true },
           tabId,
-          samlTrace.sessionId,
+          detection.correlationKey,
         );
         if (httpStoreError) {
           return httpStoreError;
@@ -90,20 +102,20 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     }
 
     const httpStoreError = await storeHttpMessage(
-      { ...httpMessage, imported: true },
+      importedHttpMessage,
       tabId,
-      samlTrace.sessionId,
+      detection.correlationKey,
     );
     if (httpStoreError) {
       return httpStoreError;
     }
 
-    const samlStoreError = await storeSamlTrace({ ...samlTrace, imported: true }, tabId);
+    const samlStoreError = await storeSamlTrace(samlTrace, tabId);
     if (samlStoreError) {
       return samlStoreError;
     }
 
-    sessionIds.add(samlTrace.sessionId);
+    sessionIds.add(detection.correlationKey);
   }
 
   return [...sessionIds];
@@ -112,7 +124,7 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
 async function detectSamlStep(
   httpMessage: HttpMessage,
   httpMessages: HttpMessage[],
-): Promise<SamlTrace | undefined | Error> {
+): Promise<SamlDetection | undefined | Error> {
   if (httpMessage.stage === "Request") {
     return detectSamlStepFromHttpRequest(httpMessage);
   } else {

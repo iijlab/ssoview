@@ -11,21 +11,14 @@ import {
   getHeaderValue,
 } from "@/common/models/http-message.ts";
 import {
-  type AuthenticatedResourceResponse,
-  type IncomingSamlAuthnRequest,
-  type IncomingSamlResponse,
-  type OutgoingSamlAuthnRequest,
-  type OutgoingSamlResponse,
-  type SamlAuthnRequest,
-  type SamlResponse,
-  type SamlTrace,
-  type UnauthenticatedResourceRequest,
-} from "@/common/models/saml-trace.ts";
+  type SamlDetectionFromHttpRequest,
+  type SamlDetectionFromHttpResponse,
+} from "@/common/models/saml-detection.ts";
 import { parseSamlpAuthnRequest, parseSamlpResponse } from "./saml-parser.ts";
 
 export async function detectSamlStepFromHttpRequest(
   httpRequest: HttpRequest,
-): Promise<SamlTrace | undefined | Error> {
+): Promise<SamlDetectionFromHttpRequest | undefined | Error> {
   return (
     (await detectUnauthenticatedResourceRequest(httpRequest)) ??
     (await detectOutgoingSamlAuthnRequest(httpRequest)) ??
@@ -36,11 +29,11 @@ export async function detectSamlStepFromHttpRequest(
 export async function detectSamlStepFromHttpResponse(
   httpResponse: HttpResponse,
   pairedHttpRequest: HttpRequest,
-): Promise<SamlTrace | undefined | Error> {
+): Promise<SamlDetectionFromHttpResponse | undefined | Error> {
   return (
     (await detectIncomingSamlAuthnRequest(httpResponse)) ??
     (await detectIncomingSamlResponse(httpResponse)) ??
-    (await detectAuthenticatedResourceResponse(httpResponse, pairedHttpRequest))
+    (await detectAuthenticatedResourceResponse(pairedHttpRequest))
   );
 }
 
@@ -65,41 +58,27 @@ export async function extractSamlResponseXml(
 // A resource request has no SAML marker, so it cannot be detected from the
 // request alone. Whether it is SAML-related is determined by whether the
 // response contains an AuthnRequest.
-async function detectUnauthenticatedResourceRequest(
-  _: HttpRequest,
-): Promise<UnauthenticatedResourceRequest | undefined | Error> {
+async function detectUnauthenticatedResourceRequest(_: HttpRequest): Promise<undefined> {
   return undefined;
 }
 
 // Step 2: UA <--(AuthnRequest)--- SP
 async function detectIncomingSamlAuthnRequest(
   httpResponse: HttpResponse,
-): Promise<IncomingSamlAuthnRequest | undefined | Error> {
+): Promise<(SamlDetectionFromHttpResponse & { step: 2 }) | undefined | Error> {
   const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpResponse(httpResponse);
   if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
     return authnRequestXml;
   }
 
-  const samlAuthnRequest = makeSamlAuthnRequest(authnRequestXml);
-  if (samlAuthnRequest instanceof Error) {
-    return samlAuthnRequest;
-  }
-
-  const sp = getHostname(httpResponse.url);
-  if (sp instanceof Error) {
-    return sp;
+  const correlationKey = extractCorrelationKeyFromSamlAuthnRequest(authnRequestXml);
+  if (correlationKey instanceof Error) {
+    return correlationKey;
   }
 
   return {
-    sessionId: samlAuthnRequest.id,
-    createdAt: new Date().toISOString(),
-    imported: httpResponse.imported,
     step: 2,
-    type: "IncomingAuthnRequest",
-    date: getResponseDate(httpResponse),
-    sp,
-    action: "Service Provider issues SAML AuthnRequest",
-    authnRequest: samlAuthnRequest,
+    correlationKey,
   };
 }
 
@@ -275,34 +254,20 @@ function extractUrlFromMetaRefresh(responseBody: string): string | undefined {
 // Step 3: UA ---(AuthnRequest)--> IdP
 async function detectOutgoingSamlAuthnRequest(
   httpRequest: HttpRequest,
-): Promise<OutgoingSamlAuthnRequest | undefined | Error> {
+): Promise<(SamlDetectionFromHttpRequest & { step: 3 }) | undefined | Error> {
   const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpRequest(httpRequest);
   if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
     return authnRequestXml;
   }
 
-  const samlAuthnRequest = makeSamlAuthnRequest(authnRequestXml);
-  if (samlAuthnRequest instanceof Error) {
-    return samlAuthnRequest;
-  }
-
-  const idp = getHostname(httpRequest.url);
-  if (idp instanceof Error) {
-    return idp;
+  const correlationKey = extractCorrelationKeyFromSamlAuthnRequest(authnRequestXml);
+  if (correlationKey instanceof Error) {
+    return correlationKey;
   }
 
   return {
-    sessionId: samlAuthnRequest.id,
-    createdAt: new Date().toISOString(),
-    imported: httpRequest.imported,
     step: 3,
-    type: "OutgoingAuthnRequest",
-    idp,
-    action:
-      httpRequest.method === "POST"
-        ? "User Agent submits SAML AuthnRequest to Identity Provider"
-        : "User Agent redirects SAML AuthnRequest to Identity Provider",
-    authnRequest: samlAuthnRequest,
+    correlationKey,
   };
 }
 
@@ -376,32 +341,26 @@ function extractSamlRequestFromRequestBody(requestBody: string): string | undefi
 // Step 4: UA <--(Response)--- IdP
 async function detectIncomingSamlResponse(
   httpResponse: HttpResponse,
-): Promise<IncomingSamlResponse | undefined | Error> {
+): Promise<(SamlDetectionFromHttpResponse & { step: 4 }) | undefined | Error> {
   const responseXml = await extractSamlResponseXmlFromHttpResponse(httpResponse);
   if (responseXml === undefined || responseXml instanceof Error) {
     return responseXml;
   }
 
-  const samlResponse = makeSamlResponse(responseXml);
-  if (samlResponse instanceof Error) {
-    return samlResponse;
+  const correlationKey = extractCorrelationKeyFromSamlResponse(responseXml);
+  if (correlationKey instanceof Error) {
+    return correlationKey;
   }
 
-  const idp = getHostname(httpResponse.url);
-  if (idp instanceof Error) {
-    return idp;
+  const samlStatusCode = extractStatusCodeFromSamlResponse(responseXml);
+  if (samlStatusCode instanceof Error) {
+    return samlStatusCode;
   }
 
   return {
-    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
-    createdAt: new Date().toISOString(),
-    imported: httpResponse.imported,
     step: 4,
-    type: "IncomingResponse",
-    date: getResponseDate(httpResponse),
-    idp,
-    action: "Identity Provider issues SAML Response",
-    response: samlResponse,
+    correlationKey,
+    samlStatusCode,
   };
 }
 
@@ -485,34 +444,26 @@ function extractSamlResponseFromResponseBody(responseBody: string): string | und
 // Step 5: UA ---(Response)--> SP
 async function detectOutgoingSamlResponse(
   httpRequest: HttpRequest,
-): Promise<OutgoingSamlResponse | undefined | Error> {
+): Promise<(SamlDetectionFromHttpRequest & { step: 5 }) | undefined | Error> {
   const responseXml = await extractSamlResponseXmlFromHttpRequest(httpRequest);
   if (responseXml === undefined || responseXml instanceof Error) {
     return responseXml;
   }
 
-  const samlResponse = makeSamlResponse(responseXml);
-  if (samlResponse instanceof Error) {
-    return samlResponse;
+  const correlationKey = extractCorrelationKeyFromSamlResponse(responseXml);
+  if (correlationKey instanceof Error) {
+    return correlationKey;
   }
 
-  const sp = getHostname(httpRequest.url);
-  if (sp instanceof Error) {
-    return sp;
+  const samlStatusCode = extractStatusCodeFromSamlResponse(responseXml);
+  if (samlStatusCode instanceof Error) {
+    return samlStatusCode;
   }
 
   return {
-    sessionId: samlResponse.inResponseTo ?? samlResponse.id,
-    createdAt: new Date().toISOString(),
-    imported: httpRequest.imported,
     step: 5,
-    type: "OutgoingResponse",
-    sp,
-    action:
-      httpRequest.method === "POST"
-        ? "User Agent submits SAML Response to Service Provider"
-        : "User Agent redirects SAML Response to Service Provider",
-    response: samlResponse,
+    correlationKey,
+    samlStatusCode,
   };
 }
 
@@ -588,46 +539,17 @@ function extractSamlResponseFromRequestBody(requestBody: string): string | undef
 // Detected when:
 // - It is the response to Step 5
 async function detectAuthenticatedResourceResponse(
-  httpResponse: HttpResponse,
   pairedHttpRequest: HttpRequest,
-): Promise<AuthenticatedResourceResponse | undefined | Error> {
+): Promise<(SamlDetectionFromHttpResponse & { step: 6 }) | undefined | Error> {
   const samlOutgoingResponse = await detectOutgoingSamlResponse(pairedHttpRequest);
   if (samlOutgoingResponse instanceof Error || samlOutgoingResponse === undefined) {
     return samlOutgoingResponse;
   }
 
-  const sp = getHostname(httpResponse.url);
-  if (sp instanceof Error) {
-    return sp;
-  }
-
   return {
-    sessionId: samlOutgoingResponse.sessionId,
-    createdAt: new Date().toISOString(),
-    imported: httpResponse.imported,
     step: 6,
-    type: "AuthenticatedResourceResponse",
-    date: getResponseDate(httpResponse),
-    sp,
-    action: "Service Provider returns the requested resource",
-    result: "not implemented",
+    correlationKey: samlOutgoingResponse.correlationKey,
   };
-}
-
-function getResponseDate(httpResponse: HttpResponse): string | undefined {
-  const dateStr = getHeaderValue(httpResponse, "Date");
-  if (!dateStr) {
-    console.info("No Date header:", { headers: httpResponse.headers, url: httpResponse.url });
-    return undefined;
-  }
-
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) {
-    console.info("Invalid Date header:", { headers: httpResponse.headers, url: httpResponse.url });
-    return undefined;
-  }
-
-  return date.toISOString();
 }
 
 function getQueryParameterValue(url: string, key: string): string | undefined | Error {
@@ -638,15 +560,7 @@ function getQueryParameterValue(url: string, key: string): string | undefined | 
   }
 }
 
-function getHostname(url: string): string | Error {
-  try {
-    return new URL(url).hostname;
-  } catch (err) {
-    return new Error("Failed to extract hostname from url", { cause: err });
-  }
-}
-
-function makeSamlAuthnRequest(samlAuthnRequestStr: string): SamlAuthnRequest | Error {
+function extractCorrelationKeyFromSamlAuthnRequest(samlAuthnRequestStr: string): string | Error {
   const parsed = parseSamlpAuthnRequest(samlAuthnRequestStr);
   if (parsed instanceof Error) {
     return parsed;
@@ -657,10 +571,10 @@ function makeSamlAuthnRequest(samlAuthnRequestStr: string): SamlAuthnRequest | E
     return new Error("ID not found in AuthnRequest");
   }
 
-  return { id, raw: samlAuthnRequestStr };
+  return id;
 }
 
-function makeSamlResponse(samlResponseStr: string): SamlResponse | Error {
+function extractCorrelationKeyFromSamlResponse(samlResponseStr: string): string | Error {
   const parsed = parseSamlpResponse(samlResponseStr);
   if (parsed instanceof Error) {
     return parsed;
@@ -673,17 +587,21 @@ function makeSamlResponse(samlResponseStr: string): SamlResponse | Error {
 
   const inResponseTo = unwrap(parsed.$inResponseTo);
 
+  return inResponseTo ?? id;
+}
+
+function extractStatusCodeFromSamlResponse(samlResponseStr: string): string | Error {
+  const parsed = parseSamlpResponse(samlResponseStr);
+  if (parsed instanceof Error) {
+    return parsed;
+  }
+
   const statusCode = unwrap(unwrap(unwrap(parsed.status)?.statusCode)?.$value);
   if (!statusCode) {
     return new Error("StatusCode not found in Response");
   }
 
-  return {
-    id,
-    inResponseTo,
-    statusCode,
-    raw: samlResponseStr,
-  };
+  return statusCode;
 }
 
 function decodeBase64(b64: string): string | Error {

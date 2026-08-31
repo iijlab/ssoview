@@ -5,7 +5,6 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
-import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
@@ -64,24 +63,12 @@ function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   } as unknown as HttpResponse;
 }
 
-function makeSamlTrace(overrides: Partial<SamlTrace> = {}): SamlTrace {
-  return {
-    sessionId: "session-1",
-    createdAt: "2026-01-01T00:00:00Z",
-    imported: false,
-    action: "test action",
-    step: 3,
-    type: "OutgoingAuthnRequest",
-    ...overrides,
-  } as SamlTrace;
-}
-
 //
 // Tests
 //
 
 describe("processHttpRequest", () => {
-  it("returns undefined when no SAML trace is detected", async () => {
+  it("returns undefined when no SAML step is detected", async () => {
     const request = makeRequest();
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
 
@@ -102,10 +89,12 @@ describe("processHttpRequest", () => {
     expect((result as Error).message).toBe("detection error");
   });
 
-  it("stores HTTP message and SAML trace and returns sessionId on detection", async () => {
+  it("stores HTTP message and SAML trace and returns correlation key on detection", async () => {
     const request = makeRequest();
-    const detected = makeSamlTrace({ sessionId: "session-1", step: 3 });
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(detected);
+    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+      step: 3,
+      correlationKey: "session-1",
+    });
     vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
     vi.mocked(storeSamlTrace).mockResolvedValue(undefined);
 
@@ -114,13 +103,22 @@ describe("processHttpRequest", () => {
     expect(result).toBe("session-1");
     expect(storeHttpMessage).toHaveBeenCalledTimes(1);
     expect(storeHttpMessage).toHaveBeenCalledWith(request, 1, "session-1");
-    expect(storeSamlTrace).toHaveBeenCalledWith(detected, 1);
+    expect(storeSamlTrace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-1",
+        step: 3,
+        type: "OutgoingAuthnRequest",
+      }),
+      1,
+    );
   });
 
   it("returns Error when storing the HTTP message fails", async () => {
     const request = makeRequest();
-    const detected = makeSamlTrace({ sessionId: "session-1", step: 3 });
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(detected);
+    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+      step: 3,
+      correlationKey: "session-1",
+    });
     vi.mocked(storeHttpMessage).mockResolvedValue(new Error("store error"));
 
     const result = await processHttpRequest(1, request);
@@ -132,8 +130,10 @@ describe("processHttpRequest", () => {
 
   it("returns Error when storing the SAML trace fails", async () => {
     const request = makeRequest();
-    const detected = makeSamlTrace({ sessionId: "session-1", step: 3 });
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(detected);
+    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+      step: 3,
+      correlationKey: "session-1",
+    });
     vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
     vi.mocked(storeSamlTrace).mockResolvedValue(new Error("saml store error"));
 
@@ -160,12 +160,10 @@ describe("processHttpResponse", () => {
   it("stores the paired request before the response", async () => {
     const pairedRequest = makeRequest({ url: "https://sp.example.com/resource" });
     const response = makeResponse({ statusCode: 302 });
-    const detected = makeSamlTrace({
-      sessionId: "session-1",
+    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
       step: 2,
-      type: "IncomingAuthnRequest",
+      correlationKey: "session-1",
     });
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue(detected);
     vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
     vi.mocked(storeSamlTrace).mockResolvedValue(undefined);
 
@@ -175,17 +173,23 @@ describe("processHttpResponse", () => {
     expect(storeHttpMessage).toHaveBeenCalledTimes(2);
     expect(storeHttpMessage).toHaveBeenNthCalledWith(1, pairedRequest, 1, "session-1");
     expect(storeHttpMessage).toHaveBeenNthCalledWith(2, response, 1, "session-1");
+    expect(storeSamlTrace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-1",
+        step: 2,
+        type: "IncomingAuthnRequest",
+      }),
+      1,
+    );
   });
 
   it("returns Error when storing the paired request fails", async () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
-    const detected = makeSamlTrace({
-      sessionId: "session-1",
+    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
       step: 2,
-      type: "IncomingAuthnRequest",
+      correlationKey: "session-1",
     });
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue(detected);
     vi.mocked(storeHttpMessage).mockResolvedValue(new Error("store error"));
 
     const result = await processHttpResponse(1, response, pairedRequest);
