@@ -26,6 +26,15 @@ export async function findFlowEntriesByCaptureSessionId(
   return entries.toReversed();
 }
 
+export async function findFlowEntryById(id: string): Promise<FlowEntry | undefined | Error> {
+  const entries = await findFlowEntriesBy((e) => e.id === id);
+  if (entries instanceof Error) {
+    return entries;
+  }
+
+  return entries[0];
+}
+
 export async function findFlowEntryByCorrelationKey(
   captureSessionId: string,
   correlationKey: string,
