@@ -15,7 +15,7 @@ export default defineConfig([
     languageOptions: {
       globals: {
         ...globals.browser,
-        ...globals.es2023,
+        ...globals.es2025,
         ...globals.webextensions,
       },
     },
