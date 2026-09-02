@@ -83,7 +83,13 @@ export async function processHttpResponse(
     return httpStoreError;
   }
 
-  const recordError = await recordSamlTrace(captureSessionId, tabId, detection, httpResponse);
+  const recordError = await recordSamlTrace(
+    captureSessionId,
+    tabId,
+    detection,
+    httpResponse,
+    pairedHttpRequest,
+  );
   if (recordError) {
     return recordError;
   }

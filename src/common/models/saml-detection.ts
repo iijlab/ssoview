@@ -3,7 +3,15 @@
  * @license BSD-3-Clause
  */
 
-export type SamlDetection = SamlDetectionFromHttpRequest | SamlDetectionFromHttpResponse;
+export type SamlDetection =
+  | InferredSamlDetection
+  | SamlDetectionFromHttpRequest
+  | SamlDetectionFromHttpResponse;
+
+export type InferredSamlDetection = {
+  step: 1;
+  correlationKey: string;
+};
 
 export type SamlDetectionFromHttpRequest =
   | {

@@ -145,6 +145,25 @@ describe("newSamlTrace", () => {
     } as unknown as HttpResponse;
   }
 
+  it("builds a step 1 trace from a request", () => {
+    const request = makeRequest({ url: "https://sp.example.com/resource" });
+
+    const result = newSamlTrace("flow-1", { step: 1, correlationKey: "authn-req-1" }, request);
+
+    expect(result).not.toBeInstanceOf(Error);
+    expect(result).toMatchObject({
+      flowId: "flow-1",
+      httpMessageId: "msg-1",
+      observedAt: "2026-01-01T00:00:00Z",
+      serverHostname: "sp.example.com",
+      sessionId: "authn-req-1",
+      imported: false,
+      step: 1,
+      type: "UnauthenticatedResourceRequest",
+      action: "User Agent requests a secured resource at Service Provider",
+    });
+  });
+
   it("builds a step 2 trace from a response", () => {
     const response = makeResponse({ url: "https://sp.example.com/login" });
 

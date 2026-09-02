@@ -110,6 +110,14 @@ export function newSamlTrace(
   };
 
   switch (detection.step) {
+    case 1:
+      return {
+        ...base,
+        step: 1,
+        type: "UnauthenticatedResourceRequest",
+        sp: hostname,
+        action: "User Agent requests a secured resource at Service Provider",
+      };
     case 2:
       return {
         ...base,

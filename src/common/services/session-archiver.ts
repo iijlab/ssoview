@@ -69,7 +69,12 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
   const sessionIds = new Set<string>();
 
   for (const httpMessage of httpMessages) {
-    const detection = await detectSamlStep(httpMessage, httpMessages);
+    const pairedHttpRequest =
+      httpMessage.stage === "Response"
+        ? findPairedHttpRequest(httpMessage, httpMessages)
+        : undefined;
+
+    const detection = await detectSamlStep(httpMessage, pairedHttpRequest);
     if (detection instanceof Error) {
       console.error("Failed to detect SAML flow from HTTP message:", detection);
       continue;
@@ -82,17 +87,22 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       imported: true,
     };
 
-    if (httpMessage.stage === "Response") {
-      const pairedHttpRequest = findPairedHttpRequest(httpMessage, httpMessages);
-      if (pairedHttpRequest !== undefined) {
-        const httpStoreError = await storeHttpMessage(
-          { ...pairedHttpRequest, imported: true },
-          tabId,
-          detection.correlationKey,
-        );
-        if (httpStoreError) {
-          return httpStoreError;
-        }
+    const importedPairedHttpRequest =
+      pairedHttpRequest === undefined
+        ? undefined
+        : {
+            ...pairedHttpRequest,
+            imported: true,
+          };
+
+    if (importedPairedHttpRequest !== undefined) {
+      const httpStoreError = await storeHttpMessage(
+        importedPairedHttpRequest,
+        tabId,
+        detection.correlationKey,
+      );
+      if (httpStoreError) {
+        return httpStoreError;
       }
     }
 
@@ -110,6 +120,7 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       tabId,
       detection,
       importedHttpMessage,
+      importedPairedHttpRequest,
     );
     if (recordError) {
       return recordError;
@@ -123,12 +134,11 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
 
 async function detectSamlStep(
   httpMessage: HttpMessage,
-  httpMessages: HttpMessage[],
+  pairedHttpRequest: HttpRequest | undefined,
 ): Promise<SamlDetection | undefined | Error> {
   if (httpMessage.stage === "Request") {
     return detectSamlStepFromHttpRequest(httpMessage);
   } else {
-    const pairedHttpRequest = findPairedHttpRequest(httpMessage, httpMessages);
     if (pairedHttpRequest === undefined) {
       return new Error(`No paired HTTP request for HTTP response: ${httpMessage.id}`);
     }

@@ -199,6 +199,7 @@ describe("processHttpResponse", () => {
       1,
       { step: 2, correlationKey: "session-1" },
       response,
+      pairedRequest,
     );
   });
 

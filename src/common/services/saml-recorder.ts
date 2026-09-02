@@ -4,7 +4,7 @@
  */
 
 import { type FlowEntry, newFlowEntry } from "@/common/models/flow-entry.ts";
-import { type HttpMessage } from "@/common/models/http-message.ts";
+import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
 import { debugSamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
 import { findFlowEntryByCorrelationKey, saveFlowEntry } from "@/common/services/flow-store.ts";
@@ -15,7 +15,29 @@ export async function recordSamlTrace(
   tabId: number,
   detection: SamlDetection,
   httpMessage: HttpMessage,
+  pairedHttpRequest?: HttpRequest,
 ): Promise<void | Error> {
+  if (detection.step === 2) {
+    if (pairedHttpRequest === undefined) {
+      console.warn("No paired HTTP request for the AuthnRequest, skipping step 1:", {
+        correlationKey: detection.correlationKey,
+      });
+    } else {
+      const recordError = await recordSamlTrace(
+        captureSessionId,
+        tabId,
+        {
+          step: 1,
+          correlationKey: detection.correlationKey,
+        },
+        pairedHttpRequest,
+      );
+      if (recordError) {
+        return recordError;
+      }
+    }
+  }
+
   const flowEntry = await findOrIssueFlowEntry(captureSessionId, detection.correlationKey);
   if (flowEntry instanceof Error) {
     return flowEntry;

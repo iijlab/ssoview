@@ -96,6 +96,7 @@ describe("loadSessionArchive", () => {
       1,
       { step: 3, correlationKey: "session-1" },
       { ...httpMessage, imported: true },
+      undefined,
     );
   });
 
@@ -138,6 +139,13 @@ describe("loadSessionArchive", () => {
       { ...httpMessage, imported: true },
       1,
       "session-1",
+    );
+    expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
+      expect.any(String),
+      1,
+      { step: 6, correlationKey: "session-1" },
+      { ...httpMessage, imported: true },
+      { ...pairedRequest, imported: true },
     );
   });
 
