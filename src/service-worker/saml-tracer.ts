@@ -9,13 +9,13 @@ import {
   debugHttpRequest,
   debugHttpResponse,
 } from "@/common/models/http-message.ts";
-import { debugSamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
 import { storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
-import { storeSamlTrace } from "@/common/services/saml-store.ts";
+import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
+import { getOngoingCaptureSessionId } from "@/service-worker/capture-manager.ts";
 
 export async function processHttpRequest(
   tabId: number,
@@ -30,9 +30,12 @@ export async function processHttpRequest(
     return undefined;
   }
 
-  const samlTrace = newSamlTrace(detection, httpRequest);
-  if (samlTrace instanceof Error) {
-    return samlTrace;
+  const captureSessionId = await getOngoingCaptureSessionId();
+  if (captureSessionId instanceof Error) {
+    return captureSessionId;
+  } else if (captureSessionId === undefined) {
+    console.warn("No ongoing capture session, skipping the HTTP request:", { tabId });
+    return undefined;
   }
 
   const httpStoreError = await storeHttpMessage(httpRequest, tabId, detection.correlationKey);
@@ -40,12 +43,10 @@ export async function processHttpRequest(
     return httpStoreError;
   }
 
-  const samlStoreError = await storeSamlTrace(samlTrace, tabId);
-  if (samlStoreError) {
-    return samlStoreError;
+  const recordError = await recordSamlTrace(captureSessionId, tabId, detection, httpRequest);
+  if (recordError) {
+    return recordError;
   }
-
-  await debugSamlTrace(samlTrace);
 
   return detection.correlationKey;
 }
@@ -64,9 +65,12 @@ export async function processHttpResponse(
     return undefined;
   }
 
-  const samlTrace = newSamlTrace(detection, httpResponse);
-  if (samlTrace instanceof Error) {
-    return samlTrace;
+  const captureSessionId = await getOngoingCaptureSessionId();
+  if (captureSessionId instanceof Error) {
+    return captureSessionId;
+  } else if (captureSessionId === undefined) {
+    console.warn("No ongoing capture session, skipping the HTTP response:", { tabId });
+    return undefined;
   }
 
   const pairStoreError = await storeHttpMessage(pairedHttpRequest, tabId, detection.correlationKey);
@@ -79,12 +83,16 @@ export async function processHttpResponse(
     return httpStoreError;
   }
 
-  const samlStoreError = await storeSamlTrace(samlTrace, tabId);
-  if (samlStoreError) {
-    return samlStoreError;
+  const recordError = await recordSamlTrace(
+    captureSessionId,
+    tabId,
+    detection,
+    httpResponse,
+    pairedHttpRequest,
+  );
+  if (recordError) {
+    return recordError;
   }
-
-  await debugSamlTrace(samlTrace);
 
   return detection.correlationKey;
 }

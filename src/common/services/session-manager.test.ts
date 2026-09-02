@@ -4,25 +4,31 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
-import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { getCaptureSession } from "@/common/services/capture-query.ts";
+import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import { purgeHttpMessages } from "@/common/services/http-store.ts";
-import { purgeSamlTraces, retrieveSamlTraces } from "@/common/services/saml-store.ts";
-import { getSamlSessionSummary } from "@/common/services/saml-summarizer.ts";
+import { deleteSamlTraces, findSamlTraces } from "@/common/services/saml-store.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
-import { deleteSession, getSessionSummaries, getSessionSummary } from "./session-manager.ts";
+import { deleteSession, getSessionSummaries } from "./session-manager.ts";
+
+vi.mock("@/common/services/capture-query.ts", () => ({
+  getCaptureSession: vi.fn(),
+}));
+
+vi.mock("@/common/services/flow-store.ts", () => ({
+  findFlowEntryById: vi.fn(),
+}));
 
 vi.mock("@/common/services/http-store.ts", () => ({
   purgeHttpMessages: vi.fn(),
 }));
 
 vi.mock("@/common/services/saml-store.ts", () => ({
-  purgeSamlTraces: vi.fn(),
-  retrieveSamlTraces: vi.fn(),
-}));
-
-vi.mock("@/common/services/saml-summarizer.ts", () => ({
-  getSamlSessionSummary: vi.fn(),
+  deleteSamlTraces: vi.fn(),
+  findSamlTraces: vi.fn(),
 }));
 
 vi.mock("@/common/utils/chrome-debugger.ts", () => ({
@@ -31,114 +37,194 @@ vi.mock("@/common/utils/chrome-debugger.ts", () => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
+
+  vi.mocked(findSamlTraces).mockResolvedValue([]);
+  vi.mocked(getCaptureSession).mockResolvedValue(undefined);
+  vi.mocked(findFlowEntryById).mockResolvedValue(undefined);
+  vi.mocked(isAttached).mockResolvedValue(false);
+  vi.mocked(deleteSamlTraces).mockResolvedValue(undefined);
+  vi.mocked(purgeHttpMessages).mockResolvedValue(undefined);
+});
+
+//
+// Helpers
+//
+
+function makeSamlTrace(overrides: Partial<SamlTrace>): SamlTrace {
+  return {
+    id: "trace-1",
+    flowId: "flow-1",
+    httpMessageId: "msg-1",
+    observedAt: "2026-01-01T00:00:00.000Z",
+    serverHostname: "sp.example.com",
+    sessionId: "corr-1",
+    imported: false,
+    action: "test action",
+    step: 2,
+    type: "IncomingAuthnRequest",
+    ...overrides,
+  } as SamlTrace;
+}
+
+function makeFlowEntry(overrides: Partial<FlowEntry> = {}): FlowEntry {
+  return {
+    id: "flow-1",
+    captureSessionId: "cs-1",
+    protocol: "saml",
+    correlationKey: "corr-1",
+    ...overrides,
+  };
+}
+
+function makeCaptureSession(overrides: Partial<CaptureSession> = {}): CaptureSession {
+  return {
+    id: "cs-1",
+    imported: false,
+    startedAt: "2026-01-01T00:00:00Z",
+    endedAt: "2026-01-01T00:01:00Z",
+    ...overrides,
+  } as CaptureSession;
+}
+
+//
+// Tests
+//
+
+describe("getSessionSummaries", () => {
+  it("returns an empty array when no traces exist", async () => {
+    expect(await getSessionSummaries(1)).toEqual([]);
+  });
+
+  it("builds one summary per flow, newest flow first", async () => {
+    vi.mocked(findSamlTraces).mockResolvedValue([
+      makeSamlTrace({ id: "trace-1", flowId: "flow-1", step: 2, action: "first action" }),
+      makeSamlTrace({ id: "trace-2", flowId: "flow-1", step: 3, action: "second action" }),
+      makeSamlTrace({ id: "trace-3", flowId: "flow-2", step: 2, action: "other action" }),
+    ]);
+    vi.mocked(getCaptureSession).mockResolvedValue(makeCaptureSession());
+    vi.mocked(findFlowEntryById).mockImplementation(async (id) =>
+      id === "flow-1"
+        ? makeFlowEntry({ id: "flow-1", correlationKey: "corr-1" })
+        : makeFlowEntry({ id: "flow-2", correlationKey: "corr-2" }),
+    );
+
+    const result = await getSessionSummaries(1);
+
+    expect(result).not.toBeInstanceOf(Error);
+    expect(result).toMatchObject([
+      { sessionId: "corr-2", action: "other action" },
+      { sessionId: "corr-1", action: "second action" },
+    ]);
+  });
+
+  it("derives imported from the capture session", async () => {
+    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({ imported: false })]);
+    vi.mocked(getCaptureSession).mockResolvedValue(
+      makeCaptureSession({ imported: true, importedAt: "2026-01-01T00:00:00Z" }),
+    );
+    vi.mocked(findFlowEntryById).mockResolvedValue(makeFlowEntry());
+
+    const result = await getSessionSummaries(1);
+
+    expect(result).toMatchObject([{ imported: true, capturing: false }]);
+  });
+
+  it("sets capturing when the capture session is ongoing and the debugger is attached", async () => {
+    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({})]);
+    vi.mocked(getCaptureSession).mockResolvedValue(makeCaptureSession({ endedAt: undefined }));
+    vi.mocked(findFlowEntryById).mockResolvedValue(makeFlowEntry());
+    vi.mocked(isAttached).mockResolvedValue(true);
+
+    expect(await getSessionSummaries(1)).toMatchObject([{ capturing: true }]);
+  });
+
+  it("does not set capturing when the capture session has ended", async () => {
+    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({})]);
+    vi.mocked(getCaptureSession).mockResolvedValue(makeCaptureSession());
+    vi.mocked(findFlowEntryById).mockResolvedValue(makeFlowEntry());
+    vi.mocked(isAttached).mockResolvedValue(true);
+
+    expect(await getSessionSummaries(1)).toMatchObject([{ capturing: false }]);
+  });
+
+  it("does not set capturing when the debugger is not attached", async () => {
+    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({})]);
+    vi.mocked(getCaptureSession).mockResolvedValue(makeCaptureSession({ endedAt: undefined }));
+    vi.mocked(findFlowEntryById).mockResolvedValue(makeFlowEntry());
+    vi.mocked(isAttached).mockResolvedValue(false);
+
+    expect(await getSessionSummaries(1)).toMatchObject([{ capturing: false }]);
+  });
+
+  it("skips traces without a flow entry with a warning", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({ flowId: "flow-x" })]);
+
+    expect(await getSessionSummaries(1)).toEqual([]);
+    expect(consoleWarn).toHaveBeenCalledOnce();
+  });
+
+  it("propagates an error from the trace store", async () => {
+    const error = new Error("trace store error");
+    vi.mocked(findSamlTraces).mockResolvedValue(error);
+
+    expect(await getSessionSummaries(1)).toBe(error);
+  });
+
+  it("propagates an error from the capture session query", async () => {
+    const error = new Error("capture query error");
+    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({})]);
+    vi.mocked(findFlowEntryById).mockResolvedValue(makeFlowEntry());
+    vi.mocked(getCaptureSession).mockResolvedValue(error);
+
+    expect(await getSessionSummaries(1)).toBe(error);
+  });
+
+  it("propagates an error from the flow store", async () => {
+    const error = new Error("flow store error");
+    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({})]);
+    vi.mocked(findFlowEntryById).mockResolvedValue(error);
+
+    expect(await getSessionSummaries(1)).toBe(error);
+  });
+
+  it("skips a flow whose capture session is missing with a warning", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({})]);
+    vi.mocked(findFlowEntryById).mockResolvedValue(makeFlowEntry());
+
+    expect(await getSessionSummaries(1)).toEqual([]);
+    expect(consoleWarn).toHaveBeenCalledOnce();
+  });
+
+  it("propagates an error from the debugger", async () => {
+    const error = new Error("debugger error");
+    vi.mocked(isAttached).mockResolvedValue(error);
+
+    expect(await getSessionSummaries(1)).toBe(error);
+  });
 });
 
 describe("deleteSession", () => {
-  it("deletes SAML and HTTP messages on success", async () => {
-    vi.mocked(purgeSamlTraces).mockResolvedValue(undefined);
-    vi.mocked(purgeHttpMessages).mockResolvedValue(undefined);
-
-    const result = await deleteSession(1, "session-1");
-
-    expect(result).toBeUndefined();
-    expect(purgeSamlTraces).toHaveBeenCalledWith(1, "session-1");
-    expect(purgeHttpMessages).toHaveBeenCalledWith(1, "session-1");
+  it("deletes the traces and the HTTP messages", async () => {
+    expect(await deleteSession(1, "corr-1")).toBeUndefined();
+    expect(deleteSamlTraces).toHaveBeenCalledWith(1, "corr-1");
+    expect(purgeHttpMessages).toHaveBeenCalledWith(1, "corr-1");
   });
 
-  it("returns Error when purgeSamlTraces fails", async () => {
-    vi.mocked(purgeSamlTraces).mockResolvedValue(new Error("saml purge error"));
+  it("returns an error when the trace deletion fails", async () => {
+    const error = new Error("saml delete error");
+    vi.mocked(deleteSamlTraces).mockResolvedValue(error);
 
-    const result = await deleteSession(1, "session-1");
-
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("saml purge error");
+    expect(await deleteSession(1, "corr-1")).toBe(error);
     expect(purgeHttpMessages).not.toHaveBeenCalled();
   });
 
-  it("succeeds even when purgeHttpMessages fails", async () => {
-    vi.mocked(purgeSamlTraces).mockResolvedValue(undefined);
+  it("ignores a failure of the HTTP message purge", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.mocked(purgeHttpMessages).mockResolvedValue(new Error("http purge error"));
-    const warnMock = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = await deleteSession(1, "session-1");
-
-    expect(result).toBeUndefined();
-    expect(warnMock).toHaveBeenCalled();
-    warnMock.mockRestore();
-  });
-});
-
-const baseSummary: Omit<SessionSummary, "capturing"> = {
-  protocol: "saml",
-  imported: false,
-  sessionId: "session-1",
-  start: "2026-01-01T00:00:00Z",
-  warning: [],
-};
-
-describe("getSessionSummary", () => {
-  it("returns summary with capturing flag", async () => {
-    vi.mocked(getSamlSessionSummary).mockResolvedValue(baseSummary as SessionSummary);
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([
-      { sessionId: "session-1", createdAt: "2026-01-01T00:00:00Z" },
-    ] as SamlTrace[]);
-    vi.mocked(isAttached).mockResolvedValue(true);
-
-    const result = await getSessionSummary(1, "session-1");
-
-    expect(result).not.toBeInstanceOf(Error);
-    expect((result as SessionSummary).capturing).toBe(true);
-  });
-
-  it("returns Error when getSamlSessionSummary fails", async () => {
-    vi.mocked(getSamlSessionSummary).mockResolvedValue(new Error("summary error"));
-
-    const result = await getSessionSummary(1, "session-1");
-
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("summary error");
-  });
-});
-
-describe("getSessionSummaries", () => {
-  it("returns summaries sorted by start time in descending order", async () => {
-    const samlTraces = [
-      { sessionId: "session-1", createdAt: "2026-01-01T00:00:00Z" },
-      { sessionId: "session-2", createdAt: "2026-01-02T00:00:00Z" },
-    ] as SamlTrace[];
-    vi.mocked(retrieveSamlTraces).mockResolvedValue(samlTraces);
-    vi.mocked(getSamlSessionSummary).mockImplementation(async (_tabId, sessionId) => {
-      return {
-        ...baseSummary,
-        sessionId,
-        start: sessionId === "session-1" ? "2026-01-01T00:00:00Z" : "2026-01-02T00:00:00Z",
-      } as SessionSummary;
-    });
-    vi.mocked(isAttached).mockResolvedValue(false);
-
-    const result = await getSessionSummaries(1);
-
-    expect(result).not.toBeInstanceOf(Error);
-    const summaries = result as SessionSummary[];
-    expect(summaries).toHaveLength(2);
-    expect(summaries[0]!.sessionId).toBe("session-2");
-    expect(summaries[1]!.sessionId).toBe("session-1");
-  });
-
-  it("returns Error when retrieveSamlTraces fails", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue(new Error("storage error"));
-
-    const result = await getSessionSummaries(1);
-
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("storage error");
-  });
-
-  it("returns empty array when no sessions exist", async () => {
-    vi.mocked(retrieveSamlTraces).mockResolvedValue([]);
-
-    const result = await getSessionSummaries(1);
-
-    expect(result).toEqual([]);
+    expect(await deleteSession(1, "corr-1")).toBeUndefined();
+    expect(consoleWarn).toHaveBeenCalledOnce();
   });
 });

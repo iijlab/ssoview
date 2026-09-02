@@ -3,99 +3,87 @@
  * @license BSD-3-Clause
  */
 
+import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
+import { getCaptureSession } from "@/common/services/capture-query.ts";
+import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import { purgeHttpMessages } from "@/common/services/http-store.ts";
-import { purgeSamlTraces, retrieveSamlTraces } from "@/common/services/saml-store.ts";
-import { getSamlSessionSummary } from "@/common/services/saml-summarizer.ts";
+import { deleteSamlTraces, findSamlTraces } from "@/common/services/saml-store.ts";
+import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
 
-// NOTE: getSessionSummaries and getSessionSummary have known inefficiencies
-// (e.g., repeated data fetches), but we prioritize simplicity as performance
-// is not a concern at current scale.
+// NOTE: getSessionSummaries has known inefficiencies (e.g., repeated data
+// fetches), but we prioritize simplicity as performance is not a concern at
+// current scale.
 
 /**
  * Retrieve summaries for all sessions associated with a tab.
  *
  * @param tabId - The tab ID to retrieve session summaries for
- * @returns An array of session summaries sorted by start time in descending order, or an Error
+ * @returns An array of session summaries sorted by flow ID in descending order, or an Error
  */
 export async function getSessionSummaries(tabId: number): Promise<SessionSummary[] | Error> {
-  const sessionIds = await findSessionIds(tabId);
-  if (sessionIds instanceof Error) {
-    return sessionIds;
+  const attached = await isAttached(tabId);
+  if (attached instanceof Error) {
+    return attached;
   }
 
-  const summaries = await Promise.all(sessionIds.map((s) => getSessionSummary(tabId, s)));
-  const summaryError = summaries.find((s): s is Error => s instanceof Error);
-  if (summaryError) {
-    return summaryError;
+  const samlTracesByFlowId = await findSamlTracesGroupedByFlowId(tabId);
+  if (samlTracesByFlowId instanceof Error) {
+    return samlTracesByFlowId;
   }
 
-  return summaries
-    .filter((s): s is SessionSummary => !(s instanceof Error))
-    .sort((a, b) => {
-      if (a.start === undefined) return 1;
-      if (b.start === undefined) return -1;
-      // ISO 8601 format allows lexicographical sorting to match chronological order
-      return b.start.localeCompare(a.start);
-    });
+  const summaries: SessionSummary[] = [];
+  for (const [flowId, samlTraces] of samlTracesByFlowId) {
+    const flowEntry = await findFlowEntryById(flowId);
+    if (flowEntry instanceof Error) {
+      return flowEntry;
+    } else if (flowEntry === undefined) {
+      console.warn("No flow entry for the traces:", { flowId });
+      continue;
+    }
+
+    const captureSession = await getCaptureSession(flowEntry.captureSessionId);
+    if (captureSession instanceof Error) {
+      return captureSession;
+    } else if (captureSession === undefined) {
+      console.warn("No capture session for the flow:", { flowId });
+      continue;
+    }
+
+    const summary = {
+      ...summarizeSamlFlow(flowEntry, captureSession, samlTraces),
+      capturing: isOngoing(captureSession) && attached,
+    };
+
+    summaries.push(summary);
+    await debugSessionSummary(summary);
+  }
+
+  return summaries;
 }
 
-async function findSessionIds(tabId: number): Promise<string[] | Error> {
-  const samlTraces = await retrieveSamlTraces(tabId);
+async function findSamlTracesGroupedByFlowId(
+  tabId: number,
+): Promise<Map<string, SamlTrace[]> | Error> {
+  const samlTraces = await findSamlTraces(tabId);
   if (samlTraces instanceof Error) {
     return samlTraces;
   }
 
-  return [...new Set(samlTraces.map((m) => m.sessionId))];
+  // TODO: Rewrite with Map.groupBy after raising the TypeScript target to ES2024 or later
+  const samlTracesByFlowId = samlTraces.reduce((acc, trace) => {
+    const current = acc.get(trace.flowId) ?? [];
+    acc.set(trace.flowId, [...current, trace]);
+    return acc;
+  }, new Map<string, SamlTrace[]>());
+
+  return new Map([...samlTracesByFlowId.entries()].toSorted(([a], [b]) => (a < b ? 1 : -1)));
 }
 
-/**
- * Retrieve the summary for a specific session.
- *
- * @param tabId - The tab ID associated with the session
- * @param sessionId - The session ID to retrieve the summary for
- * @returns The session summary, or an Error
- */
-export async function getSessionSummary(
-  tabId: number,
-  sessionId: string,
-): Promise<SessionSummary | Error> {
-  const summary = await getSamlSessionSummary(tabId, sessionId);
-  if (summary instanceof Error) {
-    return summary;
-  }
-
-  const latestSessionId = await findLatestSessionId(tabId);
-  if (latestSessionId instanceof Error) {
-    return latestSessionId;
-  }
-  if (latestSessionId === undefined) {
-    console.warn("Latest session ID not found:", { tabId });
-  }
-
-  const capturing = latestSessionId === sessionId && (await isAttached(tabId));
-  if (capturing instanceof Error) {
-    return capturing;
-  }
-
-  await debugSessionSummary({ ...summary, capturing });
-
-  return { ...summary, capturing };
-}
-
-async function findLatestSessionId(tabId: number): Promise<string | undefined | Error> {
-  const messages = await retrieveSamlTraces(tabId);
-  if (messages instanceof Error) {
-    return messages;
-  }
-  if (messages.length === 0) {
-    return undefined;
-  }
-
-  const latest = messages.reduce((a, b) => (a.createdAt > b.createdAt ? a : b));
-
-  return latest.sessionId;
+function isOngoing(captureSession: CaptureSession): boolean {
+  return !captureSession.imported && captureSession.endedAt === undefined;
 }
 
 /**
@@ -106,9 +94,9 @@ async function findLatestSessionId(tabId: number): Promise<string | undefined | 
  * @returns void on success, or an Error
  */
 export async function deleteSession(tabId: number, sessionId: string): Promise<void | Error> {
-  const samlPurgeError = await purgeSamlTraces(tabId, sessionId);
-  if (samlPurgeError) {
-    return samlPurgeError;
+  const samlDeleteError = await deleteSamlTraces(tabId, sessionId);
+  if (samlDeleteError) {
+    return samlDeleteError;
   }
 
   const httpPurgeError = await purgeHttpMessages(tabId, sessionId);

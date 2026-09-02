@@ -11,14 +11,13 @@ import {
   type HttpResponse,
 } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
-import { newSamlTrace } from "@/common/models/saml-trace.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
 import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
-import { storeSamlTrace } from "@/common/services/saml-store.ts";
+import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
 
 /**
  * Export session data as an HTTP Archive (HAR) JSON string.
@@ -55,7 +54,9 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     return httpMessages;
   }
 
-  const saveError = await saveEventRecord(newArchiveImportedRecord());
+  const archiveImportedRecord = newArchiveImportedRecord();
+
+  const saveError = await saveEventRecord(archiveImportedRecord);
   if (saveError) {
     return saveError;
   }
@@ -68,7 +69,12 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
   const sessionIds = new Set<string>();
 
   for (const httpMessage of httpMessages) {
-    const detection = await detectSamlStep(httpMessage, httpMessages);
+    const pairedHttpRequest =
+      httpMessage.stage === "Response"
+        ? findPairedHttpRequest(httpMessage, httpMessages)
+        : undefined;
+
+    const detection = await detectSamlStep(httpMessage, pairedHttpRequest);
     if (detection instanceof Error) {
       console.error("Failed to detect SAML flow from HTTP message:", detection);
       continue;
@@ -81,23 +87,22 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       imported: true,
     };
 
-    const samlTrace = newSamlTrace(detection, importedHttpMessage);
-    if (samlTrace instanceof Error) {
-      console.error("Failed to build SAML trace from HTTP message:", samlTrace);
-      continue;
-    }
+    const importedPairedHttpRequest =
+      pairedHttpRequest === undefined
+        ? undefined
+        : {
+            ...pairedHttpRequest,
+            imported: true,
+          };
 
-    if (httpMessage.stage === "Response") {
-      const pairedHttpRequest = findPairedHttpRequest(httpMessage, httpMessages);
-      if (pairedHttpRequest !== undefined) {
-        const httpStoreError = await storeHttpMessage(
-          { ...pairedHttpRequest, imported: true },
-          tabId,
-          detection.correlationKey,
-        );
-        if (httpStoreError) {
-          return httpStoreError;
-        }
+    if (importedPairedHttpRequest !== undefined) {
+      const httpStoreError = await storeHttpMessage(
+        importedPairedHttpRequest,
+        tabId,
+        detection.correlationKey,
+      );
+      if (httpStoreError) {
+        return httpStoreError;
       }
     }
 
@@ -110,9 +115,15 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       return httpStoreError;
     }
 
-    const samlStoreError = await storeSamlTrace(samlTrace, tabId);
-    if (samlStoreError) {
-      return samlStoreError;
+    const recordError = await recordSamlTrace(
+      archiveImportedRecord.id,
+      tabId,
+      detection,
+      importedHttpMessage,
+      importedPairedHttpRequest,
+    );
+    if (recordError) {
+      return recordError;
     }
 
     sessionIds.add(detection.correlationKey);
@@ -123,12 +134,11 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
 
 async function detectSamlStep(
   httpMessage: HttpMessage,
-  httpMessages: HttpMessage[],
+  pairedHttpRequest: HttpRequest | undefined,
 ): Promise<SamlDetection | undefined | Error> {
   if (httpMessage.stage === "Request") {
     return detectSamlStepFromHttpRequest(httpMessage);
   } else {
-    const pairedHttpRequest = findPairedHttpRequest(httpMessage, httpMessages);
     if (pairedHttpRequest === undefined) {
       return new Error(`No paired HTTP request for HTTP response: ${httpMessage.id}`);
     }

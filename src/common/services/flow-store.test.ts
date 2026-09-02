@@ -13,6 +13,7 @@ import {
 import {
   findFlowEntriesByCaptureSessionId,
   findFlowEntryByCorrelationKey,
+  findFlowEntryById,
   saveFlowEntry,
 } from "./flow-store.ts";
 
@@ -161,5 +162,20 @@ describe("findFlowEntryByCorrelationKey", () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
     expect(await findFlowEntryByCorrelationKey("cs-1", "key-1")).toBe(error);
+  });
+});
+
+describe("findFlowEntryById", () => {
+  it("retrieves the flow with the ID", async () => {
+    const target = newFlowEntry("cs-1", "saml", "key-1");
+    mockStorage(newFlowEntry("cs-1", "saml", "key-2"), target);
+
+    expect(await findFlowEntryById(target.id)).toEqual(target);
+  });
+
+  it("returns undefined when no flow has the ID", async () => {
+    mockStorage(newFlowEntry("cs-1", "saml", "key-1"));
+
+    expect(await findFlowEntryById("unknown-id")).toBeUndefined();
   });
 });

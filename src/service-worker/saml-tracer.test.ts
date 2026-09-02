@@ -10,8 +10,9 @@ import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
-import { storeSamlTrace } from "@/common/services/saml-store.ts";
-import { processHttpRequest, processHttpResponse } from "./saml-recorder.ts";
+import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
+import { getOngoingCaptureSessionId } from "@/service-worker/capture-manager.ts";
+import { processHttpRequest, processHttpResponse } from "./saml-tracer.ts";
 
 vi.mock("@/common/services/saml-detector.ts", () => ({
   detectSamlStepFromHttpRequest: vi.fn(),
@@ -22,12 +23,17 @@ vi.mock("@/common/services/http-store.ts", () => ({
   storeHttpMessage: vi.fn(),
 }));
 
-vi.mock("@/common/services/saml-store.ts", () => ({
-  storeSamlTrace: vi.fn(),
+vi.mock("@/common/services/saml-recorder.ts", () => ({
+  recordSamlTrace: vi.fn(),
+}));
+
+vi.mock("@/service-worker/capture-manager.ts", () => ({
+  getOngoingCaptureSessionId: vi.fn(),
 }));
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(getOngoingCaptureSessionId).mockResolvedValue("capture-session-1");
 });
 
 //
@@ -76,7 +82,7 @@ describe("processHttpRequest", () => {
 
     expect(result).toBeUndefined();
     expect(storeHttpMessage).not.toHaveBeenCalled();
-    expect(storeSamlTrace).not.toHaveBeenCalled();
+    expect(recordSamlTrace).not.toHaveBeenCalled();
   });
 
   it("returns Error when detection fails", async () => {
@@ -89,27 +95,25 @@ describe("processHttpRequest", () => {
     expect((result as Error).message).toBe("detection error");
   });
 
-  it("stores HTTP message and SAML trace and returns correlation key on detection", async () => {
+  it("stores the HTTP message and records the trace, and returns the correlation key", async () => {
     const request = makeRequest();
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
     });
     vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(storeSamlTrace).mockResolvedValue(undefined);
+    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
 
     const result = await processHttpRequest(1, request);
 
     expect(result).toBe("session-1");
     expect(storeHttpMessage).toHaveBeenCalledTimes(1);
     expect(storeHttpMessage).toHaveBeenCalledWith(request, 1, "session-1");
-    expect(storeSamlTrace).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: "session-1",
-        step: 3,
-        type: "OutgoingAuthnRequest",
-      }),
+    expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
+      "capture-session-1",
       1,
+      { step: 3, correlationKey: "session-1" },
+      request,
     );
   });
 
@@ -125,22 +129,39 @@ describe("processHttpRequest", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("store error");
-    expect(storeSamlTrace).not.toHaveBeenCalled();
+    expect(recordSamlTrace).not.toHaveBeenCalled();
   });
 
-  it("returns Error when storing the SAML trace fails", async () => {
+  it("returns Error when recording the SAML trace fails", async () => {
     const request = makeRequest();
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
     });
     vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(storeSamlTrace).mockResolvedValue(new Error("saml store error"));
+    vi.mocked(recordSamlTrace).mockResolvedValue(new Error("record error"));
 
     const result = await processHttpRequest(1, request);
 
     expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("saml store error");
+    expect((result as Error).message).toBe("record error");
+  });
+
+  it("skips the record when no capture session is ongoing", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const request = makeRequest();
+    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+      step: 3,
+      correlationKey: "session-1",
+    });
+    vi.mocked(getOngoingCaptureSessionId).mockResolvedValue(undefined);
+
+    const result = await processHttpRequest(1, request);
+
+    expect(result).toBeUndefined();
+    expect(storeHttpMessage).not.toHaveBeenCalled();
+    expect(recordSamlTrace).not.toHaveBeenCalled();
+    expect(consoleWarn).toHaveBeenCalledOnce();
   });
 });
 
@@ -165,7 +186,7 @@ describe("processHttpResponse", () => {
       correlationKey: "session-1",
     });
     vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(storeSamlTrace).mockResolvedValue(undefined);
+    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
 
     const result = await processHttpResponse(1, response, pairedRequest);
 
@@ -173,13 +194,12 @@ describe("processHttpResponse", () => {
     expect(storeHttpMessage).toHaveBeenCalledTimes(2);
     expect(storeHttpMessage).toHaveBeenNthCalledWith(1, pairedRequest, 1, "session-1");
     expect(storeHttpMessage).toHaveBeenNthCalledWith(2, response, 1, "session-1");
-    expect(storeSamlTrace).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: "session-1",
-        step: 2,
-        type: "IncomingAuthnRequest",
-      }),
+    expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
+      "capture-session-1",
       1,
+      { step: 2, correlationKey: "session-1" },
+      response,
+      pairedRequest,
     );
   });
 
@@ -196,6 +216,6 @@ describe("processHttpResponse", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("store error");
-    expect(storeSamlTrace).not.toHaveBeenCalled();
+    expect(recordSamlTrace).not.toHaveBeenCalled();
   });
 });

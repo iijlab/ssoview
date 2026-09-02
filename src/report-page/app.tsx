@@ -203,7 +203,7 @@ async function buildSamlTraces(httpMessages: HttpMessage[]): Promise<SamlTrace[]
       continue;
     }
 
-    const samlTrace = newSamlTrace(samlDetection, httpMessage);
+    const samlTrace = newSamlTrace(samlDetection.correlationKey, samlDetection, httpMessage);
     if (samlTrace instanceof Error) {
       console.error("Failed to build SAML trace from HTTP message:", samlTrace);
       continue;
