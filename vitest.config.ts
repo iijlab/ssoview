@@ -1,5 +1,5 @@
 import { coverageConfigDefaults, defineConfig, mergeConfig } from "vitest/config";
-import viteConfig from "./vite.config";
+import viteConfig from "./vite.config.ts";
 import { playwright } from "@vitest/browser-playwright";
 
 export default mergeConfig(
