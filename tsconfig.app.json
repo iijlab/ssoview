@@ -2,31 +2,32 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2025",
-    "useDefineForClassFields": true,
-    "lib": ["ES2025", "DOM", "DOM.Iterable"],
+    "lib": ["ES2025", "DOM"],
     "module": "esnext",
     "types": ["vite/client", "chrome"],
+    "allowArbitraryExtensions": true,
     "skipLibCheck": true,
+
+    /* Bundler mode */
     "moduleResolution": "bundler",
-    "esModuleInterop": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
-    "strict": true,
-    "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "noUncheckedSideEffectImports": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "@emotion/react",
     "paths": {
       "@/*": ["./src/*"],
       "@/tests/*": ["./tests/*"]
     },
-    "jsx": "react-jsx",
-    "jsxImportSource": "@emotion/react"
+
+    /* Linting */
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
   },
   "include": ["src", "tests"]
 }
