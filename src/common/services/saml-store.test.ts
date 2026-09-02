@@ -48,7 +48,6 @@ function makeTrace(overrides: Record<string, unknown> = {}): SamlTrace {
     observedAt: "2026-01-01T00:00:00Z",
     serverHostname: "sp.example.com",
     sessionId: "session-1",
-    createdAt: "2026-01-01T00:00:00Z",
     imported: false,
     action: "test action",
     step: 2,
@@ -86,15 +85,6 @@ describe("findSamlTraces", () => {
 
     expect(result).not.toBeInstanceOf(Error);
     expect((result as SamlTrace[]).map((t) => t.id)).toEqual(["trace-1", "trace-2"]);
-  });
-
-  it("filters by the session ID when given", async () => {
-    await saveSamlTrace(makeTrace({ id: "trace-1", sessionId: "session-1" }), 1);
-    await saveSamlTrace(makeTrace({ id: "trace-2", sessionId: "session-2" }), 1);
-
-    const result = await findSamlTraces(1, "session-2");
-
-    expect((result as SamlTrace[]).map((t) => t.id)).toEqual(["trace-2"]);
   });
 
   it("skips an invalid stored value with a warning", async () => {

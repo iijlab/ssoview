@@ -28,17 +28,13 @@ export async function deleteSamlTraces(tabId: number, sessionId: string): Promis
   return await removeSessionStorageItems(keys);
 }
 
-export async function findSamlTraces(
-  tabId: number,
-  sessionId?: string,
-): Promise<SamlTrace[] | Error> {
+export async function findSamlTraces(tabId: number): Promise<SamlTrace[] | Error> {
   const entries = await findSamlTraceEntriesBy((k) => k.tabId === tabId);
   if (entries instanceof Error) {
     return entries;
   }
 
-  const samlTraces = entries.map(([, samlTrace]) => samlTrace);
-  return sessionId === undefined ? samlTraces : samlTraces.filter((t) => t.sessionId === sessionId);
+  return entries.map(([, samlTrace]) => samlTrace);
 }
 
 async function findSamlTraceEntriesBy(

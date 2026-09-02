@@ -16,7 +16,6 @@ describe("isSamlTrace", () => {
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
       sessionId: "abc123",
-      createdAt: "2026-01-01T00:00:00Z",
       imported: false,
       action: "test action",
       step: 2,
@@ -29,12 +28,7 @@ describe("isSamlTrace", () => {
   });
 
   it("returns true for valid SamlTrace with optional fields", () => {
-    const msg = {
-      ...makeTraceFields(),
-      date: "2026-01-01",
-      sp: "sp.example.com",
-      idp: "idp.example.org",
-    };
+    const msg = { ...makeTraceFields(), samlStatusCode: "urn:...:Success" };
     expect(isSamlTrace(msg)).toBe(true);
   });
 
@@ -82,26 +76,8 @@ describe("isSamlTrace", () => {
     expect(isSamlTrace({ ...makeTraceFields(), sessionId: 123 })).toBe(false);
   });
 
-  it("returns false when createdAt is missing", () => {
-    const msg = makeTraceFields();
-    delete msg.createdAt;
-    expect(isSamlTrace(msg)).toBe(false);
-  });
-
   it("returns false when imported is not a boolean", () => {
     expect(isSamlTrace({ ...makeTraceFields(), imported: "false" })).toBe(false);
-  });
-
-  it("returns false when optional date is not a string", () => {
-    expect(isSamlTrace({ ...makeTraceFields(), date: 12345 })).toBe(false);
-  });
-
-  it("returns false when optional sp is not a string", () => {
-    expect(isSamlTrace({ ...makeTraceFields(), sp: null })).toBe(false);
-  });
-
-  it("returns false when optional idp is not a string", () => {
-    expect(isSamlTrace({ ...makeTraceFields(), idp: { name: "idp" } })).toBe(false);
   });
 
   it("returns false when optional samlStatusCode is not a string", () => {
@@ -111,7 +87,6 @@ describe("isSamlTrace", () => {
 
 describe("newSamlTrace", () => {
   const DATE_HEADER_VALUE = "Thu, 01 Jan 2026 00:00:00 GMT";
-  const DATE_ISO = "2026-01-01T00:00:00.000Z";
   const STATUS_SUCCESS = "urn:oasis:names:tc:SAML:2.0:status:Success";
 
   function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
@@ -179,12 +154,9 @@ describe("newSamlTrace", () => {
       imported: false,
       step: 2,
       type: "IncomingAuthnRequest",
-      date: DATE_ISO,
-      sp: "sp.example.com",
       action: "Service Provider issues SAML AuthnRequest",
     });
     expect((result as { id: string }).id).toEqual(expect.any(String));
-    expect((result as { createdAt: string }).createdAt).toEqual(expect.any(String));
   });
 
   it("builds a step 3 trace with the redirect action for a GET request", () => {
@@ -197,7 +169,6 @@ describe("newSamlTrace", () => {
       step: 3,
       type: "OutgoingAuthnRequest",
       serverHostname: "idp.example.org",
-      idp: "idp.example.org",
       action: "User Agent redirects SAML AuthnRequest to Identity Provider",
     });
   });
@@ -226,8 +197,6 @@ describe("newSamlTrace", () => {
       sessionId: "authn-req-1",
       step: 4,
       type: "IncomingResponse",
-      date: DATE_ISO,
-      idp: "idp.example.org",
       action: "Identity Provider issues SAML Response",
       samlStatusCode: STATUS_SUCCESS,
     });
@@ -246,7 +215,6 @@ describe("newSamlTrace", () => {
       sessionId: "authn-req-1",
       step: 5,
       type: "OutgoingResponse",
-      sp: "sp.example.com",
       action: "User Agent submits SAML Response to Service Provider",
       samlStatusCode: STATUS_SUCCESS,
     });
@@ -261,8 +229,6 @@ describe("newSamlTrace", () => {
       sessionId: "authn-req-1",
       step: 6,
       type: "AuthenticatedResourceResponse",
-      date: DATE_ISO,
-      sp: "sp.example.com",
       action: "Service Provider returns the requested resource",
     });
   });
@@ -273,15 +239,6 @@ describe("newSamlTrace", () => {
     const result = newSamlTrace("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
 
     expect(result).toMatchObject({ imported: true });
-  });
-
-  it("omits the date when the message has no Date header", () => {
-    const response = makeResponse({ headers: [] });
-
-    const result = newSamlTrace("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
-
-    expect(result).not.toBeInstanceOf(Error);
-    expect((result as { date?: string }).date).toBeUndefined();
   });
 
   it("returns Error when the message URL is invalid", () => {
