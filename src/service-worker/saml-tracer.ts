@@ -9,7 +9,7 @@ import {
   debugHttpRequest,
   debugHttpResponse,
 } from "@/common/models/http-message.ts";
-import { storeHttpMessage } from "@/common/services/http-store.ts";
+import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -73,12 +73,34 @@ export async function processHttpResponse(
     return undefined;
   }
 
-  const pairStoreError = await storeHttpMessage(pairedHttpRequest, tabId, detection.correlationKey);
-  if (pairStoreError) {
-    return pairStoreError;
+  const storedHttpMessages = await retrieveHttpMessages(tabId, detection.correlationKey);
+  if (storedHttpMessages instanceof Error) {
+    return storedHttpMessages;
   }
 
-  const httpStoreError = await storeHttpMessage(httpResponse, tabId, detection.correlationKey);
+  const storedPairedHttpRequest = storedHttpMessages.find(
+    (m): m is HttpRequest =>
+      m.stage === "Request" && m.fetchRequestId === httpResponse.fetchRequestId,
+  );
+
+  const httpRequest = storedPairedHttpRequest ?? pairedHttpRequest;
+  const httpResponseToStore =
+    storedPairedHttpRequest === undefined
+      ? httpResponse
+      : { ...httpResponse, pairedHttpRequestId: storedPairedHttpRequest.id };
+
+  if (storedPairedHttpRequest === undefined) {
+    const pairStoreError = await storeHttpMessage(httpRequest, tabId, detection.correlationKey);
+    if (pairStoreError) {
+      return pairStoreError;
+    }
+  }
+
+  const httpStoreError = await storeHttpMessage(
+    httpResponseToStore,
+    tabId,
+    detection.correlationKey,
+  );
   if (httpStoreError) {
     return httpStoreError;
   }
@@ -87,8 +109,8 @@ export async function processHttpResponse(
     captureSessionId,
     tabId,
     detection,
-    httpResponse,
-    pairedHttpRequest,
+    httpResponseToStore,
+    httpRequest,
   );
   if (recordError) {
     return recordError;

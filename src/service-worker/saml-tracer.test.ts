@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
-import { storeHttpMessage } from "@/common/services/http-store.ts";
+import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -20,6 +20,7 @@ vi.mock("@/common/services/saml-detector.ts", () => ({
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
+  retrieveHttpMessages: vi.fn(),
   storeHttpMessage: vi.fn(),
 }));
 
@@ -34,6 +35,7 @@ vi.mock("@/service-worker/capture-manager.ts", () => ({
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getOngoingCaptureSessionId).mockResolvedValue("capture-session-1");
+  vi.mocked(retrieveHttpMessages).mockResolvedValue([]);
 });
 
 //
@@ -217,5 +219,69 @@ describe("processHttpResponse", () => {
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("store error");
     expect(recordSamlTrace).not.toHaveBeenCalled();
+  });
+
+  it("uses the stored request instead of the recreated one when it exists", async () => {
+    const storedRequest = makeRequest({ id: "stored-1", url: "https://sp.example.com/acs" });
+    const pairedRequest = makeRequest({ id: "recreated-1", url: "https://sp.example.com/acs" });
+    const response = makeResponse({ pairedHttpRequestId: "recreated-1" });
+    vi.mocked(retrieveHttpMessages).mockResolvedValue([storedRequest]);
+    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
+      step: 6,
+      correlationKey: "session-1",
+    });
+    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
+    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
+
+    const result = await processHttpResponse(1, response, pairedRequest);
+
+    expect(result).toBe("session-1");
+    expect(retrieveHttpMessages).toHaveBeenCalledExactlyOnceWith(1, "session-1");
+    expect(storeHttpMessage).toHaveBeenCalledExactlyOnceWith(
+      { ...response, pairedHttpRequestId: "stored-1" },
+      1,
+      "session-1",
+    );
+    expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
+      "capture-session-1",
+      1,
+      { step: 6, correlationKey: "session-1" },
+      { ...response, pairedHttpRequestId: "stored-1" },
+      storedRequest,
+    );
+  });
+
+  it("ignores stored messages of other fetch request IDs", async () => {
+    const storedRequest = makeRequest({ id: "stored-1", fetchRequestId: "req-other" });
+    const pairedRequest = makeRequest({ id: "recreated-1" });
+    const response = makeResponse({ pairedHttpRequestId: "recreated-1" });
+    vi.mocked(retrieveHttpMessages).mockResolvedValue([storedRequest]);
+    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
+      step: 2,
+      correlationKey: "session-1",
+    });
+    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
+    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
+
+    await processHttpResponse(1, response, pairedRequest);
+
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(1, pairedRequest, 1, "session-1");
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(2, response, 1, "session-1");
+  });
+
+  it("returns Error when retrieving stored messages fails", async () => {
+    const pairedRequest = makeRequest();
+    const response = makeResponse();
+    vi.mocked(retrieveHttpMessages).mockResolvedValue(new Error("retrieve error"));
+    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
+      step: 2,
+      correlationKey: "session-1",
+    });
+
+    const result = await processHttpResponse(1, response, pairedRequest);
+
+    expect(result).toBeInstanceOf(Error);
+    expect((result as Error).message).toBe("retrieve error");
+    expect(storeHttpMessage).not.toHaveBeenCalled();
   });
 });

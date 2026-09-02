@@ -4,22 +4,15 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import {
-  type HttpMessage,
-  type HttpRequest,
-  type HttpResponse,
-} from "@/common/models/http-message.ts";
-import { type SamlDetection } from "@/common/models/saml-detection.ts";
-import { type SamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
+import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SessionSummary } from "@/common/models/session-summary.ts";
-import { retrieveHttpMessages } from "@/common/services/http-store.ts";
+import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
 import {
-  detectSamlStepFromHttpRequest,
-  detectSamlStepFromHttpResponse,
-  extractSamlAuthnRequestXml,
-  extractSamlResponseXml,
-} from "@/common/services/saml-detector.ts";
-import { summarizeSamlSession } from "@/common/services/saml-summarizer.ts";
+  buildHttpMessageRecord,
+  getSamlAuthnRequestXml,
+  getSamlResponseXml,
+  loadFlowData,
+} from "@/report-page/app-builders.ts";
 import { type ContentSectionId } from "@/report-page/common/types.ts";
 import { Content } from "@/report-page/content/content.tsx";
 import { Sidebar } from "@/report-page/sidebar/sidebar.tsx";
@@ -41,27 +34,22 @@ export function App() {
       const tabId = Number(params.get("tabId"));
       const sessionId = params.get("sessionId");
 
-      const httpMessages = await loadHttpMessages(tabId, sessionId);
-      if (httpMessages instanceof Error) {
-        console.warn("Failed to load HTTP messages:", { error: httpMessages });
+      const flowData = await loadFlowData(tabId, sessionId);
+      if (flowData instanceof Error) {
+        console.warn("Failed to load flow data:", { error: flowData });
         return;
       }
+      const { flowEntry, captureSession, samlTraces, httpMessages } = flowData;
 
-      const httpMessageRecord = await buildHttpMessageRecord(httpMessages);
+      const httpMessageRecord = buildHttpMessageRecord(samlTraces, httpMessages);
       if (Object.keys(httpMessageRecord).length === 0) {
-        console.warn("No SAML steps detected");
+        console.warn("No HTTP messages for the SAML traces");
         return;
       }
 
-      const samlTraces = await buildSamlTraces(httpMessages);
-      if (samlTraces.length === 0) {
-        console.warn("No SAML traces");
-        return;
-      }
-
-      const sessionSummary = summarizeSamlSession(samlTraces[0]!.sessionId, samlTraces);
-      const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpMessages(httpMessages);
-      const responseXml = await extractSamlResponseXmlFromHttpMessages(httpMessages);
+      const sessionSummary = summarizeSamlFlow(flowEntry, captureSession, samlTraces);
+      const authnRequestXml = await getSamlAuthnRequestXml(httpMessageRecord);
+      const responseXml = await getSamlResponseXml(httpMessageRecord);
 
       setSessionData({ httpMessageRecord, sessionSummary, authnRequestXml, responseXml });
     };
@@ -172,160 +160,4 @@ export function App() {
       )}
     </div>
   );
-}
-
-async function loadHttpMessages(
-  tabId: number,
-  sessionId: string | null,
-): Promise<HttpMessage[] | Error> {
-  if (!Number.isSafeInteger(tabId) || tabId <= 0 || sessionId === null) {
-    // In development mode, fall back to sample data
-    if (import.meta.env.MODE === "development") {
-      const { buildSampleHttpMessages } = await import("@/report-page/dev/sample-messages.ts");
-      return buildSampleHttpMessages();
-    } else {
-      return new Error(`Invalid URL params: tabId=${tabId}, sessionId=${sessionId}`);
-    }
-  }
-
-  return retrieveHttpMessages(tabId, sessionId);
-}
-
-async function buildSamlTraces(httpMessages: HttpMessage[]): Promise<SamlTrace[]> {
-  const samlTraces = [];
-
-  for (const httpMessage of httpMessages) {
-    const samlDetection = await detectSamlStep(httpMessage, httpMessages);
-    if (samlDetection instanceof Error) {
-      console.error("Failed to detect SAML flow from HTTP message:", samlDetection);
-      continue;
-    } else if (!samlDetection) {
-      continue;
-    }
-
-    const samlTrace = newSamlTrace(samlDetection.correlationKey, samlDetection, httpMessage);
-    if (samlTrace instanceof Error) {
-      console.error("Failed to build SAML trace from HTTP message:", samlTrace);
-      continue;
-    }
-
-    samlTraces.push(samlTrace);
-  }
-
-  return samlTraces;
-}
-
-async function buildHttpMessageRecord(
-  httpMessages: HttpMessage[],
-): Promise<Record<number, HttpMessage>> {
-  const httpMessageRecord: Record<number, HttpMessage> = {};
-
-  for (const httpMessage of httpMessages) {
-    const samlDetection = await detectSamlStep(httpMessage, httpMessages);
-    if (samlDetection instanceof Error) {
-      console.error("Failed to detect SAML flow from HTTP message:", samlDetection);
-      continue;
-    } else if (!samlDetection) {
-      continue;
-    }
-
-    httpMessageRecord[samlDetection.step] = httpMessage;
-  }
-
-  // Infer step 1 from the message just before step 2
-  if (!(1 in httpMessageRecord) && 2 in httpMessageRecord) {
-    const step2HttpMessage = httpMessageRecord[2];
-    const step2Index = httpMessages.indexOf(step2HttpMessage);
-    if (0 < step2Index) {
-      httpMessageRecord[1] = httpMessages[step2Index - 1]!;
-    } else {
-      console.warn("Could not infer step 1 because no message was found before step 2");
-    }
-  }
-
-  return httpMessageRecord;
-}
-
-async function detectSamlStep(
-  httpMessage: HttpMessage,
-  httpMessages: HttpMessage[],
-): Promise<SamlDetection | undefined | Error> {
-  if (httpMessage.stage === "Request") {
-    return detectSamlStepFromHttpRequest(httpMessage);
-  } else {
-    const pairedHttpRequest = findPairedHttpRequest(httpMessage, httpMessages);
-    if (pairedHttpRequest === undefined) {
-      return new Error(`No paired HTTP request for HTTP response: ${httpMessage.id}`);
-    }
-
-    return detectSamlStepFromHttpResponse(httpMessage, pairedHttpRequest);
-  }
-}
-
-function findPairedHttpRequest(
-  httpResponse: HttpResponse,
-  httpMessages: HttpMessage[],
-): HttpRequest | undefined {
-  const pairedHttpRequest = httpMessages.find((m) => m.id === httpResponse.pairedHttpRequestId);
-  return pairedHttpRequest?.stage === "Request" ? pairedHttpRequest : undefined;
-}
-
-async function extractSamlAuthnRequestXmlFromHttpMessages(
-  httpMessages: HttpMessage[],
-): Promise<string | undefined> {
-  const httpMessage = await (async () => {
-    for (const httpMessage of httpMessages) {
-      const samlDetection = await detectSamlStep(httpMessage, httpMessages);
-      if (samlDetection instanceof Error) {
-        console.error("Failed to detect SAML flow from HTTP message:", samlDetection);
-        continue;
-      } else if (!samlDetection) {
-        continue;
-      } else if (samlDetection.step === 2 || samlDetection.step === 3) {
-        return httpMessage;
-      }
-    }
-    return undefined;
-  })();
-  if (!httpMessage) {
-    return undefined;
-  }
-
-  const authnRequestXml = await extractSamlAuthnRequestXml(httpMessage);
-  if (authnRequestXml instanceof Error) {
-    console.warn("Failed to extract SAML AuthnRequest XML:", authnRequestXml);
-    return undefined;
-  }
-
-  return authnRequestXml;
-}
-
-async function extractSamlResponseXmlFromHttpMessages(
-  httpMessages: HttpMessage[],
-): Promise<string | undefined> {
-  const httpMessage = await (async () => {
-    for (const httpMessage of httpMessages) {
-      const samlDetection = await detectSamlStep(httpMessage, httpMessages);
-      if (samlDetection instanceof Error) {
-        console.error("Failed to detect SAML flow from HTTP message:", samlDetection);
-        continue;
-      } else if (!samlDetection) {
-        continue;
-      } else if (samlDetection.step === 4 || samlDetection.step === 5) {
-        return httpMessage;
-      }
-    }
-    return undefined;
-  })();
-  if (!httpMessage) {
-    return undefined;
-  }
-
-  const responseXml = await extractSamlResponseXml(httpMessage);
-  if (responseXml instanceof Error) {
-    console.warn("Failed to extract SAML Response XML:", responseXml);
-    return undefined;
-  }
-
-  return responseXml;
 }
