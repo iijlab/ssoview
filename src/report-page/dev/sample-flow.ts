@@ -4,7 +4,16 @@
  */
 
 import { Base64 } from "js-base64";
-import { type HttpMessage } from "@/common/models/http-message.ts";
+import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type FlowEntry } from "@/common/models/flow-entry.ts";
+import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
+import { type SamlDetection } from "@/common/models/saml-detection.ts";
+import { type SamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
+import {
+  detectSamlStepFromHttpRequest,
+  detectSamlStepFromHttpResponse,
+} from "@/common/services/saml-detector.ts";
+import { type FlowData } from "@/report-page/common/types.ts";
 import sampleAuthnRequestXmlRaw from "./authn-request.xml?raw";
 import samlFailureResponseXmlRaw from "./response-failure.xml?raw";
 import samlSuccessResponseXmlRaw from "./response-success.xml?raw";
@@ -19,8 +28,37 @@ const samlSuccessResponseXml = samlSuccessResponseXmlRaw.trim();
 const samlFailureResponseXml = samlFailureResponseXmlRaw.trim();
 const samlUnknownResponseXml = samlUnknownResponseXmlRaw.trim();
 
-export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
+const sampleFlowId = "flow-sample";
+const sampleCaptureSessionId = "cs-sample";
+
+export async function buildSampleFlowData(): Promise<FlowData> {
   const sample = new URLSearchParams(window.location.search).get("sample");
+
+  const allHttpMessages = await buildSampleHttpMessages(sample);
+  const allSamlTraces = await buildSampleSamlTraces(allHttpMessages);
+
+  const httpMessages = selectSampleHttpMessages(sample, allHttpMessages);
+  const httpMessageIds = new Set(httpMessages.map((m) => m.id));
+  const samlTraces = allSamlTraces.filter((t) => httpMessageIds.has(t.httpMessageId));
+
+  const flowEntry: FlowEntry = {
+    id: sampleFlowId,
+    captureSessionId: sampleCaptureSessionId,
+    protocol: "saml",
+    correlationKey: allSamlTraces[0]?.sessionId ?? "",
+  };
+
+  const captureSession: CaptureSession = {
+    id: sampleCaptureSessionId,
+    imported: false,
+    startedAt: "2004-12-05T09:21:57.000Z",
+    endedAt: "2004-12-05T09:22:06.000Z",
+  };
+
+  return { flowEntry, captureSession, samlTraces, httpMessages };
+}
+
+async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessage[]> {
   const samlResponseXml =
     sample === "failure"
       ? samlFailureResponseXml
@@ -35,7 +73,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   // Step 1: User -> SP
   const httpRequest1 = {
     id: "msg-001",
-    imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:21:58.000Z",
     fetchRequestId: "req-001",
@@ -48,7 +85,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   // Step 2: SP -> User
   const httpResponse2 = {
     id: "msg-002",
-    imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:21:59.000Z",
     fetchRequestId: "req-001",
@@ -67,7 +103,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   // Step 3: User -> IdP
   const httpRequest3 = {
     id: "msg-003",
-    imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:21:59.200Z",
     fetchRequestId: "req-002",
@@ -80,7 +115,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   // Step 4: IdP -> User
   const httpResponse4 = {
     id: "msg-004",
-    imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:22:05.000Z",
     fetchRequestId: "req-002",
@@ -109,7 +143,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   // Step 5: User -> SP
   const httpRequest5 = {
     id: "msg-005",
-    imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:22:05.100Z",
     fetchRequestId: "req-003",
@@ -126,7 +159,6 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
   const isSuccess = sample !== "failure" && sample !== "unknown";
   const httpResponse6 = {
     id: "msg-006",
-    imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:22:05.500Z",
     fetchRequestId: "req-003",
@@ -151,28 +183,90 @@ export async function buildSampleHttpMessages(): Promise<HttpMessage[]> {
     pairedHttpRequestId: httpRequest5.id,
   } satisfies HttpMessage;
 
-  const allMessages = [
-    httpRequest1,
-    httpResponse2,
-    httpRequest3,
-    httpResponse4,
-    httpRequest5,
-    httpResponse6,
-  ];
+  return [httpRequest1, httpResponse2, httpRequest3, httpResponse4, httpRequest5, httpResponse6];
+}
 
+function selectSampleHttpMessages(
+  sample: string | null,
+  allHttpMessages: HttpMessage[],
+): HttpMessage[] {
   const stepMatch = sample?.match(/^step([2-6])$/);
   if (stepMatch) {
-    return allMessages.slice(0, Number(stepMatch[1]));
+    return allHttpMessages.slice(0, Number(stepMatch[1]));
   }
 
   // Remove specific steps to simulate missing data (e.g., ?sample=missing-3,4)
   const missingMatch = sample?.match(/^missing-([\d,]+)$/);
   if (missingMatch) {
     const missingSteps = new Set(missingMatch[1]!.split(",").map(Number));
-    return allMessages.filter((_, i) => !missingSteps.has(i + 1));
+    return allHttpMessages.filter((_, i) => !missingSteps.has(i + 1));
   }
 
-  return allMessages;
+  return allHttpMessages;
+}
+
+async function buildSampleSamlTraces(httpMessages: HttpMessage[]): Promise<SamlTrace[]> {
+  const samlTraces: SamlTrace[] = [];
+
+  for (const httpMessage of httpMessages) {
+    const pairedHttpRequest =
+      httpMessage.stage === "Response"
+        ? findPairedHttpRequest(httpMessage.pairedHttpRequestId, httpMessages)
+        : undefined;
+
+    const detection = await detectSamlStep(httpMessage, pairedHttpRequest);
+    if (detection instanceof Error) {
+      console.error("Failed to detect SAML step from sample message:", detection);
+      continue;
+    } else if (!detection) {
+      continue;
+    }
+
+    if (detection.step === 2 && pairedHttpRequest !== undefined) {
+      pushSamlTrace(
+        samlTraces,
+        { step: 1, correlationKey: detection.correlationKey },
+        pairedHttpRequest,
+      );
+    }
+    pushSamlTrace(samlTraces, detection, httpMessage);
+  }
+
+  return samlTraces;
+}
+
+async function detectSamlStep(
+  httpMessage: HttpMessage,
+  pairedHttpRequest: HttpRequest | undefined,
+): Promise<SamlDetection | undefined | Error> {
+  if (httpMessage.stage === "Request") {
+    return detectSamlStepFromHttpRequest(httpMessage);
+  } else if (pairedHttpRequest === undefined) {
+    return new Error(`No paired HTTP request for HTTP response: ${httpMessage.id}`);
+  } else {
+    return detectSamlStepFromHttpResponse(httpMessage, pairedHttpRequest);
+  }
+}
+
+function findPairedHttpRequest(
+  pairedHttpRequestId: string,
+  httpMessages: HttpMessage[],
+): HttpRequest | undefined {
+  const pairedHttpRequest = httpMessages.find((m) => m.id === pairedHttpRequestId);
+  return pairedHttpRequest?.stage === "Request" ? pairedHttpRequest : undefined;
+}
+
+function pushSamlTrace(
+  samlTraces: SamlTrace[],
+  detection: SamlDetection,
+  httpMessage: HttpMessage,
+): void {
+  const samlTrace = newSamlTrace(sampleFlowId, detection, httpMessage);
+  if (samlTrace instanceof Error) {
+    console.error("Failed to build SAML trace from sample message:", samlTrace);
+    return;
+  }
+  samlTraces.push(samlTrace);
 }
 
 //

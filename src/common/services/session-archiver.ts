@@ -12,7 +12,8 @@ import {
 } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
-import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
+import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -30,7 +31,7 @@ export async function dumpSessionArchive(
   tabId: number,
   sessionId: string,
 ): Promise<string | Error> {
-  const httpMessages = await retrieveHttpMessages(tabId, sessionId);
+  const httpMessages = await findHttpMessagesOfFlow(tabId, sessionId);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }
@@ -41,7 +42,6 @@ export async function dumpSessionArchive(
 /**
  * Import session data from an HTTP Archive (HAR) JSON string.
  *
- * Imported sessions are marked with the `imported` flag.
  * A single archive may contain multiple sessions.
  *
  * @param tabId - The tab ID to associate with imported sessions
@@ -82,22 +82,9 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       continue;
     }
 
-    const importedHttpMessage = {
-      ...httpMessage,
-      imported: true,
-    };
-
-    const importedPairedHttpRequest =
-      pairedHttpRequest === undefined
-        ? undefined
-        : {
-            ...pairedHttpRequest,
-            imported: true,
-          };
-
-    if (importedPairedHttpRequest !== undefined) {
+    if (pairedHttpRequest !== undefined) {
       const httpStoreError = await storeHttpMessage(
-        importedPairedHttpRequest,
+        pairedHttpRequest,
         tabId,
         detection.correlationKey,
       );
@@ -106,11 +93,7 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       }
     }
 
-    const httpStoreError = await storeHttpMessage(
-      importedHttpMessage,
-      tabId,
-      detection.correlationKey,
-    );
+    const httpStoreError = await storeHttpMessage(httpMessage, tabId, detection.correlationKey);
     if (httpStoreError) {
       return httpStoreError;
     }
@@ -119,8 +102,8 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       archiveImportedRecord.id,
       tabId,
       detection,
-      importedHttpMessage,
-      importedPairedHttpRequest,
+      httpMessage,
+      pairedHttpRequest,
     );
     if (recordError) {
       return recordError;

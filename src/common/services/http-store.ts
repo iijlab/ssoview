@@ -7,7 +7,7 @@ import { type HttpMessage, isHttpMessage } from "@/common/models/http-message.ts
 import { makeStorageKey, makeStorageKeyPrefix } from "@/common/services/storage-key.ts";
 import {
   getSessionStorageItemsByKeyPrefix,
-  removeSessionStorageItemsByKeyPrefix,
+  removeSessionStorageItems,
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
 
@@ -64,7 +64,14 @@ export async function retrieveHttpMessages(
     });
 }
 
-export async function purgeHttpMessages(tabId: number, sessionId: string): Promise<void | Error> {
-  const keyPrefix = makeStorageKeyPrefixForHttpMessages(tabId, sessionId);
-  return removeSessionStorageItemsByKeyPrefix(keyPrefix);
+export async function deleteHttpMessages(
+  httpMessages: HttpMessage[],
+  tabId: number,
+  sessionId: string,
+): Promise<void | Error> {
+  const keys = httpMessages.map((m) =>
+    makeStorageKeyForHttpMessage(tabId, sessionId, m.fetchRequestId, m.stage),
+  );
+
+  return removeSessionStorageItems(keys);
 }

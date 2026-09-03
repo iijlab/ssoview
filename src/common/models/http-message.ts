@@ -18,7 +18,6 @@ export function isHttpMessage(u: unknown): u is HttpMessage {
 type HttpMessageBase = {
   id: string;
   createdAt: string;
-  imported: boolean;
   fetchRequestId: Protocol.Fetch.RequestId;
   url: string;
   method: string;
@@ -31,7 +30,6 @@ function isHttpMessageBase(u: unknown): u is HttpMessageBase {
     isObject(u) &&
     typeof u.id === "string" &&
     typeof u.createdAt === "string" &&
-    typeof u.imported === "boolean" &&
     typeof u.fetchRequestId === "string" &&
     typeof u.url === "string" &&
     typeof u.method === "string" &&
@@ -78,7 +76,6 @@ export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedE
   return {
     id: uuidv7(),
     createdAt: new Date().toISOString(),
-    imported: false,
     stage: "Request",
     fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,
@@ -106,7 +103,6 @@ export function newHttpResponse(
   return {
     id: uuidv7(),
     createdAt: new Date().toISOString(),
-    imported: false,
     stage: "Response",
     fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,

@@ -8,7 +8,8 @@ import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
 import { getCaptureSession } from "@/common/services/capture-query.ts";
 import { findFlowEntryById } from "@/common/services/flow-store.ts";
-import { purgeHttpMessages } from "@/common/services/http-store.ts";
+import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { deleteHttpMessages } from "@/common/services/http-store.ts";
 import { deleteSamlTraces, findSamlTraces } from "@/common/services/saml-store.ts";
 import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
@@ -94,14 +95,19 @@ function isOngoing(captureSession: CaptureSession): boolean {
  * @returns void on success, or an Error
  */
 export async function deleteSession(tabId: number, sessionId: string): Promise<void | Error> {
+  const httpMessages = await findHttpMessagesOfFlow(tabId, sessionId);
+  if (httpMessages instanceof Error) {
+    return httpMessages;
+  }
+
   const samlDeleteError = await deleteSamlTraces(tabId, sessionId);
   if (samlDeleteError) {
     return samlDeleteError;
   }
 
-  const httpPurgeError = await purgeHttpMessages(tabId, sessionId);
-  if (httpPurgeError) {
-    // HTTP messages don't need to be purged, so we ignore failures
-    console.warn("Failed to purge HTTP messages:", httpPurgeError);
+  const httpDeleteError = await deleteHttpMessages(httpMessages, tabId, sessionId);
+  if (httpDeleteError) {
+    // HTTP messages don't need to be deleted, so we ignore failures
+    console.warn("Failed to delete HTTP messages:", httpDeleteError);
   }
 }

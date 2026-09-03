@@ -14,7 +14,6 @@ import { buildHttpMessageDataRecord } from "./sidebar-builders.ts";
 const baseFields = {
   id: "msg-1",
   createdAt: "2026-01-01T00:00:00Z",
-  imported: false,
   fetchRequestId: "req-1",
   headers: [],
   body: "",

@@ -13,19 +13,11 @@ export function summarizeSamlFlow(
   captureSession: CaptureSession,
   samlTraces: SamlTrace[],
 ): SessionSummary {
-  const summary = summarizeSamlSession(flowEntry.correlationKey, samlTraces);
-  return {
-    ...summary,
-    imported: captureSession.imported,
-  };
-}
-
-export function summarizeSamlSession(sessionId: string, samlTraces: SamlTrace[]): SessionSummary {
   return samlTraces.reduce(updateSamlSessionSummary, {
     protocol: "saml",
-    imported: false,
+    imported: captureSession.imported,
     capturing: false,
-    sessionId,
+    sessionId: flowEntry.correlationKey,
     warning: [],
   });
 }
@@ -55,7 +47,6 @@ function updateSamlSessionSummary(summary: SessionSummary, samlTrace: SamlTrace)
 
   return {
     ...summary,
-    imported: summary.imported || samlTrace.imported,
     start: summary.start ?? samlTrace.observedAt,
     end: summary.end ?? (status !== "in_progress" ? samlTrace.observedAt : undefined),
     sp: summary.sp ?? (role === "sp" ? samlTrace.serverHostname : undefined),
