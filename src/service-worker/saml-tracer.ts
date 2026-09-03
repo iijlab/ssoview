@@ -9,7 +9,7 @@ import {
   debugHttpRequest,
   debugHttpResponse,
 } from "@/common/models/http-message.ts";
-import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
+import { findPairedHttpRequest, saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -29,7 +29,7 @@ export async function processHttpRequest(
     return undefined;
   }
 
-  const httpStoreError = await storeHttpMessage(httpRequest, tabId, detection.correlationKey);
+  const httpStoreError = await saveHttpMessage(httpRequest);
   if (httpStoreError) {
     return httpStoreError;
   }
@@ -61,36 +61,24 @@ export async function processHttpResponse(
     return undefined;
   }
 
-  const storedHttpMessages = await retrieveHttpMessages(tabId, detection.correlationKey);
-  if (storedHttpMessages instanceof Error) {
-    return storedHttpMessages;
-  }
-
-  const storedPairedHttpRequest = storedHttpMessages.find(
-    (m): m is HttpRequest =>
-      m.stage === "Request" && m.fetchRequestId === httpResponse.fetchRequestId,
-  );
-
-  const httpRequest = storedPairedHttpRequest ?? pairedHttpRequest;
-  const httpResponseToStore =
-    storedPairedHttpRequest === undefined
-      ? httpResponse
-      : { ...httpResponse, pairedHttpRequestId: storedPairedHttpRequest.id };
-
-  if (storedPairedHttpRequest === undefined) {
-    const pairStoreError = await storeHttpMessage(httpRequest, tabId, detection.correlationKey);
-    if (pairStoreError) {
-      return pairStoreError;
+  const storedPairedHttpRequest = await findPairedHttpRequest(httpResponse);
+  if (storedPairedHttpRequest instanceof Error) {
+    return storedPairedHttpRequest;
+  } else if (storedPairedHttpRequest === undefined) {
+    const saveError = await saveHttpMessage(pairedHttpRequest);
+    if (saveError) {
+      return saveError;
     }
   }
 
-  const httpStoreError = await storeHttpMessage(
-    httpResponseToStore,
-    tabId,
-    detection.correlationKey,
-  );
-  if (httpStoreError) {
-    return httpStoreError;
+  const httpRequest = storedPairedHttpRequest ?? pairedHttpRequest;
+  const httpResponseToStore = {
+    ...httpResponse,
+    pairedHttpRequestId: httpRequest.id,
+  };
+  const saveError = await saveHttpMessage(httpResponseToStore);
+  if (saveError) {
+    return saveError;
   }
 
   const recordError = await recordSamlTrace(

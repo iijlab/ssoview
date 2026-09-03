@@ -19,8 +19,8 @@ type HttpMessageBase = {
   id: string;
   createdAt: string;
   captureSessionId: string;
-  tabId: number;
-  fetchRequestId: Protocol.Fetch.RequestId;
+  tabId?: number;
+  fetchRequestId?: Protocol.Fetch.RequestId;
   url: string;
   method: string;
   headers: Protocol.Fetch.HeaderEntry[];
@@ -33,8 +33,8 @@ function isHttpMessageBase(u: unknown): u is HttpMessageBase {
     typeof u.id === "string" &&
     typeof u.createdAt === "string" &&
     typeof u.captureSessionId === "string" &&
-    typeof u.tabId === "number" &&
-    typeof u.fetchRequestId === "string" &&
+    (typeof u.tabId === "number" || u.tabId === undefined) &&
+    (typeof u.fetchRequestId === "string" || u.fetchRequestId === undefined) &&
     typeof u.url === "string" &&
     typeof u.method === "string" &&
     isHeaderEntries(u.headers) &&
@@ -168,7 +168,7 @@ async function debugHttpRequestImpl(httpRequest: HttpRequest) {
 
   const debug = await createLabeledDebugLogger([
     "HTTP",
-    httpRequest.fetchRequestId,
+    httpRequest.fetchRequestId ?? "none",
     host,
     httpRequest.method,
   ]);
@@ -189,7 +189,7 @@ async function debugHttpResponseImpl(httpResponse: HttpResponse) {
 
   const debug = await createLabeledDebugLogger([
     "HTTP",
-    httpResponse.fetchRequestId,
+    httpResponse.fetchRequestId ?? "none",
     host,
     `${httpResponse.statusCode}`,
   ]);

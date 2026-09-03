@@ -13,7 +13,7 @@ import {
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
-import { storeHttpMessage } from "@/common/services/http-store.ts";
+import { saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -62,10 +62,9 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     return saveError;
   }
 
-  const httpMessages = archivedHttpMessages.map((m) => ({
+  const httpMessages = archivedHttpMessages.map(({ tabId, fetchRequestId, ...m }) => ({
     ...m,
     captureSessionId,
-    tabId,
   }));
 
   // Ideally we could just store all imported logs, but because the storage key
@@ -90,17 +89,13 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     }
 
     if (pairedHttpRequest !== undefined) {
-      const httpStoreError = await storeHttpMessage(
-        pairedHttpRequest,
-        tabId,
-        detection.correlationKey,
-      );
+      const httpStoreError = await saveHttpMessage(pairedHttpRequest);
       if (httpStoreError) {
         return httpStoreError;
       }
     }
 
-    const httpStoreError = await storeHttpMessage(httpMessage, tabId, detection.correlationKey);
+    const httpStoreError = await saveHttpMessage(httpMessage);
     if (httpStoreError) {
       return httpStoreError;
     }

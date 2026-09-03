@@ -114,8 +114,14 @@ describe("isHttpMessage", () => {
     expect(isHttpMessage(msg)).toBe(false);
   });
 
-  it("returns false when tabId is missing", () => {
-    const { tabId, ...msg } = validHttpRequest;
+  // Messages of an imported capture session have neither tabId nor fetchRequestId
+  it("returns true when tabId and fetchRequestId are missing", () => {
+    const { tabId, fetchRequestId, ...msg } = validHttpRequest;
+    expect(isHttpMessage(msg)).toBe(true);
+  });
+
+  it("returns false when tabId is not a number", () => {
+    const msg = { ...validHttpRequest, tabId: "1" };
     expect(isHttpMessage(msg)).toBe(false);
   });
 

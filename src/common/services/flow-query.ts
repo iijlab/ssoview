@@ -4,31 +4,46 @@
  */
 
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { retrieveHttpMessages } from "@/common/services/http-store.ts";
+import { findHttpMessagesByIds } from "@/common/services/http-store.ts";
 import { findSamlTraces } from "@/common/services/saml-store.ts";
 
 export async function findHttpMessagesOfFlow(
   tabId: number,
   sessionId: string,
 ): Promise<HttpMessage[] | Error> {
-  const tabSamlTraces = await findSamlTraces(tabId);
-  if (tabSamlTraces instanceof Error) {
-    return tabSamlTraces;
-  }
-
-  const httpMessages = await retrieveHttpMessages(tabId, sessionId);
+  const httpMessages = await findTracedHttpMessages(tabId, sessionId);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }
 
-  const httpMessageIds = new Set(
-    tabSamlTraces.filter((t) => t.sessionId === sessionId).map((t) => t.httpMessageId),
-  );
-  const pairedHttpRequestIds = new Set(
-    httpMessages.flatMap((m) =>
-      m.stage === "Response" && httpMessageIds.has(m.id) ? [m.pairedHttpRequestId] : [],
-    ),
+  const httpMessageIds = new Set(httpMessages.map((m) => m.id));
+
+  const pairedHttpRequestIds = httpMessages.flatMap((m) =>
+    m.stage === "Response" && !httpMessageIds.has(m.pairedHttpRequestId)
+      ? [m.pairedHttpRequestId]
+      : [],
   );
 
-  return httpMessages.filter((m) => httpMessageIds.has(m.id) || pairedHttpRequestIds.has(m.id));
+  const pairedHttpRequests = await findHttpMessagesByIds(pairedHttpRequestIds);
+  if (pairedHttpRequests instanceof Error) {
+    return pairedHttpRequests;
+  }
+
+  return [...httpMessages, ...pairedHttpRequests].toSorted((a, b) => (a.id < b.id ? -1 : 1));
+}
+
+async function findTracedHttpMessages(
+  tabId: number,
+  sessionId: string,
+): Promise<HttpMessage[] | Error> {
+  const samlTraces = await findSamlTraces(tabId);
+  if (samlTraces instanceof Error) {
+    return samlTraces;
+  }
+
+  const httpMessageIds = samlTraces
+    .filter((t) => t.sessionId === sessionId)
+    .map((t) => t.httpMessageId);
+
+  return await findHttpMessagesByIds(httpMessageIds);
 }

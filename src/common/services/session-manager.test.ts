@@ -219,7 +219,7 @@ describe("deleteSession", () => {
     expect(await deleteSession(1, "corr-1")).toBeUndefined();
     expect(findHttpMessagesOfFlow).toHaveBeenCalledWith(1, "corr-1");
     expect(deleteSamlTraces).toHaveBeenCalledWith(1, "corr-1");
-    expect(deleteHttpMessages).toHaveBeenCalledWith(httpMessages, 1, "corr-1");
+    expect(deleteHttpMessages).toHaveBeenCalledWith(httpMessages);
     expect(vi.mocked(deleteSamlTraces).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(deleteHttpMessages).mock.invocationCallOrder[0]!,
     );

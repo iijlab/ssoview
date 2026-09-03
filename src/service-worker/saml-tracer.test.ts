@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
-import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
+import { findPairedHttpRequest, saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -19,8 +19,8 @@ vi.mock("@/common/services/saml-detector.ts", () => ({
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
-  retrieveHttpMessages: vi.fn(),
-  storeHttpMessage: vi.fn(),
+  findPairedHttpRequest: vi.fn(),
+  saveHttpMessage: vi.fn(),
 }));
 
 vi.mock("@/common/services/saml-recorder.ts", () => ({
@@ -29,7 +29,7 @@ vi.mock("@/common/services/saml-recorder.ts", () => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(retrieveHttpMessages).mockResolvedValue([]);
+  vi.mocked(findPairedHttpRequest).mockResolvedValue(undefined);
 });
 
 //
@@ -79,7 +79,7 @@ describe("processHttpRequest", () => {
     const result = await processHttpRequest(1, request);
 
     expect(result).toBeUndefined();
-    expect(storeHttpMessage).not.toHaveBeenCalled();
+    expect(saveHttpMessage).not.toHaveBeenCalled();
     expect(recordSamlTrace).not.toHaveBeenCalled();
   });
 
@@ -99,14 +99,14 @@ describe("processHttpRequest", () => {
       step: 3,
       correlationKey: "session-1",
     });
-    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
+    vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
 
     const result = await processHttpRequest(1, request);
 
     expect(result).toBe("session-1");
-    expect(storeHttpMessage).toHaveBeenCalledTimes(1);
-    expect(storeHttpMessage).toHaveBeenCalledWith(request, 1, "session-1");
+    expect(saveHttpMessage).toHaveBeenCalledTimes(1);
+    expect(saveHttpMessage).toHaveBeenCalledWith(request);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
       "capture-session-1",
       1,
@@ -121,7 +121,7 @@ describe("processHttpRequest", () => {
       step: 3,
       correlationKey: "session-1",
     });
-    vi.mocked(storeHttpMessage).mockResolvedValue(new Error("store error"));
+    vi.mocked(saveHttpMessage).mockResolvedValue(new Error("store error"));
 
     const result = await processHttpRequest(1, request);
 
@@ -136,7 +136,7 @@ describe("processHttpRequest", () => {
       step: 3,
       correlationKey: "session-1",
     });
-    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
+    vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(recordSamlTrace).mockResolvedValue(new Error("record error"));
 
     const result = await processHttpRequest(1, request);
@@ -156,7 +156,7 @@ describe("processHttpResponse", () => {
 
     expect(result).toBeUndefined();
     expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(response, pairedRequest);
-    expect(storeHttpMessage).not.toHaveBeenCalled();
+    expect(saveHttpMessage).not.toHaveBeenCalled();
   });
 
   it("stores the paired request before the response", async () => {
@@ -166,15 +166,15 @@ describe("processHttpResponse", () => {
       step: 2,
       correlationKey: "session-1",
     });
-    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
+    vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
 
     const result = await processHttpResponse(1, response, pairedRequest);
 
     expect(result).toBe("session-1");
-    expect(storeHttpMessage).toHaveBeenCalledTimes(2);
-    expect(storeHttpMessage).toHaveBeenNthCalledWith(1, pairedRequest, 1, "session-1");
-    expect(storeHttpMessage).toHaveBeenNthCalledWith(2, response, 1, "session-1");
+    expect(saveHttpMessage).toHaveBeenCalledTimes(2);
+    expect(saveHttpMessage).toHaveBeenNthCalledWith(1, pairedRequest);
+    expect(saveHttpMessage).toHaveBeenNthCalledWith(2, response);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
       "capture-session-1",
       1,
@@ -191,7 +191,7 @@ describe("processHttpResponse", () => {
       step: 2,
       correlationKey: "session-1",
     });
-    vi.mocked(storeHttpMessage).mockResolvedValue(new Error("store error"));
+    vi.mocked(saveHttpMessage).mockResolvedValue(new Error("store error"));
 
     const result = await processHttpResponse(1, response, pairedRequest);
 
@@ -204,23 +204,22 @@ describe("processHttpResponse", () => {
     const storedRequest = makeRequest({ id: "stored-1", url: "https://sp.example.com/acs" });
     const pairedRequest = makeRequest({ id: "recreated-1", url: "https://sp.example.com/acs" });
     const response = makeResponse({ pairedHttpRequestId: "recreated-1" });
-    vi.mocked(retrieveHttpMessages).mockResolvedValue([storedRequest]);
+    vi.mocked(findPairedHttpRequest).mockResolvedValue(storedRequest);
     vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
       step: 6,
       correlationKey: "session-1",
     });
-    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
+    vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
 
     const result = await processHttpResponse(1, response, pairedRequest);
 
     expect(result).toBe("session-1");
-    expect(retrieveHttpMessages).toHaveBeenCalledExactlyOnceWith(1, "session-1");
-    expect(storeHttpMessage).toHaveBeenCalledExactlyOnceWith(
-      { ...response, pairedHttpRequestId: "stored-1" },
-      1,
-      "session-1",
-    );
+    expect(findPairedHttpRequest).toHaveBeenCalledExactlyOnceWith(response);
+    expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith({
+      ...response,
+      pairedHttpRequestId: "stored-1",
+    });
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
       "capture-session-1",
       1,
@@ -230,28 +229,10 @@ describe("processHttpResponse", () => {
     );
   });
 
-  it("ignores stored messages of other fetch request IDs", async () => {
-    const storedRequest = makeRequest({ id: "stored-1", fetchRequestId: "req-other" });
-    const pairedRequest = makeRequest({ id: "recreated-1" });
-    const response = makeResponse({ pairedHttpRequestId: "recreated-1" });
-    vi.mocked(retrieveHttpMessages).mockResolvedValue([storedRequest]);
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
-      step: 2,
-      correlationKey: "session-1",
-    });
-    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
-
-    await processHttpResponse(1, response, pairedRequest);
-
-    expect(storeHttpMessage).toHaveBeenNthCalledWith(1, pairedRequest, 1, "session-1");
-    expect(storeHttpMessage).toHaveBeenNthCalledWith(2, response, 1, "session-1");
-  });
-
-  it("returns Error when retrieving stored messages fails", async () => {
+  it("returns Error when finding the stored request fails", async () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
-    vi.mocked(retrieveHttpMessages).mockResolvedValue(new Error("retrieve error"));
+    vi.mocked(findPairedHttpRequest).mockResolvedValue(new Error("find error"));
     vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
       step: 2,
       correlationKey: "session-1",
@@ -260,7 +241,7 @@ describe("processHttpResponse", () => {
     const result = await processHttpResponse(1, response, pairedRequest);
 
     expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("retrieve error");
-    expect(storeHttpMessage).not.toHaveBeenCalled();
+    expect((result as Error).message).toBe("find error");
+    expect(saveHttpMessage).not.toHaveBeenCalled();
   });
 });
