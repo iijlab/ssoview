@@ -13,7 +13,7 @@ import {
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
-import { storeHttpMessage } from "@/common/services/http-store.ts";
+import { saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -49,17 +49,23 @@ export async function dumpSessionArchive(
  * @returns An array of imported session IDs, or an Error if import fails
  */
 export async function loadSessionArchive(tabId: number, har: string): Promise<string[] | Error> {
-  const httpMessages = toHttpMessages(har);
-  if (httpMessages instanceof Error) {
-    return httpMessages;
+  const archivedHttpMessages = toHttpMessages(har);
+  if (archivedHttpMessages instanceof Error) {
+    return archivedHttpMessages;
   }
 
   const archiveImportedRecord = newArchiveImportedRecord();
+  const captureSessionId = archiveImportedRecord.id;
 
   const saveError = await saveEventRecord(archiveImportedRecord);
   if (saveError) {
     return saveError;
   }
+
+  const httpMessages = archivedHttpMessages.map(({ tabId, fetchRequestId, ...m }) => ({
+    ...m,
+    captureSessionId,
+  }));
 
   // Ideally we could just store all imported logs, but because the storage key
   // uses the session ID, we first parse the logs to detect the session ID.
@@ -83,23 +89,19 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     }
 
     if (pairedHttpRequest !== undefined) {
-      const httpStoreError = await storeHttpMessage(
-        pairedHttpRequest,
-        tabId,
-        detection.correlationKey,
-      );
+      const httpStoreError = await saveHttpMessage(pairedHttpRequest);
       if (httpStoreError) {
         return httpStoreError;
       }
     }
 
-    const httpStoreError = await storeHttpMessage(httpMessage, tabId, detection.correlationKey);
+    const httpStoreError = await saveHttpMessage(httpMessage);
     if (httpStoreError) {
       return httpStoreError;
     }
 
     const recordError = await recordSamlTrace(
-      archiveImportedRecord.id,
+      captureSessionId,
       tabId,
       detection,
       httpMessage,

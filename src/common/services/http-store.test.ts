@@ -4,37 +4,30 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type HttpMessage } from "@/common/models/http-message.ts";
+import { type HttpMessage, type HttpResponse } from "@/common/models/http-message.ts";
 import {
-  getSessionStorageItemsByKeyPrefix,
+  getAllSessionStorageKeys,
+  getSessionStorageItems,
   removeSessionStorageItems,
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
-import { deleteHttpMessages, retrieveHttpMessages, storeHttpMessage } from "./http-store.ts";
+import {
+  deleteHttpMessages,
+  findHttpMessagesByIds,
+  findHttpRequestByFetchRequestId,
+  saveHttpMessage,
+} from "./http-store.ts";
 
 vi.mock("@/common/utils/chrome-storage.ts", () => ({
-  getSessionStorageItemsByKeyPrefix: vi.fn(),
+  getAllSessionStorageKeys: vi.fn(),
+  getSessionStorageItems: vi.fn(),
   removeSessionStorageItems: vi.fn(),
   setSessionStorageItem: vi.fn(),
 }));
 
-let storage: Record<string, unknown>;
-
 beforeEach(() => {
   vi.resetAllMocks();
-
-  storage = {};
-  vi.mocked(getSessionStorageItemsByKeyPrefix).mockImplementation(async (keyPrefix) =>
-    Object.fromEntries(Object.entries(storage).filter(([k]) => k.startsWith(keyPrefix))),
-  );
-  vi.mocked(removeSessionStorageItems).mockImplementation(async (keys) => {
-    for (const key of keys) {
-      delete storage[key];
-    }
-  });
-  vi.mocked(setSessionStorageItem).mockImplementation(async (key, value) => {
-    storage[key] = value;
-  });
+  vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
 //
@@ -44,7 +37,9 @@ beforeEach(() => {
 function makeRequest(overrides: Record<string, unknown> = {}): HttpMessage {
   return {
     id: "msg-1",
-    createdAt: "2026-01-01T00:00:00Z",
+    captureSessionId: "cs-1",
+    observedAt: "2026-01-01T00:00:00Z",
+    tabId: 1,
     fetchRequestId: "req-1",
     url: "https://sp.example.com/",
     method: "GET",
@@ -55,37 +50,172 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpMessage {
   } as HttpMessage;
 }
 
+function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
+  return {
+    ...makeRequest({ id: "msg-2", stage: "Response" }),
+    statusCode: 200,
+    pairedHttpRequestId: "msg-1",
+    ...overrides,
+  } as HttpResponse;
+}
+
+function keyOf(httpMessage: HttpMessage): string {
+  const { id, captureSessionId, tabId, fetchRequestId, stage } = httpMessage;
+  const observation =
+    tabId === undefined ? "" : `"tabId":${tabId},"fetchRequestId":"${fetchRequestId}",`;
+  return `{"id":"${id}","kind":"http","captureSessionId":"${captureSessionId}",${observation}"stage":"${stage}"}`;
+}
+
+// Puts the messages into the mocked storage, in the given order of keys
+function mockStorage(...httpMessages: HttpMessage[]): void {
+  const items = Object.fromEntries(httpMessages.map((m) => [keyOf(m), m]));
+  vi.mocked(getAllSessionStorageKeys).mockResolvedValue(Object.keys(items));
+  vi.mocked(getSessionStorageItems).mockImplementation(async (keys) =>
+    Object.fromEntries(keys.filter((k) => k in items).map((k) => [k, items[k]])),
+  );
+}
+
 //
 // Tests
 //
 
-describe("deleteHttpMessages", () => {
-  it("deletes the stored messages by their keys", async () => {
-    const first = makeRequest({ id: "msg-1", fetchRequestId: "req-1" });
-    const second = makeRequest({ id: "msg-2", fetchRequestId: "req-2" });
-    await storeHttpMessage(first, 1, "corr-1");
-    await storeHttpMessage(second, 1, "corr-1");
-
-    expect(await deleteHttpMessages([first], 1, "corr-1")).toBeUndefined();
-
-    expect(await retrieveHttpMessages(1, "corr-1")).toEqual([second]);
-  });
-
-  it("does not delete messages stored under another session", async () => {
+describe("saveHttpMessage", () => {
+  it("stores the message under a JSON key of the ID, kind, capture session, tab, request ID, and stage", async () => {
+    vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
     const httpMessage = makeRequest();
-    await storeHttpMessage(httpMessage, 1, "corr-1");
-    await storeHttpMessage(httpMessage, 1, "corr-2");
 
-    await deleteHttpMessages([httpMessage], 1, "corr-1");
+    const result = await saveHttpMessage(httpMessage);
 
-    expect(await retrieveHttpMessages(1, "corr-1")).toEqual([]);
-    expect(await retrieveHttpMessages(1, "corr-2")).toEqual([httpMessage]);
+    expect(result).toBeUndefined();
+    expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
+      '{"id":"msg-1","kind":"http","captureSessionId":"cs-1","tabId":1,"fetchRequestId":"req-1","stage":"Request"}',
+      httpMessage,
+    );
   });
 
-  it("returns the error from the storage", async () => {
-    const error = new Error("storage error");
+  it("omits the tab and request ID from the key when the message has none", async () => {
+    vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
+    const httpMessage = makeRequest({ tabId: undefined, fetchRequestId: undefined });
+
+    await saveHttpMessage(httpMessage);
+
+    expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
+      '{"id":"msg-1","kind":"http","captureSessionId":"cs-1","stage":"Request"}',
+      httpMessage,
+    );
+  });
+
+  it("propagates an error from the storage", async () => {
+    const error = new Error("storage failed");
+    vi.mocked(setSessionStorageItem).mockResolvedValue(error);
+
+    expect(await saveHttpMessage(makeRequest())).toBe(error);
+  });
+});
+
+describe("findHttpMessagesByIds", () => {
+  it("returns the messages of the given IDs in ID order", async () => {
+    const first = makeRequest({ id: "msg-1" });
+    const second = makeRequest({ id: "msg-2" });
+    mockStorage(second, makeRequest({ id: "msg-3" }), first);
+
+    const result = await findHttpMessagesByIds(["msg-2", "msg-1"]);
+
+    expect(result).toEqual([first, second]);
+  });
+
+  it("returns an empty array when no IDs are given", async () => {
+    mockStorage(makeRequest());
+
+    expect(await findHttpMessagesByIds([])).toEqual([]);
+    expect(getSessionStorageItems).toHaveBeenCalledWith([]);
+  });
+
+  it("ignores keys of other kinds", async () => {
+    vi.mocked(getAllSessionStorageKeys).mockResolvedValue([
+      '{"id":"msg-1","kind":"trace","tabId":1,"flowId":"flow-1"}',
+    ]);
+    vi.mocked(getSessionStorageItems).mockResolvedValue({});
+
+    await findHttpMessagesByIds(["msg-1"]);
+
+    expect(getSessionStorageItems).toHaveBeenCalledWith([]);
+  });
+
+  it("skips invalid values with a warning", async () => {
+    const key = keyOf(makeRequest());
+    vi.mocked(getAllSessionStorageKeys).mockResolvedValue([key]);
+    vi.mocked(getSessionStorageItems).mockResolvedValue({ [key]: { id: "msg-1" } });
+
+    expect(await findHttpMessagesByIds(["msg-1"])).toEqual([]);
+    expect(console.warn).toHaveBeenCalledOnce();
+  });
+
+  it("propagates an error from listing the keys", async () => {
+    const error = new Error("keys failed");
+    vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
+
+    expect(await findHttpMessagesByIds(["msg-1"])).toBe(error);
+  });
+
+  it("propagates an error from reading the items", async () => {
+    const error = new Error("items failed");
+    vi.mocked(getAllSessionStorageKeys).mockResolvedValue([]);
+    vi.mocked(getSessionStorageItems).mockResolvedValue(error);
+
+    expect(await findHttpMessagesByIds(["msg-1"])).toBe(error);
+  });
+});
+
+describe("findHttpRequestByFetchRequestId", () => {
+  it("returns the request of the given capture session, tab, and request ID", async () => {
+    const request = makeRequest();
+    mockStorage(request);
+
+    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toEqual(request);
+  });
+
+  it("ignores requests of another capture session, tab, or request ID", async () => {
+    mockStorage(
+      makeRequest({ id: "msg-3", captureSessionId: "cs-2" }),
+      makeRequest({ id: "msg-4", tabId: 2 }),
+      makeRequest({ id: "msg-5", fetchRequestId: "req-2" }),
+    );
+
+    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toBeUndefined();
+  });
+
+  it("ignores responses", async () => {
+    mockStorage(makeResponse());
+
+    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toBeUndefined();
+  });
+
+  it("propagates an error from the storage", async () => {
+    const error = new Error("keys failed");
+    vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
+
+    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toBe(error);
+  });
+});
+
+describe("deleteHttpMessages", () => {
+  it("removes the messages by their keys", async () => {
+    vi.mocked(removeSessionStorageItems).mockResolvedValue(undefined);
+    const request = makeRequest();
+    const response = makeResponse();
+
+    expect(await deleteHttpMessages([request, response])).toBeUndefined();
+    expect(removeSessionStorageItems).toHaveBeenCalledExactlyOnceWith([
+      keyOf(request),
+      keyOf(response),
+    ]);
+  });
+
+  it("propagates an error from the storage", async () => {
+    const error = new Error("remove failed");
     vi.mocked(removeSessionStorageItems).mockResolvedValue(error);
 
-    expect(await deleteHttpMessages([makeRequest()], 1, "corr-1")).toBe(error);
+    expect(await deleteHttpMessages([makeRequest()])).toBe(error);
   });
 });

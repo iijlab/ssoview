@@ -3,75 +3,115 @@
  * @license BSD-3-Clause
  */
 
-import { type HttpMessage, isHttpMessage } from "@/common/models/http-message.ts";
-import { makeStorageKey, makeStorageKeyPrefix } from "@/common/services/storage-key.ts";
+import { type HttpMessage, type HttpRequest, isHttpMessage } from "@/common/models/http-message.ts";
 import {
-  getSessionStorageItemsByKeyPrefix,
+  getAllSessionStorageKeys,
+  getSessionStorageItems,
   removeSessionStorageItems,
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
+import { isObject } from "@/common/utils/type-guard.ts";
 
-const STORAGE_NAMESPACE = "http";
+export async function saveHttpMessage(httpMessage: HttpMessage): Promise<void | Error> {
+  return await setSessionStorageItem(makeHttpMessageKey(httpMessage), httpMessage);
+}
 
-function makeStorageKeyForHttpMessage(
+export async function findHttpMessagesByIds(ids: string[]): Promise<HttpMessage[] | Error> {
+  const idSet = new Set(ids);
+  return await findHttpMessagesBy((k) => idSet.has(k.id));
+}
+
+export async function findHttpRequestByFetchRequestId(
+  captureSessionId: string,
   tabId: number,
-  sessionId: string,
   fetchRequestId: string,
-  stage: string,
-): string {
-  return makeStorageKey(STORAGE_NAMESPACE, [`${tabId}`, sessionId, fetchRequestId, stage]);
-}
-
-function makeStorageKeyPrefixForHttpMessages(tabId: number, sessionId?: string): string {
-  const segments = sessionId !== undefined ? [`${tabId}`, sessionId] : [`${tabId}`];
-  return makeStorageKeyPrefix(STORAGE_NAMESPACE, segments);
-}
-
-export async function storeHttpMessage(
-  httpMessage: HttpMessage,
-  tabId: number,
-  sessionId: string,
-): Promise<void | Error> {
-  const key = makeStorageKeyForHttpMessage(
-    tabId,
-    sessionId,
-    httpMessage.fetchRequestId,
-    httpMessage.stage,
+): Promise<HttpRequest | undefined | Error> {
+  const httpMessages = await findHttpMessagesBy(
+    (k) =>
+      k.stage === "Request" &&
+      k.captureSessionId === captureSessionId &&
+      k.tabId === tabId &&
+      k.fetchRequestId === fetchRequestId,
   );
+  if (httpMessages instanceof Error) {
+    return httpMessages;
+  }
 
-  return setSessionStorageItem(key, httpMessage);
+  return httpMessages.find((m): m is HttpRequest => m.stage === "Request");
 }
 
-export async function retrieveHttpMessages(
-  tabId: number,
-  sessionId: string,
+export async function deleteHttpMessages(httpMessages: HttpMessage[]): Promise<void | Error> {
+  return await removeSessionStorageItems(httpMessages.map(makeHttpMessageKey));
+}
+
+async function findHttpMessagesBy(
+  predicate: (keyFields: HttpMessageKeyFields) => boolean,
 ): Promise<HttpMessage[] | Error> {
-  const keyPrefix = makeStorageKeyPrefixForHttpMessages(tabId, sessionId);
-  const items = await getSessionStorageItemsByKeyPrefix(keyPrefix);
+  const allKeys = await getAllSessionStorageKeys();
+  if (allKeys instanceof Error) {
+    return allKeys;
+  }
+
+  const keys = allKeys.filter((k) => {
+    const keyFields = parseHttpMessageKey(k);
+    return keyFields !== undefined && predicate(keyFields);
+  });
+
+  const items = await getSessionStorageItems(keys);
   if (items instanceof Error) {
     return items;
   }
 
-  return Object.keys(items)
-    .toSorted()
-    .map((k) => items[k])
-    .filter((u: unknown): u is HttpMessage => {
-      const valid = isHttpMessage(u);
+  return Object.values(items)
+    .filter((m): m is HttpMessage => {
+      const valid = isHttpMessage(m);
       if (!valid) {
-        console.warn("Invalid HTTP message:", u);
+        console.warn("Invalid HTTP message:", m);
       }
       return valid;
-    });
+    })
+    .toSorted((a, b) => (a.id < b.id ? -1 : 1));
 }
 
-export async function deleteHttpMessages(
-  httpMessages: HttpMessage[],
-  tabId: number,
-  sessionId: string,
-): Promise<void | Error> {
-  const keys = httpMessages.map((m) =>
-    makeStorageKeyForHttpMessage(tabId, sessionId, m.fetchRequestId, m.stage),
-  );
+const httpMessageKind = "http";
 
-  return removeSessionStorageItems(keys);
+type HttpMessageKeyFields = {
+  id: string;
+  kind: typeof httpMessageKind;
+  captureSessionId: string;
+  tabId?: number;
+  fetchRequestId?: string;
+  stage: HttpMessage["stage"];
+};
+
+function isHttpMessageKeyFields(u: unknown): u is HttpMessageKeyFields {
+  return (
+    isObject(u) &&
+    typeof u.id === "string" &&
+    u.kind === httpMessageKind &&
+    typeof u.captureSessionId === "string" &&
+    (!("tabId" in u) || typeof u.tabId === "number") &&
+    (!("fetchRequestId" in u) || typeof u.fetchRequestId === "string") &&
+    (u.stage === "Request" || u.stage === "Response")
+  );
+}
+
+function makeHttpMessageKey(httpMessage: HttpMessage): string {
+  return JSON.stringify({ ...httpMessage, kind: httpMessageKind }, [
+    "id",
+    "kind",
+    "captureSessionId",
+    "tabId",
+    "fetchRequestId",
+    "stage",
+  ]);
+}
+
+function parseHttpMessageKey(key: string): HttpMessageKeyFields | undefined {
+  try {
+    const parsed: unknown = JSON.parse(key);
+    return isHttpMessageKeyFields(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }

@@ -56,10 +56,7 @@ export function Content({
       {Object.entries(httpMessageRecord).map(([stepStr, httpMessage]) => {
         const step = Number(stepStr);
         return (
-          <section
-            key={`${httpMessage.fetchRequestId}-${httpMessage.stage}`}
-            ref={setSectionRef(`http-${step}`)}
-          >
+          <section key={httpMessage.id} ref={setSectionRef(`http-${step}`)}>
             <HttpDetails httpMessage={httpMessage} sequenceNumber={step} />
           </section>
         );

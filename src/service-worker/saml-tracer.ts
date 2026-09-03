@@ -9,19 +9,23 @@ import {
   debugHttpRequest,
   debugHttpResponse,
 } from "@/common/models/http-message.ts";
-import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
+import { deleteHttpMessages, saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
 import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
-import { getOngoingCaptureSessionId } from "@/service-worker/capture-manager.ts";
 
 export async function processHttpRequest(
   tabId: number,
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   await debugHttpRequest(httpRequest);
+
+  const saveError = await saveHttpMessage(httpRequest);
+  if (saveError) {
+    return saveError;
+  }
 
   const detection = await detectSamlStepFromHttpRequest(httpRequest);
   if (detection instanceof Error) {
@@ -30,20 +34,12 @@ export async function processHttpRequest(
     return undefined;
   }
 
-  const captureSessionId = await getOngoingCaptureSessionId();
-  if (captureSessionId instanceof Error) {
-    return captureSessionId;
-  } else if (captureSessionId === undefined) {
-    console.warn("No ongoing capture session, skipping the HTTP request:", { tabId });
-    return undefined;
-  }
-
-  const httpStoreError = await storeHttpMessage(httpRequest, tabId, detection.correlationKey);
-  if (httpStoreError) {
-    return httpStoreError;
-  }
-
-  const recordError = await recordSamlTrace(captureSessionId, tabId, detection, httpRequest);
+  const recordError = await recordSamlTrace(
+    httpRequest.captureSessionId,
+    tabId,
+    detection,
+    httpRequest,
+  );
   if (recordError) {
     return recordError;
   }
@@ -62,55 +58,31 @@ export async function processHttpResponse(
   if (detection instanceof Error) {
     return detection;
   } else if (!detection) {
-    return undefined;
-  }
-
-  const captureSessionId = await getOngoingCaptureSessionId();
-  if (captureSessionId instanceof Error) {
-    return captureSessionId;
-  } else if (captureSessionId === undefined) {
-    console.warn("No ongoing capture session, skipping the HTTP response:", { tabId });
-    return undefined;
-  }
-
-  const storedHttpMessages = await retrieveHttpMessages(tabId, detection.correlationKey);
-  if (storedHttpMessages instanceof Error) {
-    return storedHttpMessages;
-  }
-
-  const storedPairedHttpRequest = storedHttpMessages.find(
-    (m): m is HttpRequest =>
-      m.stage === "Request" && m.fetchRequestId === httpResponse.fetchRequestId,
-  );
-
-  const httpRequest = storedPairedHttpRequest ?? pairedHttpRequest;
-  const httpResponseToStore =
-    storedPairedHttpRequest === undefined
-      ? httpResponse
-      : { ...httpResponse, pairedHttpRequestId: storedPairedHttpRequest.id };
-
-  if (storedPairedHttpRequest === undefined) {
-    const pairStoreError = await storeHttpMessage(httpRequest, tabId, detection.correlationKey);
-    if (pairStoreError) {
-      return pairStoreError;
+    // The response is not saved, so keep the request only if it is a step itself
+    const shouldKeep = await detectSamlStepFromHttpRequest(pairedHttpRequest);
+    if (shouldKeep instanceof Error) {
+      return shouldKeep;
+    } else if (!shouldKeep) {
+      const deleteError = await deleteHttpMessages([pairedHttpRequest]);
+      if (deleteError) {
+        return deleteError;
+      }
     }
+
+    return undefined;
   }
 
-  const httpStoreError = await storeHttpMessage(
-    httpResponseToStore,
-    tabId,
-    detection.correlationKey,
-  );
-  if (httpStoreError) {
-    return httpStoreError;
+  const saveError = await saveHttpMessage(httpResponse);
+  if (saveError) {
+    return saveError;
   }
 
   const recordError = await recordSamlTrace(
-    captureSessionId,
+    httpResponse.captureSessionId,
     tabId,
     detection,
-    httpResponseToStore,
-    httpRequest,
+    httpResponse,
+    pairedHttpRequest,
   );
   if (recordError) {
     return recordError;

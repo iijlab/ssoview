@@ -21,8 +21,10 @@ import {
 function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     id: "msg-1",
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
     stage: "Request",
+    captureSessionId: "cs-1",
+    tabId: 1,
     fetchRequestId: "req-1",
     url: "https://example.com/",
     method: "GET",
@@ -55,7 +57,9 @@ function makeRequestPausedEvent(
 describe("isHttpMessage", () => {
   const validHttpRequest = {
     id: "msg-123",
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
+    captureSessionId: "cs-1",
+    tabId: 1,
     fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
@@ -66,7 +70,9 @@ describe("isHttpMessage", () => {
 
   const validHttpResponse = {
     id: "msg-124",
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
+    captureSessionId: "cs-1",
+    tabId: 1,
     fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
@@ -98,8 +104,24 @@ describe("isHttpMessage", () => {
     expect(isHttpMessage(msg)).toBe(false);
   });
 
-  it("returns false when createdAt is missing", () => {
-    const { createdAt, ...msg } = validHttpRequest;
+  it("returns false when observedAt is missing", () => {
+    const { observedAt, ...msg } = validHttpRequest;
+    expect(isHttpMessage(msg)).toBe(false);
+  });
+
+  it("returns false when captureSessionId is missing", () => {
+    const { captureSessionId, ...msg } = validHttpRequest;
+    expect(isHttpMessage(msg)).toBe(false);
+  });
+
+  // Messages of an imported capture session have neither tabId nor fetchRequestId
+  it("returns true when tabId and fetchRequestId are missing", () => {
+    const { tabId, fetchRequestId, ...msg } = validHttpRequest;
+    expect(isHttpMessage(msg)).toBe(true);
+  });
+
+  it("returns false when tabId is not a number", () => {
+    const msg = { ...validHttpRequest, tabId: "1" };
     expect(isHttpMessage(msg)).toBe(false);
   });
 
@@ -174,7 +196,7 @@ describe("newHttpRequest", () => {
       method: "POST",
     });
 
-    const httpRequest = newHttpRequest(requestPausedEvent);
+    const httpRequest = newHttpRequest("cs-1", 1, requestPausedEvent);
 
     expect(httpRequest).toMatchObject({
       stage: "Request",
@@ -184,11 +206,17 @@ describe("newHttpRequest", () => {
     });
   });
 
+  it("belongs to the given capture session and tab", () => {
+    const httpRequest = newHttpRequest("cs-1", 1, makeRequestPausedEvent());
+
+    expect(httpRequest).toMatchObject({ captureSessionId: "cs-1", tabId: 1 });
+  });
+
   it("issues a unique id", () => {
     const requestPausedEvent = makeRequestPausedEvent();
 
-    const first = newHttpRequest(requestPausedEvent);
-    const second = newHttpRequest(requestPausedEvent);
+    const first = newHttpRequest("cs-1", 1, requestPausedEvent);
+    const second = newHttpRequest("cs-1", 1, requestPausedEvent);
 
     expect(first.id).not.toBe("");
     expect(first.id).not.toBe(second.id);
@@ -199,7 +227,7 @@ describe("newHttpRequest", () => {
       headers: { Host: "example.com", "Content-Type": "text/html" },
     });
 
-    const httpRequest = newHttpRequest(requestPausedEvent);
+    const httpRequest = newHttpRequest("cs-1", 1, requestPausedEvent);
 
     expect(httpRequest.headers).toEqual([
       { name: "Host", value: "example.com" },
@@ -208,13 +236,13 @@ describe("newHttpRequest", () => {
   });
 
   it("returns an empty body when the request has no post data", () => {
-    const httpRequest = newHttpRequest(makeRequestPausedEvent());
+    const httpRequest = newHttpRequest("cs-1", 1, makeRequestPausedEvent());
 
     expect(httpRequest.body).toBe("");
   });
 
   it("returns an empty body when postDataEntries is missing", () => {
-    const httpRequest = newHttpRequest(makeRequestPausedEvent({ hasPostData: true }));
+    const httpRequest = newHttpRequest("cs-1", 1, makeRequestPausedEvent({ hasPostData: true }));
 
     expect(httpRequest.body).toBe("");
   });
@@ -228,7 +256,7 @@ describe("newHttpRequest", () => {
       ],
     });
 
-    const httpRequest = newHttpRequest(requestPausedEvent);
+    const httpRequest = newHttpRequest("cs-1", 1, requestPausedEvent);
 
     expect(httpRequest.body).toBe("SAMLResponse=abc&RelayState=xyz");
   });
@@ -239,7 +267,7 @@ describe("newHttpRequest", () => {
       postDataEntries: [{ bytes: Base64.encode("a") }, {}, { bytes: Base64.encode("b") }],
     });
 
-    const httpRequest = newHttpRequest(requestPausedEvent);
+    const httpRequest = newHttpRequest("cs-1", 1, requestPausedEvent);
 
     expect(httpRequest.body).toBe("ab");
   });
@@ -256,6 +284,8 @@ describe("newHttpResponse", () => {
     );
 
     const httpResponse = newHttpResponse(
+      "cs-1",
+      1,
       requestPausedEvent,
       200,
       { body: "<html></html>", base64Encoded: false },
@@ -271,8 +301,23 @@ describe("newHttpResponse", () => {
     });
   });
 
+  it("belongs to the given capture session and tab", () => {
+    const httpResponse = newHttpResponse(
+      "cs-1",
+      1,
+      makeRequestPausedEvent({}, { responseStatusCode: 200 }),
+      200,
+      { body: "", base64Encoded: false },
+      makeRequest(),
+    );
+
+    expect(httpResponse).toMatchObject({ captureSessionId: "cs-1", tabId: 1 });
+  });
+
   it("returns empty headers when responseHeaders is missing", () => {
     const httpResponse = newHttpResponse(
+      "cs-1",
+      1,
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
       { body: "", base64Encoded: false },
@@ -284,6 +329,8 @@ describe("newHttpResponse", () => {
 
   it("decodes a base64 encoded response body", () => {
     const httpResponse = newHttpResponse(
+      "cs-1",
+      1,
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
       { body: Base64.encode("<html></html>"), base64Encoded: true },
@@ -297,6 +344,8 @@ describe("newHttpResponse", () => {
     const httpRequest = makeRequest();
 
     const httpResponse = newHttpResponse(
+      "cs-1",
+      1,
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
       { body: "", base64Encoded: false },
@@ -311,6 +360,8 @@ describe("newHttpResponse", () => {
     const httpRequest = makeRequest({ id: "msg-9" });
 
     const httpResponse = newHttpResponse(
+      "cs-1",
+      1,
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
       { body: "", base64Encoded: false },
@@ -322,6 +373,8 @@ describe("newHttpResponse", () => {
 
   it("leaves the body undefined when the response body is not given", () => {
     const httpResponse = newHttpResponse(
+      "cs-1",
+      1,
       makeRequestPausedEvent({}, { responseStatusCode: 302 }),
       302,
       undefined,

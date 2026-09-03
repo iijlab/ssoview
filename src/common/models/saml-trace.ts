@@ -92,7 +92,7 @@ export function newSamlTrace(
     id: uuidv7(),
     flowId,
     httpMessageId: httpMessage.id,
-    observedAt: httpMessage.createdAt,
+    observedAt: httpMessage.observedAt,
     serverHostname: hostname,
     sessionId: detection.correlationKey,
   };

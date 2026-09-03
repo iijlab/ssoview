@@ -105,7 +105,7 @@ export async function deleteSession(tabId: number, sessionId: string): Promise<v
     return samlDeleteError;
   }
 
-  const httpDeleteError = await deleteHttpMessages(httpMessages, tabId, sessionId);
+  const httpDeleteError = await deleteHttpMessages(httpMessages);
   if (httpDeleteError) {
     // HTTP messages don't need to be deleted, so we ignore failures
     console.warn("Failed to delete HTTP messages:", httpDeleteError);

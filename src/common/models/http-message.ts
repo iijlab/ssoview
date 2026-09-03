@@ -17,8 +17,10 @@ export function isHttpMessage(u: unknown): u is HttpMessage {
 
 type HttpMessageBase = {
   id: string;
-  createdAt: string;
-  fetchRequestId: Protocol.Fetch.RequestId;
+  observedAt: string;
+  captureSessionId: string;
+  tabId?: number;
+  fetchRequestId?: Protocol.Fetch.RequestId;
   url: string;
   method: string;
   headers: Protocol.Fetch.HeaderEntry[];
@@ -29,8 +31,10 @@ function isHttpMessageBase(u: unknown): u is HttpMessageBase {
   return (
     isObject(u) &&
     typeof u.id === "string" &&
-    typeof u.createdAt === "string" &&
-    typeof u.fetchRequestId === "string" &&
+    typeof u.observedAt === "string" &&
+    typeof u.captureSessionId === "string" &&
+    (typeof u.tabId === "number" || u.tabId === undefined) &&
+    (typeof u.fetchRequestId === "string" || u.fetchRequestId === undefined) &&
     typeof u.url === "string" &&
     typeof u.method === "string" &&
     isHeaderEntries(u.headers) &&
@@ -72,11 +76,17 @@ function isHttpResponse(u: unknown): u is HttpResponse {
   );
 }
 
-export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedEvent): HttpRequest {
+export function newHttpRequest(
+  captureSessionId: string,
+  tabId: number,
+  requestPausedEvent: Protocol.Fetch.RequestPausedEvent,
+): HttpRequest {
   return {
     id: uuidv7(),
-    createdAt: new Date().toISOString(),
+    observedAt: new Date().toISOString(),
     stage: "Request",
+    captureSessionId,
+    tabId,
     fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
@@ -88,6 +98,8 @@ export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedE
 }
 
 export function newHttpResponse(
+  captureSessionId: string,
+  tabId: number,
   requestPausedEvent: Protocol.Fetch.RequestPausedEvent,
   statusCode: number,
   getResponseBodyResponse: Protocol.Network.GetResponseBodyResponse | undefined,
@@ -102,8 +114,10 @@ export function newHttpResponse(
 
   return {
     id: uuidv7(),
-    createdAt: new Date().toISOString(),
+    observedAt: new Date().toISOString(),
     stage: "Response",
+    captureSessionId,
+    tabId,
     fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
@@ -154,7 +168,7 @@ async function debugHttpRequestImpl(httpRequest: HttpRequest) {
 
   const debug = await createLabeledDebugLogger([
     "HTTP",
-    httpRequest.fetchRequestId,
+    httpRequest.fetchRequestId ?? "none",
     host,
     httpRequest.method,
   ]);
@@ -175,7 +189,7 @@ async function debugHttpResponseImpl(httpResponse: HttpResponse) {
 
   const debug = await createLabeledDebugLogger([
     "HTTP",
-    httpResponse.fetchRequestId,
+    httpResponse.fetchRequestId ?? "none",
     host,
     `${httpResponse.statusCode}`,
   ]);

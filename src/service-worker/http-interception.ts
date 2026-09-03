@@ -10,7 +10,9 @@ import {
   newHttpRequest,
   newHttpResponse,
 } from "@/common/models/http-message.ts";
+import { findHttpRequestByFetchRequestId } from "@/common/services/http-store.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
+import { getOngoingCaptureSessionId } from "@/service-worker/capture-manager.ts";
 
 export function registerHttpInterceptionHandlers(
   onInterceptHttpRequest: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
@@ -52,11 +54,21 @@ function onFetchRequestPausedEvent(
   }
 
   (async (tabId: number, requestPausedEvent: Protocol.Fetch.RequestPausedEvent) => {
+    // Ignore non-http URLs like chrome://
+    const isHttpUrl = requestPausedEvent.request.url.startsWith("http");
+
+    const captureSessionId = await resolveCaptureSessionId();
+    if (!captureSessionId) {
+      console.warn("No ongoing capture session, skipping the HTTP message:", { tabId });
+    }
+
     // Determine request or response stage based on the presence of status code
     if (!requestPausedEvent.responseStatusCode) {
-      // Ignore non-http URLs like chrome://
-      if (requestPausedEvent.request.url.startsWith("http")) {
-        await onInterceptHttpRequest(tabId, newHttpRequest(requestPausedEvent));
+      if (isHttpUrl && captureSessionId) {
+        await onInterceptHttpRequest(
+          tabId,
+          newHttpRequest(captureSessionId, tabId, requestPausedEvent),
+        );
       }
 
       try {
@@ -68,23 +80,35 @@ function onFetchRequestPausedEvent(
         console.error("Failed to send Fetch.continueRequest command:", err);
       }
     } else {
-      // Ignore non-http URLs like chrome://
-      if (requestPausedEvent.request.url.startsWith("http")) {
-        // Do not attempt to get the response body for redirects as it causes an error
-        const getResponseBodyResponse = isRedirectResponse(requestPausedEvent)
-          ? undefined
-          : await getGetResponseBodyResponse(tabId, requestPausedEvent.requestId);
-        if (getResponseBodyResponse instanceof Error) {
-          console.warn("Failed to get response body:", { error: getResponseBodyResponse });
+      if (isHttpUrl && captureSessionId) {
+        const pairedHttpRequest = await resolvePairedHttpRequest(
+          captureSessionId,
+          tabId,
+          requestPausedEvent.requestId,
+        );
+        if (!pairedHttpRequest) {
+          console.warn("No paired request stored, skipping the HTTP response:", {
+            tabId,
+            fetchRequestId: requestPausedEvent.requestId,
+          });
         } else {
-          const pairedHttpRequest = newHttpRequest(requestPausedEvent);
-          const httpResponse = newHttpResponse(
-            requestPausedEvent,
-            requestPausedEvent.responseStatusCode,
-            getResponseBodyResponse,
-            pairedHttpRequest,
-          );
-          await onInterceptHttpResponse(tabId, httpResponse, pairedHttpRequest);
+          // Do not attempt to get the response body for redirects as it causes an error
+          const getResponseBodyResponse = isRedirectResponse(requestPausedEvent)
+            ? undefined
+            : await getGetResponseBodyResponse(tabId, requestPausedEvent.requestId);
+          if (getResponseBodyResponse instanceof Error) {
+            console.warn("Failed to get response body:", { error: getResponseBodyResponse });
+          } else {
+            const httpResponse = newHttpResponse(
+              captureSessionId,
+              tabId,
+              requestPausedEvent,
+              requestPausedEvent.responseStatusCode,
+              getResponseBodyResponse,
+              pairedHttpRequest,
+            );
+            await onInterceptHttpResponse(tabId, httpResponse, pairedHttpRequest);
+          }
         }
       }
 
@@ -100,6 +124,39 @@ function onFetchRequestPausedEvent(
   })(source.tabId, params).catch((err) => {
     console.error("Unexpected error in Fetch.requestPaused event:", { error: err });
   });
+}
+
+async function resolveCaptureSessionId(): Promise<string | undefined> {
+  const captureSessionId = await getOngoingCaptureSessionId();
+  if (captureSessionId instanceof Error) {
+    console.warn("Failed to get ongoing capture session:", captureSessionId);
+    return undefined;
+  }
+
+  return captureSessionId;
+}
+
+async function resolvePairedHttpRequest(
+  captureSessionId: string,
+  tabId: number,
+  fetchRequestId: Protocol.Fetch.RequestId,
+): Promise<HttpRequest | undefined> {
+  const httpRequest = await findHttpRequestByFetchRequestId(
+    captureSessionId,
+    tabId,
+    fetchRequestId,
+  );
+  if (httpRequest instanceof Error) {
+    console.warn("Failed to find the paired request:", httpRequest);
+    return undefined;
+  } else if (httpRequest === undefined) {
+    console.warn("No paired request stored, skipping the HTTP response:", {
+      tabId,
+      fetchRequestId,
+    });
+  }
+
+  return httpRequest;
 }
 
 async function getGetResponseBodyResponse(
