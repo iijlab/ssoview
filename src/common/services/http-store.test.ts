@@ -14,7 +14,7 @@ import {
 import {
   deleteHttpMessages,
   findHttpMessagesByIds,
-  findPairedHttpRequest,
+  findHttpRequestByFetchRequestId,
   saveHttpMessage,
 } from "./http-store.ts";
 
@@ -167,12 +167,12 @@ describe("findHttpMessagesByIds", () => {
   });
 });
 
-describe("findPairedHttpRequest", () => {
-  it("returns the request of the same capture session, tab, and request ID", async () => {
+describe("findHttpRequestByFetchRequestId", () => {
+  it("returns the request of the given capture session, tab, and request ID", async () => {
     const request = makeRequest();
     mockStorage(request);
 
-    expect(await findPairedHttpRequest(makeResponse())).toEqual(request);
+    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toEqual(request);
   });
 
   it("ignores requests of another capture session, tab, or request ID", async () => {
@@ -182,28 +182,20 @@ describe("findPairedHttpRequest", () => {
       makeRequest({ id: "msg-5", fetchRequestId: "req-2" }),
     );
 
-    expect(await findPairedHttpRequest(makeResponse())).toBeUndefined();
+    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toBeUndefined();
   });
 
   it("ignores responses", async () => {
-    const response = makeResponse();
-    mockStorage(response);
+    mockStorage(makeResponse());
 
-    expect(await findPairedHttpRequest(response)).toBeUndefined();
-  });
-
-  it("returns undefined without reading the storage when the response has no tab", async () => {
-    const response = makeResponse({ tabId: undefined, fetchRequestId: undefined });
-
-    expect(await findPairedHttpRequest(response)).toBeUndefined();
-    expect(getAllSessionStorageKeys).not.toHaveBeenCalled();
+    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toBeUndefined();
   });
 
   it("propagates an error from the storage", async () => {
     const error = new Error("keys failed");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
-    expect(await findPairedHttpRequest(makeResponse())).toBe(error);
+    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toBe(error);
   });
 });
 

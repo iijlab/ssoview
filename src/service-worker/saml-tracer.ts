@@ -9,7 +9,7 @@ import {
   debugHttpRequest,
   debugHttpResponse,
 } from "@/common/models/http-message.ts";
-import { findPairedHttpRequest, saveHttpMessage } from "@/common/services/http-store.ts";
+import { deleteHttpMessages, saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -22,16 +22,16 @@ export async function processHttpRequest(
 ): Promise<string | undefined | Error> {
   await debugHttpRequest(httpRequest);
 
+  const saveError = await saveHttpMessage(httpRequest);
+  if (saveError) {
+    return saveError;
+  }
+
   const detection = await detectSamlStepFromHttpRequest(httpRequest);
   if (detection instanceof Error) {
     return detection;
   } else if (!detection) {
     return undefined;
-  }
-
-  const httpStoreError = await saveHttpMessage(httpRequest);
-  if (httpStoreError) {
-    return httpStoreError;
   }
 
   const recordError = await recordSamlTrace(
@@ -58,25 +58,21 @@ export async function processHttpResponse(
   if (detection instanceof Error) {
     return detection;
   } else if (!detection) {
+    // The response is not saved, so keep the request only if it is a step itself
+    const shouldKeep = await detectSamlStepFromHttpRequest(pairedHttpRequest);
+    if (shouldKeep instanceof Error) {
+      return shouldKeep;
+    } else if (!shouldKeep) {
+      const deleteError = await deleteHttpMessages([pairedHttpRequest]);
+      if (deleteError) {
+        return deleteError;
+      }
+    }
+
     return undefined;
   }
 
-  const storedPairedHttpRequest = await findPairedHttpRequest(httpResponse);
-  if (storedPairedHttpRequest instanceof Error) {
-    return storedPairedHttpRequest;
-  } else if (storedPairedHttpRequest === undefined) {
-    const saveError = await saveHttpMessage(pairedHttpRequest);
-    if (saveError) {
-      return saveError;
-    }
-  }
-
-  const httpRequest = storedPairedHttpRequest ?? pairedHttpRequest;
-  const httpResponseToStore = {
-    ...httpResponse,
-    pairedHttpRequestId: httpRequest.id,
-  };
-  const saveError = await saveHttpMessage(httpResponseToStore);
+  const saveError = await saveHttpMessage(httpResponse);
   if (saveError) {
     return saveError;
   }
@@ -85,8 +81,8 @@ export async function processHttpResponse(
     httpResponse.captureSessionId,
     tabId,
     detection,
-    httpResponseToStore,
-    httpRequest,
+    httpResponse,
+    pairedHttpRequest,
   );
   if (recordError) {
     return recordError;

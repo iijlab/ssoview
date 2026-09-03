@@ -3,12 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import {
-  type HttpMessage,
-  type HttpRequest,
-  type HttpResponse,
-  isHttpMessage,
-} from "@/common/models/http-message.ts";
+import { type HttpMessage, type HttpRequest, isHttpMessage } from "@/common/models/http-message.ts";
 import {
   getAllSessionStorageKeys,
   getSessionStorageItems,
@@ -26,14 +21,11 @@ export async function findHttpMessagesByIds(ids: string[]): Promise<HttpMessage[
   return await findHttpMessagesBy((k) => idSet.has(k.id));
 }
 
-export async function findPairedHttpRequest(
-  httpResponse: HttpResponse,
+export async function findHttpRequestByFetchRequestId(
+  captureSessionId: string,
+  tabId: number,
+  fetchRequestId: string,
 ): Promise<HttpRequest | undefined | Error> {
-  const { captureSessionId, tabId, fetchRequestId } = httpResponse;
-  if (tabId === undefined || fetchRequestId === undefined) {
-    return undefined;
-  }
-
   const httpMessages = await findHttpMessagesBy(
     (k) =>
       k.stage === "Request" &&
