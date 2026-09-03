@@ -13,7 +13,7 @@ import { buildHttpMessageDataRecord } from "./sidebar-builders.ts";
 
 const baseFields = {
   id: "msg-1",
-  createdAt: "2026-01-01T00:00:00Z",
+  observedAt: "2026-01-01T00:00:00Z",
   captureSessionId: "cs-1",
   tabId: 1,
   fetchRequestId: "req-1",
@@ -139,7 +139,7 @@ describe("buildHttpMessageDataRecord", () => {
     expect(result[1]!.description).toBe("200 OK");
   });
 
-  it("sets timestamp from createdAt", () => {
+  it("sets timestamp from observedAt", () => {
     const messages = { 0: makeRequest("https://sp.example.com/login") };
 
     const result = buildHttpMessageDataRecord(SP_HOST, IDP_HOST, messages);

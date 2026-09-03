@@ -51,7 +51,7 @@ function buildHttpMessageData(
   }
 
   return {
-    timestamp: httpMessage.createdAt,
+    timestamp: httpMessage.observedAt,
     description: isRequest
       ? `${httpMessage.method} ${url.pathname}${url.search}`
       : `${httpMessage.statusCode} ${getHttpStatusText(httpMessage.statusCode)}`,

@@ -87,7 +87,7 @@ describe("newSamlTrace", () => {
   function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
     return {
       id: "msg-1",
-      createdAt: "2026-01-01T00:00:00Z",
+      observedAt: "2026-01-01T00:00:00Z",
       stage: "Request",
       fetchRequestId: "req-1",
       headers: [],
@@ -101,7 +101,7 @@ describe("newSamlTrace", () => {
   function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
     return {
       id: "msg-1",
-      createdAt: "2026-01-01T00:00:00Z",
+      observedAt: "2026-01-01T00:00:00Z",
       stage: "Response",
       fetchRequestId: "req-1",
       headers: [{ name: "Date", value: DATE_HEADER_VALUE }],

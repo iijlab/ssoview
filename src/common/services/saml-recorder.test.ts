@@ -48,7 +48,7 @@ function storedSamlTraces(): SamlTrace[] {
 function makeRequest(): HttpRequest {
   return {
     id: "msg-0",
-    createdAt: "2025-12-31T23:59:59Z",
+    observedAt: "2025-12-31T23:59:59Z",
     stage: "Request",
     fetchRequestId: "req-1",
     headers: [],
@@ -61,7 +61,7 @@ function makeRequest(): HttpRequest {
 function makeResponse(): HttpResponse {
   return {
     id: "msg-1",
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
     stage: "Response",
     fetchRequestId: "req-1",
     headers: [{ name: "Date", value: "Thu, 01 Jan 2026 00:00:00 GMT" }],
@@ -111,7 +111,7 @@ describe("recordSamlTrace", () => {
     expect(samlTraces[0]).toMatchObject({
       flowId: storedFlowEntries()[0]!.id,
       httpMessageId: pairedHttpRequest.id,
-      observedAt: pairedHttpRequest.createdAt,
+      observedAt: pairedHttpRequest.observedAt,
       serverHostname: "sp.example.com",
       sessionId: "authn-req-1",
       action: "User Agent requests a secured resource at Service Provider",

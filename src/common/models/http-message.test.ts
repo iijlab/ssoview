@@ -21,7 +21,7 @@ import {
 function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     id: "msg-1",
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
     stage: "Request",
     captureSessionId: "cs-1",
     tabId: 1,
@@ -57,7 +57,7 @@ function makeRequestPausedEvent(
 describe("isHttpMessage", () => {
   const validHttpRequest = {
     id: "msg-123",
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
     captureSessionId: "cs-1",
     tabId: 1,
     fetchRequestId: "req-123",
@@ -70,7 +70,7 @@ describe("isHttpMessage", () => {
 
   const validHttpResponse = {
     id: "msg-124",
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
     captureSessionId: "cs-1",
     tabId: 1,
     fetchRequestId: "req-123",
@@ -104,8 +104,8 @@ describe("isHttpMessage", () => {
     expect(isHttpMessage(msg)).toBe(false);
   });
 
-  it("returns false when createdAt is missing", () => {
-    const { createdAt, ...msg } = validHttpRequest;
+  it("returns false when observedAt is missing", () => {
+    const { observedAt, ...msg } = validHttpRequest;
     expect(isHttpMessage(msg)).toBe(false);
   });
 

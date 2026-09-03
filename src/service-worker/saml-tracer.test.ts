@@ -37,7 +37,7 @@ beforeEach(() => {
 
 function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
     stage: "Request",
     captureSessionId: "capture-session-1",
     tabId: 1,
@@ -52,7 +52,7 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
 
 function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   return {
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
     stage: "Response",
     captureSessionId: "capture-session-1",
     tabId: 1,

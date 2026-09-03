@@ -471,7 +471,7 @@ describe("buildResponseDetails", () => {
 
 describe("buildHttpMessageDetails", () => {
   const baseFields = {
-    createdAt: "2026-01-01T00:00:00Z",
+    observedAt: "2026-01-01T00:00:00Z",
     fetchRequestId: "req-1",
     url: "https://example.com/path",
     method: "POST",

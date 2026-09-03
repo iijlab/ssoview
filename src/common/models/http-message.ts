@@ -17,7 +17,7 @@ export function isHttpMessage(u: unknown): u is HttpMessage {
 
 type HttpMessageBase = {
   id: string;
-  createdAt: string;
+  observedAt: string;
   captureSessionId: string;
   tabId?: number;
   fetchRequestId?: Protocol.Fetch.RequestId;
@@ -31,7 +31,7 @@ function isHttpMessageBase(u: unknown): u is HttpMessageBase {
   return (
     isObject(u) &&
     typeof u.id === "string" &&
-    typeof u.createdAt === "string" &&
+    typeof u.observedAt === "string" &&
     typeof u.captureSessionId === "string" &&
     (typeof u.tabId === "number" || u.tabId === undefined) &&
     (typeof u.fetchRequestId === "string" || u.fetchRequestId === undefined) &&
@@ -83,7 +83,7 @@ export function newHttpRequest(
 ): HttpRequest {
   return {
     id: uuidv7(),
-    createdAt: new Date().toISOString(),
+    observedAt: new Date().toISOString(),
     stage: "Request",
     captureSessionId,
     tabId,
@@ -114,7 +114,7 @@ export function newHttpResponse(
 
   return {
     id: uuidv7(),
-    createdAt: new Date().toISOString(),
+    observedAt: new Date().toISOString(),
     stage: "Response",
     captureSessionId,
     tabId,

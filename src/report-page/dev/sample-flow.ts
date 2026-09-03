@@ -74,7 +74,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   const httpRequest1 = {
     id: "msg-001",
     stage: "Request" as const,
-    createdAt: "2004-12-05T09:21:58.000Z",
+    observedAt: "2004-12-05T09:21:58.000Z",
     captureSessionId: sampleCaptureSessionId,
     tabId: 1,
     fetchRequestId: "req-001",
@@ -88,7 +88,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   const httpResponse2 = {
     id: "msg-002",
     stage: "Response" as const,
-    createdAt: "2004-12-05T09:21:59.000Z",
+    observedAt: "2004-12-05T09:21:59.000Z",
     captureSessionId: sampleCaptureSessionId,
     tabId: 1,
     fetchRequestId: "req-001",
@@ -108,7 +108,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   const httpRequest3 = {
     id: "msg-003",
     stage: "Request" as const,
-    createdAt: "2004-12-05T09:21:59.200Z",
+    observedAt: "2004-12-05T09:21:59.200Z",
     captureSessionId: sampleCaptureSessionId,
     tabId: 1,
     fetchRequestId: "req-002",
@@ -122,7 +122,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   const httpResponse4 = {
     id: "msg-004",
     stage: "Response" as const,
-    createdAt: "2004-12-05T09:22:05.000Z",
+    observedAt: "2004-12-05T09:22:05.000Z",
     captureSessionId: sampleCaptureSessionId,
     tabId: 1,
     fetchRequestId: "req-002",
@@ -152,7 +152,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   const httpRequest5 = {
     id: "msg-005",
     stage: "Request" as const,
-    createdAt: "2004-12-05T09:22:05.100Z",
+    observedAt: "2004-12-05T09:22:05.100Z",
     captureSessionId: sampleCaptureSessionId,
     tabId: 1,
     fetchRequestId: "req-003",
@@ -170,7 +170,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   const httpResponse6 = {
     id: "msg-006",
     stage: "Response" as const,
-    createdAt: "2004-12-05T09:22:05.500Z",
+    observedAt: "2004-12-05T09:22:05.500Z",
     captureSessionId: sampleCaptureSessionId,
     tabId: 1,
     fetchRequestId: "req-003",
