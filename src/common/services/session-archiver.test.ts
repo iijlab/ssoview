@@ -7,7 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
-import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
+import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -24,8 +25,11 @@ vi.mock("@/common/services/event-store.ts", () => ({
   saveEventRecord: vi.fn(),
 }));
 
+vi.mock("@/common/services/flow-query.ts", () => ({
+  findHttpMessagesOfFlow: vi.fn(),
+}));
+
 vi.mock("@/common/services/http-store.ts", () => ({
-  retrieveHttpMessages: vi.fn(),
   storeHttpMessage: vi.fn(),
 }));
 
@@ -46,18 +50,18 @@ beforeEach(() => {
 describe("dumpSessionArchive", () => {
   it("returns HAR string on success", async () => {
     const httpMessages = [{} as HttpMessage];
-    vi.mocked(retrieveHttpMessages).mockResolvedValue(httpMessages);
+    vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(httpMessages);
     vi.mocked(newHar).mockReturnValue('{"log":{}}');
 
     const result = await dumpSessionArchive(1, "session-1");
 
-    expect(retrieveHttpMessages).toHaveBeenCalledWith(1, "session-1");
+    expect(findHttpMessagesOfFlow).toHaveBeenCalledWith(1, "session-1");
     expect(newHar).toHaveBeenCalledWith(httpMessages);
     expect(result).toBe('{"log":{}}');
   });
 
-  it("returns Error when retrieveHttpMessages fails", async () => {
-    vi.mocked(retrieveHttpMessages).mockResolvedValue(new Error("storage error"));
+  it("returns Error when findHttpMessagesOfFlow fails", async () => {
+    vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(new Error("storage error"));
 
     const result = await dumpSessionArchive(1, "session-1");
 

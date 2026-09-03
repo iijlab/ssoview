@@ -12,7 +12,8 @@ import {
 } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
-import { retrieveHttpMessages, storeHttpMessage } from "@/common/services/http-store.ts";
+import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { storeHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
   detectSamlStepFromHttpResponse,
@@ -30,7 +31,7 @@ export async function dumpSessionArchive(
   tabId: number,
   sessionId: string,
 ): Promise<string | Error> {
-  const httpMessages = await retrieveHttpMessages(tabId, sessionId);
+  const httpMessages = await findHttpMessagesOfFlow(tabId, sessionId);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }

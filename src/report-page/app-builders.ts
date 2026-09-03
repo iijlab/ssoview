@@ -6,8 +6,8 @@
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { getCaptureSession } from "@/common/services/capture-query.ts";
+import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
 import { findFlowEntryById } from "@/common/services/flow-store.ts";
-import { retrieveHttpMessages } from "@/common/services/http-store.ts";
 import {
   extractSamlAuthnRequestXml,
   extractSamlResponseXml,
@@ -54,7 +54,7 @@ export async function loadFlowData(
     return new Error(`No capture session: ${flowEntry.captureSessionId}`);
   }
 
-  const httpMessages = await retrieveHttpMessages(tabId, sessionId);
+  const httpMessages = await findHttpMessagesOfFlow(tabId, sessionId);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }
