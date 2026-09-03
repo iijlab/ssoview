@@ -89,13 +89,42 @@ describe("loadSessionArchive", () => {
     const result = await loadSessionArchive(1, "har-string");
 
     expect(result).toEqual(["session-1"]);
-    expect(storeHttpMessage).toHaveBeenCalledWith(httpMessage, 1, "session-1");
+    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
+    const importedHttpMessage = { ...httpMessage, captureSessionId: importedRecord.id, tabId: 1 };
+    expect(storeHttpMessage).toHaveBeenCalledWith(importedHttpMessage, 1, "session-1");
     expect(recordSamlTrace).toHaveBeenCalledWith(
-      expect.any(String),
+      importedRecord.id,
       1,
       { step: 3, correlationKey: "session-1" },
-      httpMessage,
+      importedHttpMessage,
       undefined,
+    );
+  });
+
+  it("assigns the imported capture session and the tab to the messages", async () => {
+    const httpMessage = {
+      captureSessionId: "cs-exported",
+      tabId: 7,
+      fetchRequestId: "req-7",
+      stage: "Request",
+      url: "https://idp.example.org/sso",
+      method: "GET",
+    } as unknown as HttpMessage;
+    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
+    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+      step: 3,
+      correlationKey: "session-1",
+    });
+    vi.mocked(storeHttpMessage).mockResolvedValue(undefined);
+    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
+
+    await loadSessionArchive(1, "har-string");
+
+    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
+    expect(storeHttpMessage).toHaveBeenCalledExactlyOnceWith(
+      { ...httpMessage, captureSessionId: importedRecord.id, tabId: 1 },
+      1,
+      "session-1",
     );
   });
 
@@ -123,16 +152,26 @@ describe("loadSessionArchive", () => {
 
     await loadSessionArchive(1, "har-string");
 
-    expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(httpMessage, pairedRequest);
+    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
+    const importedPairedRequest = {
+      ...pairedRequest,
+      captureSessionId: importedRecord.id,
+      tabId: 1,
+    };
+    const importedHttpMessage = { ...httpMessage, captureSessionId: importedRecord.id, tabId: 1 };
+    expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(
+      importedHttpMessage,
+      importedPairedRequest,
+    );
     expect(storeHttpMessage).toHaveBeenCalledTimes(2);
-    expect(storeHttpMessage).toHaveBeenNthCalledWith(1, pairedRequest, 1, "session-1");
-    expect(storeHttpMessage).toHaveBeenNthCalledWith(2, httpMessage, 1, "session-1");
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(1, importedPairedRequest, 1, "session-1");
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(2, importedHttpMessage, 1, "session-1");
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
-      expect.any(String),
+      importedRecord.id,
       1,
       { step: 6, correlationKey: "session-1" },
-      httpMessage,
-      pairedRequest,
+      importedHttpMessage,
+      importedPairedRequest,
     );
   });
 

@@ -11,6 +11,7 @@ import {
   newHttpResponse,
 } from "@/common/models/http-message.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
+import { getOngoingCaptureSessionId } from "@/service-worker/capture-manager.ts";
 
 export function registerHttpInterceptionHandlers(
   onInterceptHttpRequest: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
@@ -52,11 +53,21 @@ function onFetchRequestPausedEvent(
   }
 
   (async (tabId: number, requestPausedEvent: Protocol.Fetch.RequestPausedEvent) => {
+    // Ignore non-http URLs like chrome://
+    const isHttpUrl = requestPausedEvent.request.url.startsWith("http");
+
+    const captureSessionId = await resolveCaptureSessionId();
+    if (!captureSessionId) {
+      console.warn("No ongoing capture session, skipping the HTTP message:", { tabId });
+    }
+
     // Determine request or response stage based on the presence of status code
     if (!requestPausedEvent.responseStatusCode) {
-      // Ignore non-http URLs like chrome://
-      if (requestPausedEvent.request.url.startsWith("http")) {
-        await onInterceptHttpRequest(tabId, newHttpRequest(requestPausedEvent));
+      if (isHttpUrl && captureSessionId) {
+        await onInterceptHttpRequest(
+          tabId,
+          newHttpRequest(captureSessionId, tabId, requestPausedEvent),
+        );
       }
 
       try {
@@ -68,8 +79,7 @@ function onFetchRequestPausedEvent(
         console.error("Failed to send Fetch.continueRequest command:", err);
       }
     } else {
-      // Ignore non-http URLs like chrome://
-      if (requestPausedEvent.request.url.startsWith("http")) {
+      if (isHttpUrl && captureSessionId) {
         // Do not attempt to get the response body for redirects as it causes an error
         const getResponseBodyResponse = isRedirectResponse(requestPausedEvent)
           ? undefined
@@ -77,8 +87,10 @@ function onFetchRequestPausedEvent(
         if (getResponseBodyResponse instanceof Error) {
           console.warn("Failed to get response body:", { error: getResponseBodyResponse });
         } else {
-          const pairedHttpRequest = newHttpRequest(requestPausedEvent);
+          const pairedHttpRequest = newHttpRequest(captureSessionId, tabId, requestPausedEvent);
           const httpResponse = newHttpResponse(
+            captureSessionId,
+            tabId,
             requestPausedEvent,
             requestPausedEvent.responseStatusCode,
             getResponseBodyResponse,
@@ -100,6 +112,16 @@ function onFetchRequestPausedEvent(
   })(source.tabId, params).catch((err) => {
     console.error("Unexpected error in Fetch.requestPaused event:", { error: err });
   });
+}
+
+async function resolveCaptureSessionId(): Promise<string | undefined> {
+  const captureSessionId = await getOngoingCaptureSessionId();
+  if (captureSessionId instanceof Error) {
+    console.warn("Failed to get ongoing capture session:", captureSessionId);
+    return undefined;
+  }
+
+  return captureSessionId;
 }
 
 async function getGetResponseBodyResponse(

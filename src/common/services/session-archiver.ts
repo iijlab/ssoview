@@ -49,17 +49,24 @@ export async function dumpSessionArchive(
  * @returns An array of imported session IDs, or an Error if import fails
  */
 export async function loadSessionArchive(tabId: number, har: string): Promise<string[] | Error> {
-  const httpMessages = toHttpMessages(har);
-  if (httpMessages instanceof Error) {
-    return httpMessages;
+  const archivedHttpMessages = toHttpMessages(har);
+  if (archivedHttpMessages instanceof Error) {
+    return archivedHttpMessages;
   }
 
   const archiveImportedRecord = newArchiveImportedRecord();
+  const captureSessionId = archiveImportedRecord.id;
 
   const saveError = await saveEventRecord(archiveImportedRecord);
   if (saveError) {
     return saveError;
   }
+
+  const httpMessages = archivedHttpMessages.map((m) => ({
+    ...m,
+    captureSessionId,
+    tabId,
+  }));
 
   // Ideally we could just store all imported logs, but because the storage key
   // uses the session ID, we first parse the logs to detect the session ID.
@@ -99,7 +106,7 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
     }
 
     const recordError = await recordSamlTrace(
-      archiveImportedRecord.id,
+      captureSessionId,
       tabId,
       detection,
       httpMessage,

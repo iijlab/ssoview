@@ -22,6 +22,8 @@ function makeHttpMessage(id: string): HttpMessage {
     id,
     createdAt: "2026-01-01T00:00:00Z",
     stage: "Request",
+    captureSessionId: "cs-1",
+    tabId: 1,
     fetchRequestId: "req-1",
     url: "https://sp.example.com/",
     method: "GET",

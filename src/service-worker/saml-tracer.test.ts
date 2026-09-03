@@ -11,7 +11,6 @@ import {
   detectSamlStepFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
 import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
-import { getOngoingCaptureSessionId } from "@/service-worker/capture-manager.ts";
 import { processHttpRequest, processHttpResponse } from "./saml-tracer.ts";
 
 vi.mock("@/common/services/saml-detector.ts", () => ({
@@ -28,13 +27,8 @@ vi.mock("@/common/services/saml-recorder.ts", () => ({
   recordSamlTrace: vi.fn(),
 }));
 
-vi.mock("@/service-worker/capture-manager.ts", () => ({
-  getOngoingCaptureSessionId: vi.fn(),
-}));
-
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(getOngoingCaptureSessionId).mockResolvedValue("capture-session-1");
   vi.mocked(retrieveHttpMessages).mockResolvedValue([]);
 });
 
@@ -46,6 +40,8 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     createdAt: "2026-01-01T00:00:00Z",
     stage: "Request",
+    captureSessionId: "capture-session-1",
+    tabId: 1,
     fetchRequestId: "req-1",
     headers: [],
     url: "https://sp.example.com/",
@@ -59,6 +55,8 @@ function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   return {
     createdAt: "2026-01-01T00:00:00Z",
     stage: "Response",
+    captureSessionId: "capture-session-1",
+    tabId: 1,
     fetchRequestId: "req-1",
     headers: [{ name: "Date", value: "Thu, 01 Jan 2026 00:00:00 GMT" }],
     url: "https://sp.example.com/",
@@ -145,23 +143,6 @@ describe("processHttpRequest", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("record error");
-  });
-
-  it("skips the record when no capture session is ongoing", async () => {
-    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const request = makeRequest();
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
-      step: 3,
-      correlationKey: "session-1",
-    });
-    vi.mocked(getOngoingCaptureSessionId).mockResolvedValue(undefined);
-
-    const result = await processHttpRequest(1, request);
-
-    expect(result).toBeUndefined();
-    expect(storeHttpMessage).not.toHaveBeenCalled();
-    expect(recordSamlTrace).not.toHaveBeenCalled();
-    expect(consoleWarn).toHaveBeenCalledOnce();
   });
 });
 

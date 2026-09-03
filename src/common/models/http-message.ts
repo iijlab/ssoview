@@ -18,6 +18,8 @@ export function isHttpMessage(u: unknown): u is HttpMessage {
 type HttpMessageBase = {
   id: string;
   createdAt: string;
+  captureSessionId: string;
+  tabId: number;
   fetchRequestId: Protocol.Fetch.RequestId;
   url: string;
   method: string;
@@ -30,6 +32,8 @@ function isHttpMessageBase(u: unknown): u is HttpMessageBase {
     isObject(u) &&
     typeof u.id === "string" &&
     typeof u.createdAt === "string" &&
+    typeof u.captureSessionId === "string" &&
+    typeof u.tabId === "number" &&
     typeof u.fetchRequestId === "string" &&
     typeof u.url === "string" &&
     typeof u.method === "string" &&
@@ -72,11 +76,17 @@ function isHttpResponse(u: unknown): u is HttpResponse {
   );
 }
 
-export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedEvent): HttpRequest {
+export function newHttpRequest(
+  captureSessionId: string,
+  tabId: number,
+  requestPausedEvent: Protocol.Fetch.RequestPausedEvent,
+): HttpRequest {
   return {
     id: uuidv7(),
     createdAt: new Date().toISOString(),
     stage: "Request",
+    captureSessionId,
+    tabId,
     fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
@@ -88,6 +98,8 @@ export function newHttpRequest(requestPausedEvent: Protocol.Fetch.RequestPausedE
 }
 
 export function newHttpResponse(
+  captureSessionId: string,
+  tabId: number,
   requestPausedEvent: Protocol.Fetch.RequestPausedEvent,
   statusCode: number,
   getResponseBodyResponse: Protocol.Network.GetResponseBodyResponse | undefined,
@@ -104,6 +116,8 @@ export function newHttpResponse(
     id: uuidv7(),
     createdAt: new Date().toISOString(),
     stage: "Response",
+    captureSessionId,
+    tabId,
     fetchRequestId: requestPausedEvent.requestId,
     url: requestPausedEvent.request.url,
     method: requestPausedEvent.request.method,
