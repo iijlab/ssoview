@@ -21,7 +21,6 @@ function makeHttpMessage(id: string): HttpMessage {
   return {
     id,
     createdAt: "2026-01-01T00:00:00Z",
-    imported: false,
     stage: "Request",
     fetchRequestId: "req-1",
     url: "https://sp.example.com/",
@@ -48,7 +47,6 @@ function makeSamlTrace(id: string, step: SamlTrace["step"], httpMessageId: strin
     observedAt: "2026-01-01T00:00:00Z",
     serverHostname: "sp.example.com",
     sessionId: "corr-1",
-    imported: false,
     action: "test action",
     step,
     type: "UnauthenticatedResourceRequest",

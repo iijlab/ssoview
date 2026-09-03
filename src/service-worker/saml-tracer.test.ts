@@ -45,7 +45,6 @@ beforeEach(() => {
 function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     createdAt: "2026-01-01T00:00:00Z",
-    imported: false,
     stage: "Request",
     fetchRequestId: "req-1",
     headers: [],
@@ -59,7 +58,6 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
 function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   return {
     createdAt: "2026-01-01T00:00:00Z",
-    imported: false,
     stage: "Response",
     fetchRequestId: "req-1",
     headers: [{ name: "Date", value: "Thu, 01 Jan 2026 00:00:00 GMT" }],

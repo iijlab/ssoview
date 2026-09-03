@@ -41,7 +41,6 @@ export async function dumpSessionArchive(
 /**
  * Import session data from an HTTP Archive (HAR) JSON string.
  *
- * Imported sessions are marked with the `imported` flag.
  * A single archive may contain multiple sessions.
  *
  * @param tabId - The tab ID to associate with imported sessions
@@ -82,22 +81,9 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       continue;
     }
 
-    const importedHttpMessage = {
-      ...httpMessage,
-      imported: true,
-    };
-
-    const importedPairedHttpRequest =
-      pairedHttpRequest === undefined
-        ? undefined
-        : {
-            ...pairedHttpRequest,
-            imported: true,
-          };
-
-    if (importedPairedHttpRequest !== undefined) {
+    if (pairedHttpRequest !== undefined) {
       const httpStoreError = await storeHttpMessage(
-        importedPairedHttpRequest,
+        pairedHttpRequest,
         tabId,
         detection.correlationKey,
       );
@@ -106,11 +92,7 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       }
     }
 
-    const httpStoreError = await storeHttpMessage(
-      importedHttpMessage,
-      tabId,
-      detection.correlationKey,
-    );
+    const httpStoreError = await storeHttpMessage(httpMessage, tabId, detection.correlationKey);
     if (httpStoreError) {
       return httpStoreError;
     }
@@ -119,8 +101,8 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
       archiveImportedRecord.id,
       tabId,
       detection,
-      importedHttpMessage,
-      importedPairedHttpRequest,
+      httpMessage,
+      pairedHttpRequest,
     );
     if (recordError) {
       return recordError;

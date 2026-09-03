@@ -55,7 +55,6 @@ function updateSamlSessionSummary(summary: SessionSummary, samlTrace: SamlTrace)
 
   return {
     ...summary,
-    imported: summary.imported || samlTrace.imported,
     start: summary.start ?? samlTrace.observedAt,
     end: summary.end ?? (status !== "in_progress" ? samlTrace.observedAt : undefined),
     sp: summary.sp ?? (role === "sp" ? samlTrace.serverHostname : undefined),

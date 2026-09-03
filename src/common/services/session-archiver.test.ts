@@ -71,7 +71,6 @@ describe("loadSessionArchive", () => {
   it("returns session IDs on success", async () => {
     const httpMessage = {
       stage: "Request",
-      imported: false,
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
@@ -86,31 +85,25 @@ describe("loadSessionArchive", () => {
     const result = await loadSessionArchive(1, "har-string");
 
     expect(result).toEqual(["session-1"]);
-    expect(storeHttpMessage).toHaveBeenCalledWith(
-      { ...httpMessage, imported: true },
-      1,
-      "session-1",
-    );
+    expect(storeHttpMessage).toHaveBeenCalledWith(httpMessage, 1, "session-1");
     expect(recordSamlTrace).toHaveBeenCalledWith(
       expect.any(String),
       1,
       { step: 3, correlationKey: "session-1" },
-      { ...httpMessage, imported: true },
+      httpMessage,
       undefined,
     );
   });
 
-  it("stores the paired request of a response as an imported message", async () => {
+  it("stores the paired request of a response ", async () => {
     const pairedRequest = {
       id: "msg-1",
       stage: "Request",
-      imported: false,
       url: "https://sp.example.com/resource",
     } as unknown as HttpMessage;
     const httpMessage = {
       id: "msg-2",
       stage: "Response",
-      imported: false,
       pairedHttpRequestId: "msg-1",
       url: "https://sp.example.com/acs",
       headers: [],
@@ -128,24 +121,14 @@ describe("loadSessionArchive", () => {
 
     expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(httpMessage, pairedRequest);
     expect(storeHttpMessage).toHaveBeenCalledTimes(2);
-    expect(storeHttpMessage).toHaveBeenNthCalledWith(
-      1,
-      { ...pairedRequest, imported: true },
-      1,
-      "session-1",
-    );
-    expect(storeHttpMessage).toHaveBeenNthCalledWith(
-      2,
-      { ...httpMessage, imported: true },
-      1,
-      "session-1",
-    );
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(1, pairedRequest, 1, "session-1");
+    expect(storeHttpMessage).toHaveBeenNthCalledWith(2, httpMessage, 1, "session-1");
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
       expect.any(String),
       1,
       { step: 6, correlationKey: "session-1" },
-      { ...httpMessage, imported: true },
-      { ...pairedRequest, imported: true },
+      httpMessage,
+      pairedRequest,
     );
   });
 
@@ -154,7 +137,6 @@ describe("loadSessionArchive", () => {
     const httpMessage = {
       id: "msg-2",
       stage: "Response",
-      imported: false,
       pairedHttpRequestId: "msg-1",
     } as unknown as HttpMessage;
     vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
@@ -170,7 +152,6 @@ describe("loadSessionArchive", () => {
   it("records the traces under the imported capture session", async () => {
     const httpMessage = {
       stage: "Request",
-      imported: false,
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
@@ -191,7 +172,6 @@ describe("loadSessionArchive", () => {
   it("aborts when a trace cannot be recorded", async () => {
     const httpMessage = {
       stage: "Request",
-      imported: false,
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
@@ -237,7 +217,7 @@ describe("loadSessionArchive", () => {
   });
 
   it("returns empty array when no SAML steps are detected", async () => {
-    const httpMessage = { stage: "Request", imported: false } as unknown as HttpMessage;
+    const httpMessage = { stage: "Request" } as unknown as HttpMessage;
     vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
 
@@ -248,8 +228,8 @@ describe("loadSessionArchive", () => {
 
   it("returns deduplicated session IDs", async () => {
     const httpMessages = [
-      { stage: "Request", imported: false, url: "https://idp.example.org/sso" },
-      { stage: "Request", imported: false, url: "https://idp.example.org/sso" },
+      { stage: "Request", url: "https://idp.example.org/sso" },
+      { stage: "Request", url: "https://idp.example.org/sso" },
     ] as unknown as HttpMessage[];
     vi.mocked(toHttpMessages).mockReturnValue(httpMessages);
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({

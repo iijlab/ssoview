@@ -24,7 +24,6 @@ type SamlTraceBase = {
   observedAt: string;
   serverHostname: string;
   sessionId: string;
-  imported: boolean;
   action: string;
 };
 
@@ -75,7 +74,6 @@ export function isSamlTrace(u: unknown): u is SamlTrace {
     typeof u.observedAt === "string" &&
     typeof u.serverHostname === "string" &&
     typeof u.sessionId === "string" &&
-    typeof u.imported === "boolean" &&
     (!("samlStatusCode" in u) || typeof u.samlStatusCode === "string")
   );
 }
@@ -97,7 +95,6 @@ export function newSamlTrace(
     observedAt: httpMessage.createdAt,
     serverHostname: hostname,
     sessionId: detection.correlationKey,
-    imported: httpMessage.imported,
   };
 
   switch (detection.step) {

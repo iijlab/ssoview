@@ -58,7 +58,6 @@ function makeSamlTrace(overrides: Partial<SamlTrace>): SamlTrace {
     observedAt: "2026-01-01T00:00:00.000Z",
     serverHostname: "sp.example.com",
     sessionId: "corr-1",
-    imported: false,
     action: "test action",
     step: 2,
     type: "IncomingAuthnRequest",
@@ -118,7 +117,7 @@ describe("getSessionSummaries", () => {
   });
 
   it("derives imported from the capture session", async () => {
-    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({ imported: false })]);
+    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace({})]);
     vi.mocked(getCaptureSession).mockResolvedValue(
       makeCaptureSession({ imported: true, importedAt: "2026-01-01T00:00:00Z" }),
     );

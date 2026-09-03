@@ -21,7 +21,6 @@ function makeSamlTrace(overrides: Partial<SamlTrace>): SamlTrace {
     observedAt: "2026-01-01T00:00:00.000Z",
     serverHostname: "sp.example.com",
     sessionId: "session-1",
-    imported: false,
     action: "test action",
     step: 2,
     type: "IncomingAuthnRequest",
@@ -133,15 +132,6 @@ describe("summarizeSamlSession", () => {
     expect(result.end).toBeUndefined();
   });
 
-  it("sets imported to true if any trace is imported", () => {
-    const result = summarizeSamlSession("session-1", [
-      makeSamlTrace({ step: 2, type: "IncomingAuthnRequest", imported: false }),
-      makeSamlTrace({ step: 3, type: "OutgoingAuthnRequest", imported: true }),
-    ]);
-
-    expect(result).toMatchObject({ imported: true });
-  });
-
   it("assigns the serverHostname to sp or idp by the step", () => {
     const result = summarizeSamlSession("session-1", [
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest", serverHostname: "sp.example.com" }),
@@ -185,7 +175,7 @@ describe("summarizeSamlFlow", () => {
     expect(result).toMatchObject({ sessionId: "corr-1", imported: false });
   });
 
-  it("derives imported from the capture session, not from the traces", () => {
+  it("derives imported from the capture session", () => {
     const captureSession: CaptureSession = {
       id: "cs-1",
       imported: true,
@@ -193,7 +183,7 @@ describe("summarizeSamlFlow", () => {
     };
 
     const result = summarizeSamlFlow(flowEntry, captureSession, [
-      makeSamlTrace({ step: 2, type: "IncomingAuthnRequest", imported: false }),
+      makeSamlTrace({ step: 2, type: "IncomingAuthnRequest" }),
     ]);
 
     expect(result).toMatchObject({ imported: true });

@@ -73,7 +73,6 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 1: User -> SP
   const httpRequest1 = {
     id: "msg-001",
-    imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:21:58.000Z",
     fetchRequestId: "req-001",
@@ -86,7 +85,6 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 2: SP -> User
   const httpResponse2 = {
     id: "msg-002",
-    imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:21:59.000Z",
     fetchRequestId: "req-001",
@@ -105,7 +103,6 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 3: User -> IdP
   const httpRequest3 = {
     id: "msg-003",
-    imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:21:59.200Z",
     fetchRequestId: "req-002",
@@ -118,7 +115,6 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 4: IdP -> User
   const httpResponse4 = {
     id: "msg-004",
-    imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:22:05.000Z",
     fetchRequestId: "req-002",
@@ -147,7 +143,6 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 5: User -> SP
   const httpRequest5 = {
     id: "msg-005",
-    imported: false,
     stage: "Request" as const,
     createdAt: "2004-12-05T09:22:05.100Z",
     fetchRequestId: "req-003",
@@ -164,7 +159,6 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   const isSuccess = sample !== "failure" && sample !== "unknown";
   const httpResponse6 = {
     id: "msg-006",
-    imported: false,
     stage: "Response" as const,
     createdAt: "2004-12-05T09:22:05.500Z",
     fetchRequestId: "req-003",

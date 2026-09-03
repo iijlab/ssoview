@@ -16,7 +16,6 @@ describe("isSamlTrace", () => {
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
       sessionId: "abc123",
-      imported: false,
       action: "test action",
       step: 2,
       type: "IncomingAuthnRequest",
@@ -76,10 +75,6 @@ describe("isSamlTrace", () => {
     expect(isSamlTrace({ ...makeTraceFields(), sessionId: 123 })).toBe(false);
   });
 
-  it("returns false when imported is not a boolean", () => {
-    expect(isSamlTrace({ ...makeTraceFields(), imported: "false" })).toBe(false);
-  });
-
   it("returns false when optional samlStatusCode is not a string", () => {
     expect(isSamlTrace({ ...makeTraceFields(), samlStatusCode: 200 })).toBe(false);
   });
@@ -93,7 +88,6 @@ describe("newSamlTrace", () => {
     return {
       id: "msg-1",
       createdAt: "2026-01-01T00:00:00Z",
-      imported: false,
       stage: "Request",
       fetchRequestId: "req-1",
       headers: [],
@@ -108,7 +102,6 @@ describe("newSamlTrace", () => {
     return {
       id: "msg-1",
       createdAt: "2026-01-01T00:00:00Z",
-      imported: false,
       stage: "Response",
       fetchRequestId: "req-1",
       headers: [{ name: "Date", value: DATE_HEADER_VALUE }],
@@ -132,7 +125,6 @@ describe("newSamlTrace", () => {
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
       sessionId: "authn-req-1",
-      imported: false,
       step: 1,
       type: "UnauthenticatedResourceRequest",
       action: "User Agent requests a secured resource at Service Provider",
@@ -151,7 +143,6 @@ describe("newSamlTrace", () => {
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
       sessionId: "authn-req-1",
-      imported: false,
       step: 2,
       type: "IncomingAuthnRequest",
       action: "Service Provider issues SAML AuthnRequest",
@@ -231,14 +222,6 @@ describe("newSamlTrace", () => {
       type: "AuthenticatedResourceResponse",
       action: "Service Provider returns the requested resource",
     });
-  });
-
-  it("takes the imported flag from the HTTP message", () => {
-    const response = makeResponse({ imported: true });
-
-    const result = newSamlTrace("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
-
-    expect(result).toMatchObject({ imported: true });
   });
 
   it("returns Error when the message URL is invalid", () => {
