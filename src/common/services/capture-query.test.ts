@@ -15,15 +15,26 @@ import {
   newWatchStoppedRecord,
 } from "@/common/models/event-record.ts";
 import { findAllEventRecords } from "@/common/services/event-store.ts";
-import { getCaptureSession, getCaptureSessions } from "./capture-query.ts";
+import { getWatchedTabIds } from "@/common/services/watch-query.ts";
+import {
+  getCaptureSession,
+  getCaptureSessions,
+  getOngoingCaptureSessionId,
+  isCapturing,
+} from "./capture-query.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
   findAllEventRecords: vi.fn(),
 }));
 
+vi.mock("@/common/services/watch-query.ts", () => ({
+  getWatchedTabIds: vi.fn(),
+}));
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(findAllEventRecords).mockResolvedValue([]);
+  vi.mocked(getWatchedTabIds).mockResolvedValue([]);
 });
 
 //
@@ -46,6 +57,10 @@ function record(type: EventRecord["type"]): EventRecord {
 
 function mockRecords(...records: EventRecord[]): void {
   vi.mocked(findAllEventRecords).mockResolvedValue(records);
+}
+
+function captureRecords(...types: ("CaptureStarted" | "CaptureStopped")[]): EventRecord[] {
+  return types.map(record);
 }
 
 //
@@ -169,5 +184,90 @@ describe("getCaptureSession", () => {
     vi.mocked(findAllEventRecords).mockResolvedValue(error);
 
     expect(await getCaptureSession("unknown")).toBe(error);
+  });
+});
+
+describe("getOngoingCaptureSessionId", () => {
+  it("returns the ID of the record that started the ongoing capture", async () => {
+    const records = captureRecords("CaptureStarted", "CaptureStopped", "CaptureStarted");
+    mockRecords(...records);
+
+    expect(await getOngoingCaptureSessionId()).toBe(records[2]?.id);
+    expect(getWatchedTabIds).not.toHaveBeenCalled();
+  });
+
+  it("ignores records other than capture records", async () => {
+    const started = record("CaptureStarted");
+    mockRecords(started, record("WatchStarted"));
+
+    expect(await getOngoingCaptureSessionId()).toBe(started.id);
+  });
+
+  it("returns undefined when the latest capture has stopped", async () => {
+    mockRecords(...captureRecords("CaptureStarted", "CaptureStopped"));
+
+    expect(await getOngoingCaptureSessionId()).toBeUndefined();
+  });
+
+  it("returns undefined when no capture has started", async () => {
+    expect(await getOngoingCaptureSessionId()).toBeUndefined();
+  });
+
+  it("returns the error when the records cannot be retrieved", async () => {
+    const error = new Error("storage failed");
+    vi.mocked(findAllEventRecords).mockResolvedValue(error);
+
+    expect(await getOngoingCaptureSessionId()).toBe(error);
+  });
+});
+
+describe("isCapturing", () => {
+  it("returns true when a capture has started and a tab is still watched", async () => {
+    mockRecords(...captureRecords("CaptureStarted"));
+    vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
+
+    expect(await isCapturing()).toBe(true);
+  });
+
+  it("returns false when the latest capture has stopped", async () => {
+    mockRecords(...captureRecords("CaptureStarted", "CaptureStopped"));
+    vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
+
+    expect(await isCapturing()).toBe(false);
+    expect(getWatchedTabIds).not.toHaveBeenCalled();
+  });
+
+  it("returns true when a capture has started again after stopping", async () => {
+    mockRecords(...captureRecords("CaptureStarted", "CaptureStopped", "CaptureStarted"));
+    vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
+
+    expect(await isCapturing()).toBe(true);
+  });
+
+  it("returns false when no capture has started", async () => {
+    vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
+
+    expect(await isCapturing()).toBe(false);
+  });
+
+  it("returns false when no tab is watched even though the capture is left open", async () => {
+    mockRecords(...captureRecords("CaptureStarted"));
+
+    expect(await isCapturing()).toBe(false);
+  });
+
+  it("returns the error when the records cannot be retrieved", async () => {
+    const error = new Error("storage failed");
+    vi.mocked(findAllEventRecords).mockResolvedValue(error);
+
+    expect(await isCapturing()).toBe(error);
+  });
+
+  it("returns the error when the watched tabs cannot be determined", async () => {
+    const error = new Error("targets failed");
+    mockRecords(...captureRecords("CaptureStarted"));
+    vi.mocked(getWatchedTabIds).mockResolvedValue(error);
+
+    expect(await isCapturing()).toBe(error);
   });
 });

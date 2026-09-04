@@ -13,7 +13,7 @@ import {
 } from "@/common/utils/chrome-storage.ts";
 import {
   deleteFlowEntry,
-  findFlowEntriesByCaptureSessionId,
+  findAllFlowEntries,
   findFlowEntryByCorrelationKey,
   findFlowEntryById,
   saveFlowEntry,
@@ -86,27 +86,20 @@ describe("deleteFlowEntry", () => {
   });
 });
 
-describe("findFlowEntriesByCaptureSessionId", () => {
-  it("retrieves the flows of the capture session, newest first", async () => {
+describe("findAllFlowEntries", () => {
+  it("retrieves every flow, newest first", async () => {
     const first = newFlowEntry("cs-1", "saml", "key-1");
     const second = newFlowEntry("cs-1", "saml", "key-2");
-    const third = newFlowEntry("cs-1", "saml", "key-3");
+    const third = newFlowEntry("cs-2", "saml", "key-3");
     mockStorage(second, third, first);
 
-    expect(await findFlowEntriesByCaptureSessionId("cs-1")).toEqual([third, second, first]);
+    expect(await findAllFlowEntries()).toEqual([third, second, first]);
   });
 
-  it("excludes the flows of other capture sessions", async () => {
-    const target = newFlowEntry("cs-1", "saml", "key");
-    mockStorage(newFlowEntry("cs-2", "saml", "key"), target);
+  it("returns an empty array when no flow is stored", async () => {
+    mockStorage();
 
-    expect(await findFlowEntriesByCaptureSessionId("cs-1")).toEqual([target]);
-  });
-
-  it("returns an empty array when the capture session has no flow", async () => {
-    mockStorage(newFlowEntry("cs-2", "saml", "key"));
-
-    expect(await findFlowEntriesByCaptureSessionId("cs-1")).toEqual([]);
+    expect(await findAllFlowEntries()).toEqual([]);
   });
 
   it("ignores keys that are not flow entry keys", async () => {
@@ -119,7 +112,7 @@ describe("findFlowEntriesByCaptureSessionId", () => {
       keyOf(flow),
     ]);
 
-    expect(await findFlowEntriesByCaptureSessionId("cs-1")).toEqual([flow]);
+    expect(await findAllFlowEntries()).toEqual([flow]);
   });
 
   it("skips invalid flows with a warning", async () => {
@@ -131,7 +124,7 @@ describe("findFlowEntriesByCaptureSessionId", () => {
       [keyOf(invalid)]: invalid,
     });
 
-    expect(await findFlowEntriesByCaptureSessionId("cs-1")).toEqual([valid]);
+    expect(await findAllFlowEntries()).toEqual([valid]);
     expect(console.warn).toHaveBeenCalledExactlyOnceWith("Invalid flow entry:", invalid);
   });
 
@@ -139,7 +132,7 @@ describe("findFlowEntriesByCaptureSessionId", () => {
     const error = new Error("storage failed");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
-    expect(await findFlowEntriesByCaptureSessionId("cs-1")).toBe(error);
+    expect(await findAllFlowEntries()).toBe(error);
   });
 
   it("propagates an error from the item retrieval", async () => {
@@ -148,7 +141,7 @@ describe("findFlowEntriesByCaptureSessionId", () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([keyOf(flow)]);
     vi.mocked(getSessionStorageItems).mockResolvedValue(error);
 
-    expect(await findFlowEntriesByCaptureSessionId("cs-1")).toBe(error);
+    expect(await findAllFlowEntries()).toBe(error);
   });
 });
 

@@ -20,10 +20,8 @@ export async function deleteFlowEntry(flowEntry: FlowEntry): Promise<void | Erro
   return await removeSessionStorageItems([makeFlowEntryKey(flowEntry)]);
 }
 
-export async function findFlowEntriesByCaptureSessionId(
-  captureSessionId: string,
-): Promise<FlowEntry[] | Error> {
-  const entries = await findFlowEntriesBy((e) => e.captureSessionId === captureSessionId);
+export async function findAllFlowEntries(): Promise<FlowEntry[] | Error> {
+  const entries = await findFlowEntriesBy(() => true);
   if (entries instanceof Error) {
     return entries;
   }

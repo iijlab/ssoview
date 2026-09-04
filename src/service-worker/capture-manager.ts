@@ -4,7 +4,8 @@
  */
 
 import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/common/models/event-record.ts";
-import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
+import { getOngoingCaptureSessionId, isCapturing } from "@/common/services/capture-query.ts";
+import { saveEventRecord } from "@/common/services/event-store.ts";
 import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 import {
   registerWatchStopHandler,
@@ -23,47 +24,6 @@ export function registerCaptureStopHandler(
 
     await onCaptureStopped(tabId);
   });
-}
-
-export async function getOngoingCaptureSessionId(): Promise<string | undefined | Error> {
-  const records = await findAllEventRecords();
-  if (records instanceof Error) {
-    return records;
-  }
-
-  const latest = records
-    .filter((r) => r.type === "CaptureStarted" || r.type === "CaptureStopped")
-    .at(-1);
-  return latest?.type === "CaptureStarted" ? latest.id : undefined;
-}
-
-export async function isCapturing(): Promise<boolean | Error> {
-  // How the capture record and the watched tabs decide the result:
-  //
-  //   record | watched tab | result
-  //   -------+-------------+-------
-  //   open   | yes         | capturing
-  //   open   | no          | not capturing -- the stop record was lost [1]
-  //   closed | yes         | not capturing -- the record wins [2]
-  //   closed | no          | not capturing
-  //
-  // [1] The debugger is already detached, so staying "capturing" would show a recording that can
-  //     never be stopped.
-  // [2] The user can detach from the banner.
-
-  const sessionId = await getOngoingCaptureSessionId();
-  if (sessionId instanceof Error) {
-    return sessionId;
-  } else if (sessionId === undefined) {
-    return false;
-  }
-
-  const tabIds = await getWatchedTabIds();
-  if (tabIds instanceof Error) {
-    return tabIds;
-  }
-
-  return 0 < tabIds.length;
 }
 
 export async function startCapturing(tabId: number): Promise<void | Error> {

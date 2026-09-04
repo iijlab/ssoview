@@ -6,16 +6,16 @@
 import type Protocol from "devtools-protocol";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type HttpRequest } from "@/common/models/http-message.ts";
+import { getOngoingCaptureSessionId } from "@/common/services/capture-query.ts";
 import { findHttpRequestByFetchRequestId } from "@/common/services/http-store.ts";
-import { getOngoingCaptureSessionId } from "@/service-worker/capture-manager.ts";
 import { registerHttpInterceptionHandlers } from "./http-interception.ts";
+
+vi.mock("@/common/services/capture-query.ts", () => ({
+  getOngoingCaptureSessionId: vi.fn(),
+}));
 
 vi.mock("@/common/services/http-store.ts", () => ({
   findHttpRequestByFetchRequestId: vi.fn(),
-}));
-
-vi.mock("@/service-worker/capture-manager.ts", () => ({
-  getOngoingCaptureSessionId: vi.fn(),
 }));
 
 //

@@ -3,43 +3,54 @@
  * @license BSD-3-Clause
  */
 
-import { type CaptureSession } from "@/common/models/capture-session.ts";
 import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
-import { getCaptureSession } from "@/common/services/capture-query.ts";
-import { findFlowEntriesByTabId, findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
-import { deleteFlowEntry, findFlowEntryById } from "@/common/services/flow-store.ts";
+import { getCaptureSessions, isCapturing } from "@/common/services/capture-query.ts";
+import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import {
+  deleteFlowEntry,
+  findAllFlowEntries,
+  findFlowEntryById,
+} from "@/common/services/flow-store.ts";
 import { deleteHttpMessages } from "@/common/services/http-store.ts";
 import { deleteSamlTracesByFlowId, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
 import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
-import { isWatching } from "@/common/services/watch-query.ts";
 
 // NOTE: getSessionSummaries has known inefficiencies (e.g., repeated data
 // fetches), but we prioritize simplicity as performance is not a concern at
 // current scale.
 
 /**
- * Retrieve summaries for all sessions associated with a tab.
+ * Retrieve a summary of every flow in every capture session.
  *
- * @param tabId - The tab ID to retrieve session summaries for
- * @returns An array of session summaries sorted by flow ID in descending order, or an Error
+ * @param _tabId - Unused. Kept until the side panel stops passing it
+ * @returns Flow summaries, newest first, or an Error
  */
-export async function getSessionSummaries(tabId: number): Promise<SessionSummary[] | Error> {
-  const watching = await isWatching(tabId);
-  if (watching instanceof Error) {
-    return watching;
+export async function getSessionSummaries(_tabId: number): Promise<SessionSummary[] | Error> {
+  const capturing = await isCapturing();
+  if (capturing instanceof Error) {
+    return capturing;
   }
 
-  const flowEntries = await findFlowEntriesByTabId(tabId);
+  const captureSessions = await getCaptureSessions();
+  if (captureSessions instanceof Error) {
+    return captureSessions;
+  }
+
+  const flowEntries = await findAllFlowEntries();
   if (flowEntries instanceof Error) {
     return flowEntries;
   }
 
+  const ongoingCaptureSession = captureSessions.find((s) => !s.imported && s.endedAt === undefined);
+  const ongoingFlowId =
+    ongoingCaptureSession !== undefined
+      ? flowEntries.find((f) => f.captureSessionId === ongoingCaptureSession.id)?.id
+      : undefined;
+
   const summaries: SessionSummary[] = [];
   for (const flowEntry of flowEntries) {
-    const captureSession = await getCaptureSession(flowEntry.captureSessionId);
-    if (captureSession instanceof Error) {
-      return captureSession;
-    } else if (captureSession === undefined) {
+    const captureSession = captureSessions.find((s) => s.id === flowEntry.captureSessionId);
+    if (captureSession === undefined) {
       console.warn("No capture session for the flow:", { flowId: flowEntry.id });
       continue;
     }
@@ -51,7 +62,7 @@ export async function getSessionSummaries(tabId: number): Promise<SessionSummary
 
     const summary = {
       ...summarizeSamlFlow(flowEntry, captureSession, samlTraces),
-      capturing: isOngoing(captureSession) && watching,
+      capturing: flowEntry.id === ongoingFlowId && capturing,
     };
 
     summaries.push(summary);
@@ -59,10 +70,6 @@ export async function getSessionSummaries(tabId: number): Promise<SessionSummary
   }
 
   return summaries;
-}
-
-function isOngoing(captureSession: CaptureSession): boolean {
-  return !captureSession.imported && captureSession.endedAt === undefined;
 }
 
 /**
