@@ -13,8 +13,8 @@ import {
 } from "@/common/utils/chrome-storage.ts";
 import {
   deleteSamlTracesByFlowId,
-  findSamlTraces,
   findSamlTracesByFlowId,
+  findSamlTracesByTabId,
   saveSamlTrace,
 } from "./saml-store.ts";
 
@@ -73,18 +73,18 @@ describe("saveSamlTrace", () => {
     await saveSamlTrace(makeTrace({ id: "trace-1", step: 2 }), 1);
     await saveSamlTrace(makeTrace({ id: "trace-2", step: 2 }), 1);
 
-    expect(await findSamlTraces(1)).toHaveLength(2);
+    expect(await findSamlTracesByTabId(1)).toHaveLength(2);
   });
 });
 
-describe("findSamlTraces", () => {
+describe("findSamlTracesByTabId", () => {
   it("returns the traces of the tab in id order", async () => {
     await saveSamlTrace(makeTrace({ id: "trace-2" }), 1);
     await saveSamlTrace(makeTrace({ id: "trace-1" }), 1);
     await saveSamlTrace(makeTrace({ id: "trace-3" }), 2);
     storage["other-key"] = { some: "value" };
 
-    const result = await findSamlTraces(1);
+    const result = await findSamlTracesByTabId(1);
 
     expect(result).not.toBeInstanceOf(Error);
     expect((result as SamlTrace[]).map((t) => t.id)).toEqual(["trace-1", "trace-2"]);
@@ -95,7 +95,7 @@ describe("findSamlTraces", () => {
     storage['{"id":"trace-1","kind":"trace","tabId":1,"flowId":"flow-1"}'] = { broken: true };
     await saveSamlTrace(makeTrace({ id: "trace-2" }), 1);
 
-    const result = await findSamlTraces(1);
+    const result = await findSamlTracesByTabId(1);
 
     expect((result as SamlTrace[]).map((t) => t.id)).toEqual(["trace-2"]);
     expect(consoleWarn).toHaveBeenCalledOnce();
@@ -105,7 +105,7 @@ describe("findSamlTraces", () => {
     const error = new Error("storage error");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
-    expect(await findSamlTraces(1)).toBe(error);
+    expect(await findSamlTracesByTabId(1)).toBe(error);
   });
 });
 
@@ -150,8 +150,8 @@ describe("deleteSamlTracesByFlowId", () => {
 
     expect(result).toBeUndefined();
     expect(getSessionStorageItems).not.toHaveBeenCalled();
-    expect(((await findSamlTraces(1)) as SamlTrace[]).map((t) => t.id)).toEqual(["trace-2"]);
-    expect(await findSamlTraces(2)).toEqual([]);
+    expect(((await findSamlTracesByTabId(1)) as SamlTrace[]).map((t) => t.id)).toEqual(["trace-2"]);
+    expect(await findSamlTracesByTabId(2)).toEqual([]);
   });
 
   it("propagates an error from the key retrieval", async () => {

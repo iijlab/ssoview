@@ -7,7 +7,7 @@ import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import { findHttpMessagesByIds } from "@/common/services/http-store.ts";
-import { findSamlTraces, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
+import { findSamlTracesByFlowId, findSamlTracesByTabId } from "@/common/services/saml-store.ts";
 
 export async function findHttpMessagesOfFlow(flowId: string): Promise<HttpMessage[] | Error> {
   const samlTraces = await findSamlTracesByFlowId(flowId);
@@ -37,7 +37,7 @@ export async function findHttpMessagesOfFlow(flowId: string): Promise<HttpMessag
 }
 
 export async function findFlowEntriesByTabId(tabId: number): Promise<FlowEntry[] | Error> {
-  const samlTraces = await findSamlTraces(tabId);
+  const samlTraces = await findSamlTracesByTabId(tabId);
   if (samlTraces instanceof Error) {
     return samlTraces;
   }
