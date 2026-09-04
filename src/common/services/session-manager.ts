@@ -15,7 +15,7 @@ import { deleteFlowEntry } from "@/common/services/flow-store.ts";
 import { deleteHttpMessages } from "@/common/services/http-store.ts";
 import { deleteSamlTracesByFlowId, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
 import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
-import { isAttached } from "@/common/utils/chrome-debugger.ts";
+import { isWatching } from "@/common/services/watch-query.ts";
 
 // NOTE: getSessionSummaries has known inefficiencies (e.g., repeated data
 // fetches), but we prioritize simplicity as performance is not a concern at
@@ -28,9 +28,9 @@ import { isAttached } from "@/common/utils/chrome-debugger.ts";
  * @returns An array of session summaries sorted by flow ID in descending order, or an Error
  */
 export async function getSessionSummaries(tabId: number): Promise<SessionSummary[] | Error> {
-  const attached = await isAttached(tabId);
-  if (attached instanceof Error) {
-    return attached;
+  const watching = await isWatching(tabId);
+  if (watching instanceof Error) {
+    return watching;
   }
 
   const flowEntries = await findFlowEntriesByTabId(tabId);
@@ -55,7 +55,7 @@ export async function getSessionSummaries(tabId: number): Promise<SessionSummary
 
     const summary = {
       ...summarizeSamlFlow(flowEntry, captureSession, samlTraces),
-      capturing: isOngoing(captureSession) && attached,
+      capturing: isOngoing(captureSession) && watching,
     };
 
     summaries.push(summary);

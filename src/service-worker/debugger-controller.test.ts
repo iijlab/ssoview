@@ -4,20 +4,14 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { saveEventRecord } from "@/common/services/event-store.ts";
 import {
-  newDebuggerAttachedRecord,
-  newDebuggerDetachedRecord,
-} from "@/common/models/event-record.ts";
-import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
-import {
-  isDebugging,
   registerDebuggerDetachHandler,
   startDebugging,
   stopDebugging,
 } from "./debugger-controller.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  findAllEventRecords: vi.fn(),
   saveEventRecord: vi.fn(),
 }));
 
@@ -43,7 +37,6 @@ beforeEach(() => {
   attach.mockReset();
   detach.mockReset();
   vi.mocked(saveEventRecord).mockReset().mockResolvedValue(undefined);
-  vi.mocked(findAllEventRecords).mockReset().mockResolvedValue([]);
   vi.stubGlobal("chrome", {
     debugger: {
       onDetach: {
@@ -192,62 +185,5 @@ describe("stopDebugging", () => {
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).cause).toBe(error);
     expect(detach).toHaveBeenCalledOnce();
-  });
-});
-
-describe("isDebugging", () => {
-  it("returns true when the tab is attached and the records say so", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([newDebuggerAttachedRecord(1, false)]);
-    getTargets.mockResolvedValue([{ tabId: 1, attached: true }]);
-
-    expect(await isDebugging(1)).toBe(true);
-  });
-
-  it("returns false when no record says the tab was attached", async () => {
-    getTargets.mockResolvedValue([{ tabId: 1, attached: true }]);
-
-    expect(await isDebugging(1)).toBe(false);
-  });
-
-  it("returns false when the latest record is a detach", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newDebuggerAttachedRecord(1, false),
-      newDebuggerDetachedRecord(1),
-    ]);
-    getTargets.mockResolvedValue([{ tabId: 1, attached: true }]);
-
-    expect(await isDebugging(1)).toBe(false);
-  });
-
-  it("returns true when the tab was re-attached after a detach", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newDebuggerAttachedRecord(1, false),
-      newDebuggerDetachedRecord(1),
-      newDebuggerAttachedRecord(1, true),
-    ]);
-    getTargets.mockResolvedValue([{ tabId: 1, attached: true }]);
-
-    expect(await isDebugging(1)).toBe(true);
-  });
-
-  it("returns false when the records say so but the tab is no longer attached", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([newDebuggerAttachedRecord(1, false)]);
-    getTargets.mockResolvedValue([]);
-
-    expect(await isDebugging(1)).toBe(false);
-  });
-
-  it("ignores records of other tabs", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([newDebuggerAttachedRecord(2, false)]);
-    getTargets.mockResolvedValue([{ tabId: 1, attached: true }]);
-
-    expect(await isDebugging(1)).toBe(false);
-  });
-
-  it("returns the error when the records cannot be retrieved", async () => {
-    const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(error);
-
-    expect(await isDebugging(1)).toBe(error);
   });
 });
