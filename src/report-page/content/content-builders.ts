@@ -14,7 +14,6 @@ import { getHttpStatusText } from "@/report-page/common/utils.ts";
 //
 
 type SessionData = {
-  sessionId: string;
   sessionStartTime: string;
   sessionEndTime: string;
   serviceProvider: string;
@@ -81,7 +80,6 @@ export function buildSessionData(
   })();
 
   return {
-    sessionId: sessionSummary.sessionId,
     sessionStartTime: sessionSummary.start ?? "N/A",
     sessionEndTime: sessionSummary.end ?? "N/A",
     serviceProvider: sessionSummary.sp ?? "N/A",
