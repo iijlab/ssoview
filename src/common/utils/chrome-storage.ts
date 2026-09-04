@@ -11,17 +11,6 @@ export async function setSessionStorageItem(key: string, value: unknown): Promis
   }
 }
 
-export async function getSessionStorageItemValue(
-  key: string,
-): Promise<unknown | undefined | Error> {
-  try {
-    const item = await chrome.storage.session.get(key);
-    return item[key];
-  } catch (err) {
-    return new Error("Failed to get item value from session storage", { cause: err });
-  }
-}
-
 export async function getSessionStorageItems(
   keys: string[],
 ): Promise<Record<string, unknown> | Error> {
@@ -41,17 +30,6 @@ export async function getAllSessionStorageItems(): Promise<Record<string, unknow
   }
 }
 
-export async function getSessionStorageItemsByKeyPrefix(
-  keyPrefix: string,
-): Promise<Record<string, unknown> | Error> {
-  const keys = await getSessionStorageKeysByPrefix(keyPrefix);
-  if (keys instanceof Error) {
-    return keys;
-  }
-
-  return await getSessionStorageItems(keys);
-}
-
 export async function removeSessionStorageItems(keys: string[]): Promise<void | Error> {
   try {
     await chrome.storage.session.remove(keys);
@@ -60,31 +38,11 @@ export async function removeSessionStorageItems(keys: string[]): Promise<void | 
   }
 }
 
-export async function removeSessionStorageItemsByKeyPrefix(
-  keyPrefix: string,
-): Promise<void | Error> {
-  const keys = await getSessionStorageKeysByPrefix(keyPrefix);
-  if (keys instanceof Error) {
-    return keys;
-  }
-
-  return await removeSessionStorageItems(keys);
-}
-
 export async function getAllSessionStorageKeys(): Promise<string[] | Error> {
   try {
     return await chrome.storage.session.getKeys();
   } catch (err) {
     return new Error("Failed to get all keys from session storage", { cause: err });
-  }
-}
-
-async function getSessionStorageKeysByPrefix(prefix: string): Promise<string[] | Error> {
-  try {
-    const allKeys = await chrome.storage.session.getKeys();
-    return allKeys.filter((k) => k.startsWith(prefix));
-  } catch (err) {
-    return new Error("Failed to get keys from session storage", { cause: err });
   }
 }
 
