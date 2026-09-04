@@ -25,10 +25,6 @@ export async function deleteSamlTracesByFlowId(flowId: string): Promise<void | E
   return await removeSessionStorageItems(keys);
 }
 
-export async function findSamlTracesByTabId(tabId: number): Promise<SamlTrace[] | Error> {
-  return await findSamlTracesBy((k) => k.tabId === tabId);
-}
-
 export async function findSamlTracesByFlowId(flowId: string): Promise<SamlTrace[] | Error> {
   return await findSamlTracesBy((k) => k.flowId === flowId);
 }
