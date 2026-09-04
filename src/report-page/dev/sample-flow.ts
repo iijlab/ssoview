@@ -35,7 +35,8 @@ export async function buildSampleFlowData(): Promise<FlowData> {
   const sample = new URLSearchParams(window.location.search).get("sample");
 
   const allHttpMessages = await buildSampleHttpMessages(sample);
-  const allSamlTraces = await buildSampleSamlTraces(allHttpMessages);
+  const { samlTraces: allSamlTraces, correlationKey } =
+    await buildSampleSamlTraces(allHttpMessages);
 
   const httpMessages = selectSampleHttpMessages(sample, allHttpMessages);
   const httpMessageIds = new Set(httpMessages.map((m) => m.id));
@@ -45,7 +46,7 @@ export async function buildSampleFlowData(): Promise<FlowData> {
     id: sampleFlowId,
     captureSessionId: sampleCaptureSessionId,
     protocol: "saml",
-    correlationKey: allSamlTraces[0]?.sessionId ?? "",
+    correlationKey,
   };
 
   const captureSession: CaptureSession = {
@@ -217,8 +218,35 @@ function selectSampleHttpMessages(
   return allHttpMessages;
 }
 
-async function buildSampleSamlTraces(httpMessages: HttpMessage[]): Promise<SamlTrace[]> {
+async function buildSampleSamlTraces(
+  httpMessages: HttpMessage[],
+): Promise<{ samlTraces: SamlTrace[]; correlationKey: string }> {
+  const detections = await detectSampleSamlSteps(httpMessages);
+  const correlationKey = detections[0]?.detection.correlationKey ?? "";
+
   const samlTraces: SamlTrace[] = [];
+  for (const { detection, httpMessage, pairedHttpRequest } of detections) {
+    if (detection.step === 2 && pairedHttpRequest !== undefined) {
+      pushSamlTrace(
+        samlTraces,
+        { step: 1, correlationKey: detection.correlationKey },
+        pairedHttpRequest,
+      );
+    }
+    pushSamlTrace(samlTraces, detection, httpMessage);
+  }
+
+  return { samlTraces, correlationKey };
+}
+
+type SampleSamlDetection = {
+  detection: SamlDetection;
+  httpMessage: HttpMessage;
+  pairedHttpRequest?: HttpRequest;
+};
+
+async function detectSampleSamlSteps(httpMessages: HttpMessage[]): Promise<SampleSamlDetection[]> {
+  const detections: SampleSamlDetection[] = [];
 
   for (const httpMessage of httpMessages) {
     const pairedHttpRequest =
@@ -234,17 +262,10 @@ async function buildSampleSamlTraces(httpMessages: HttpMessage[]): Promise<SamlT
       continue;
     }
 
-    if (detection.step === 2 && pairedHttpRequest !== undefined) {
-      pushSamlTrace(
-        samlTraces,
-        { step: 1, correlationKey: detection.correlationKey },
-        pairedHttpRequest,
-      );
-    }
-    pushSamlTrace(samlTraces, detection, httpMessage);
+    detections.push({ detection, httpMessage, pairedHttpRequest });
   }
 
-  return samlTraces;
+  return detections;
 }
 
 async function detectSamlStep(

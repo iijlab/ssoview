@@ -11,6 +11,7 @@ import {
   findFlowEntryByCorrelationKeyInTab,
   findHttpMessagesOfFlow,
 } from "@/common/services/flow-query.ts";
+import { deleteFlowEntry } from "@/common/services/flow-store.ts";
 import { deleteHttpMessages } from "@/common/services/http-store.ts";
 import { deleteSamlTracesByFlowId, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
 import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
@@ -92,6 +93,11 @@ export async function deleteSession(tabId: number, sessionId: string): Promise<v
   const samlDeleteError = await deleteSamlTracesByFlowId(flowEntry.id);
   if (samlDeleteError) {
     return samlDeleteError;
+  }
+
+  const flowDeleteError = await deleteFlowEntry(flowEntry);
+  if (flowDeleteError) {
+    return flowDeleteError;
   }
 
   const httpDeleteError = await deleteHttpMessages(httpMessages);

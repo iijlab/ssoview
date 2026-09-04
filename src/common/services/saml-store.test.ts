@@ -52,7 +52,6 @@ function makeTrace(overrides: Record<string, unknown> = {}): SamlTrace {
     httpMessageId: "msg-1",
     observedAt: "2026-01-01T00:00:00Z",
     serverHostname: "sp.example.com",
-    sessionId: "session-1",
     action: "test action",
     step: 2,
     type: "IncomingAuthnRequest",

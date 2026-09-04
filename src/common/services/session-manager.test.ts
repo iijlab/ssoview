@@ -14,6 +14,7 @@ import {
   findFlowEntryByCorrelationKeyInTab,
   findHttpMessagesOfFlow,
 } from "@/common/services/flow-query.ts";
+import { deleteFlowEntry } from "@/common/services/flow-store.ts";
 import { deleteHttpMessages } from "@/common/services/http-store.ts";
 import { deleteSamlTracesByFlowId, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
@@ -27,6 +28,10 @@ vi.mock("@/common/services/flow-query.ts", () => ({
   findFlowEntriesByTabId: vi.fn(),
   findFlowEntryByCorrelationKeyInTab: vi.fn(),
   findHttpMessagesOfFlow: vi.fn(),
+}));
+
+vi.mock("@/common/services/flow-store.ts", () => ({
+  deleteFlowEntry: vi.fn(),
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -52,6 +57,7 @@ beforeEach(() => {
   vi.mocked(findFlowEntryByCorrelationKeyInTab).mockResolvedValue(makeFlowEntry());
   vi.mocked(findHttpMessagesOfFlow).mockResolvedValue([]);
   vi.mocked(deleteSamlTracesByFlowId).mockResolvedValue(undefined);
+  vi.mocked(deleteFlowEntry).mockResolvedValue(undefined);
   vi.mocked(deleteHttpMessages).mockResolvedValue(undefined);
 });
 
@@ -66,7 +72,6 @@ function makeSamlTrace(overrides: Partial<SamlTrace>): SamlTrace {
     httpMessageId: "msg-1",
     observedAt: "2026-01-01T00:00:00.000Z",
     serverHostname: "sp.example.com",
-    sessionId: "corr-1",
     action: "test action",
     step: 2,
     type: "IncomingAuthnRequest",
@@ -208,7 +213,8 @@ describe("getSessionSummaries", () => {
 });
 
 describe("deleteSession", () => {
-  it("deletes the traces and then the HTTP messages of the flow", async () => {
+  it("deletes the traces, the flow, and then the HTTP messages of the flow", async () => {
+    const flowEntry = makeFlowEntry();
     const httpMessages = [{ id: "msg-1" } as HttpMessage];
     vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(httpMessages);
 
@@ -216,10 +222,12 @@ describe("deleteSession", () => {
     expect(findFlowEntryByCorrelationKeyInTab).toHaveBeenCalledWith(1, "corr-1");
     expect(findHttpMessagesOfFlow).toHaveBeenCalledWith("flow-1");
     expect(deleteSamlTracesByFlowId).toHaveBeenCalledWith("flow-1");
+    expect(deleteFlowEntry).toHaveBeenCalledWith(flowEntry);
     expect(deleteHttpMessages).toHaveBeenCalledWith(httpMessages);
-    expect(vi.mocked(deleteSamlTracesByFlowId).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(deleteHttpMessages).mock.invocationCallOrder[0]!,
+    const order = [deleteSamlTracesByFlowId, deleteFlowEntry, deleteHttpMessages].map(
+      (fn) => vi.mocked(fn).mock.invocationCallOrder[0]!,
     );
+    expect(order).toEqual(order.toSorted((a, b) => a - b));
   });
 
   it("does nothing with a warning when no flow has the session ID", async () => {
@@ -252,6 +260,15 @@ describe("deleteSession", () => {
   it("returns an error when the trace deletion fails", async () => {
     const error = new Error("saml delete error");
     vi.mocked(deleteSamlTracesByFlowId).mockResolvedValue(error);
+
+    expect(await deleteSession(1, "corr-1")).toBe(error);
+    expect(deleteFlowEntry).not.toHaveBeenCalled();
+    expect(deleteHttpMessages).not.toHaveBeenCalled();
+  });
+
+  it("returns an error when the flow deletion fails", async () => {
+    const error = new Error("flow delete error");
+    vi.mocked(deleteFlowEntry).mockResolvedValue(error);
 
     expect(await deleteSession(1, "corr-1")).toBe(error);
     expect(deleteHttpMessages).not.toHaveBeenCalled();

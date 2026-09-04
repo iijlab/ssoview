@@ -8,9 +8,11 @@ import { type FlowEntry, newFlowEntry } from "@/common/models/flow-entry.ts";
 import {
   getAllSessionStorageKeys,
   getSessionStorageItems,
+  removeSessionStorageItems,
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
 import {
+  deleteFlowEntry,
   findFlowEntriesByCaptureSessionId,
   findFlowEntryByCorrelationKey,
   findFlowEntryById,
@@ -20,6 +22,7 @@ import {
 vi.mock("@/common/utils/chrome-storage.ts", () => ({
   getAllSessionStorageKeys: vi.fn(),
   getSessionStorageItems: vi.fn(),
+  removeSessionStorageItems: vi.fn(),
   setSessionStorageItem: vi.fn(),
 }));
 
@@ -57,6 +60,27 @@ describe("saveFlowEntry", () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(error);
 
     const result = await saveFlowEntry(newFlowEntry("cs-1", "saml", "key"));
+
+    expect(result).toBe(error);
+  });
+});
+
+describe("deleteFlowEntry", () => {
+  it("removes the flow by its key", async () => {
+    vi.mocked(removeSessionStorageItems).mockResolvedValue(undefined);
+    const flow = newFlowEntry("cs-1", "saml", "_authn-request-id");
+
+    const result = await deleteFlowEntry(flow);
+
+    expect(result).toBeUndefined();
+    expect(removeSessionStorageItems).toHaveBeenCalledExactlyOnceWith([keyOf(flow)]);
+  });
+
+  it("propagates an error from the storage", async () => {
+    const error = new Error("storage failed");
+    vi.mocked(removeSessionStorageItems).mockResolvedValue(error);
+
+    const result = await deleteFlowEntry(newFlowEntry("cs-1", "saml", "key"));
 
     expect(result).toBe(error);
   });
