@@ -15,7 +15,6 @@ describe("isSamlTrace", () => {
       httpMessageId: "msg-1",
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
-      sessionId: "abc123",
       action: "test action",
       step: 2,
       type: "IncomingAuthnRequest",
@@ -63,16 +62,6 @@ describe("isSamlTrace", () => {
 
   it("returns false when serverHostname is not a string", () => {
     expect(isSamlTrace({ ...makeTraceFields(), serverHostname: null })).toBe(false);
-  });
-
-  it("returns false when sessionId is missing", () => {
-    const msg = makeTraceFields();
-    delete msg.sessionId;
-    expect(isSamlTrace(msg)).toBe(false);
-  });
-
-  it("returns false when sessionId is not a string", () => {
-    expect(isSamlTrace({ ...makeTraceFields(), sessionId: 123 })).toBe(false);
   });
 
   it("returns false when optional samlStatusCode is not a string", () => {
@@ -124,7 +113,6 @@ describe("newSamlTrace", () => {
       httpMessageId: "msg-1",
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
-      sessionId: "authn-req-1",
       step: 1,
       type: "UnauthenticatedResourceRequest",
       action: "User Agent requests a secured resource at Service Provider",
@@ -142,7 +130,6 @@ describe("newSamlTrace", () => {
       httpMessageId: "msg-1",
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
-      sessionId: "authn-req-1",
       step: 2,
       type: "IncomingAuthnRequest",
       action: "Service Provider issues SAML AuthnRequest",
@@ -156,7 +143,6 @@ describe("newSamlTrace", () => {
     const result = newSamlTrace("flow-1", { step: 3, correlationKey: "authn-req-1" }, request);
 
     expect(result).toMatchObject({
-      sessionId: "authn-req-1",
       step: 3,
       type: "OutgoingAuthnRequest",
       serverHostname: "idp.example.org",
@@ -185,7 +171,6 @@ describe("newSamlTrace", () => {
     );
 
     expect(result).toMatchObject({
-      sessionId: "authn-req-1",
       step: 4,
       type: "IncomingResponse",
       action: "Identity Provider issues SAML Response",
@@ -203,7 +188,6 @@ describe("newSamlTrace", () => {
     );
 
     expect(result).toMatchObject({
-      sessionId: "authn-req-1",
       step: 5,
       type: "OutgoingResponse",
       action: "User Agent submits SAML Response to Service Provider",
@@ -217,7 +201,6 @@ describe("newSamlTrace", () => {
     const result = newSamlTrace("flow-1", { step: 6, correlationKey: "authn-req-1" }, response);
 
     expect(result).toMatchObject({
-      sessionId: "authn-req-1",
       step: 6,
       type: "AuthenticatedResourceResponse",
       action: "Service Provider returns the requested resource",

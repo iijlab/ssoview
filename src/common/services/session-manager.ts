@@ -4,13 +4,16 @@
  */
 
 import { type CaptureSession } from "@/common/models/capture-session.ts";
-import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
 import { getCaptureSession } from "@/common/services/capture-query.ts";
-import { findFlowEntryById } from "@/common/services/flow-store.ts";
-import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import {
+  findFlowEntriesByTabId,
+  findFlowEntryByCorrelationKeyInTab,
+  findHttpMessagesOfFlow,
+} from "@/common/services/flow-query.ts";
+import { deleteFlowEntry } from "@/common/services/flow-store.ts";
 import { deleteHttpMessages } from "@/common/services/http-store.ts";
-import { deleteSamlTraces, findSamlTraces } from "@/common/services/saml-store.ts";
+import { deleteSamlTracesByFlowId, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
 import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
 
@@ -30,27 +33,24 @@ export async function getSessionSummaries(tabId: number): Promise<SessionSummary
     return attached;
   }
 
-  const samlTracesByFlowId = await findSamlTracesGroupedByFlowId(tabId);
-  if (samlTracesByFlowId instanceof Error) {
-    return samlTracesByFlowId;
+  const flowEntries = await findFlowEntriesByTabId(tabId);
+  if (flowEntries instanceof Error) {
+    return flowEntries;
   }
 
   const summaries: SessionSummary[] = [];
-  for (const [flowId, samlTraces] of samlTracesByFlowId) {
-    const flowEntry = await findFlowEntryById(flowId);
-    if (flowEntry instanceof Error) {
-      return flowEntry;
-    } else if (flowEntry === undefined) {
-      console.warn("No flow entry for the traces:", { flowId });
-      continue;
-    }
-
+  for (const flowEntry of flowEntries) {
     const captureSession = await getCaptureSession(flowEntry.captureSessionId);
     if (captureSession instanceof Error) {
       return captureSession;
     } else if (captureSession === undefined) {
-      console.warn("No capture session for the flow:", { flowId });
+      console.warn("No capture session for the flow:", { flowId: flowEntry.id });
       continue;
+    }
+
+    const samlTraces = await findSamlTracesByFlowId(flowEntry.id);
+    if (samlTraces instanceof Error) {
+      return samlTraces;
     }
 
     const summary = {
@@ -65,24 +65,6 @@ export async function getSessionSummaries(tabId: number): Promise<SessionSummary
   return summaries;
 }
 
-async function findSamlTracesGroupedByFlowId(
-  tabId: number,
-): Promise<Map<string, SamlTrace[]> | Error> {
-  const samlTraces = await findSamlTraces(tabId);
-  if (samlTraces instanceof Error) {
-    return samlTraces;
-  }
-
-  // TODO: Rewrite with Map.groupBy after raising the TypeScript target to ES2024 or later
-  const samlTracesByFlowId = samlTraces.reduce((acc, trace) => {
-    const current = acc.get(trace.flowId) ?? [];
-    acc.set(trace.flowId, [...current, trace]);
-    return acc;
-  }, new Map<string, SamlTrace[]>());
-
-  return new Map([...samlTracesByFlowId.entries()].toSorted(([a], [b]) => (a < b ? 1 : -1)));
-}
-
 function isOngoing(captureSession: CaptureSession): boolean {
   return !captureSession.imported && captureSession.endedAt === undefined;
 }
@@ -95,14 +77,27 @@ function isOngoing(captureSession: CaptureSession): boolean {
  * @returns void on success, or an Error
  */
 export async function deleteSession(tabId: number, sessionId: string): Promise<void | Error> {
-  const httpMessages = await findHttpMessagesOfFlow(tabId, sessionId);
+  const flowEntry = await findFlowEntryByCorrelationKeyInTab(tabId, sessionId);
+  if (flowEntry instanceof Error) {
+    return flowEntry;
+  } else if (flowEntry === undefined) {
+    console.warn("No flow to delete:", { tabId, sessionId });
+    return;
+  }
+
+  const httpMessages = await findHttpMessagesOfFlow(flowEntry.id);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }
 
-  const samlDeleteError = await deleteSamlTraces(tabId, sessionId);
+  const samlDeleteError = await deleteSamlTracesByFlowId(flowEntry.id);
   if (samlDeleteError) {
     return samlDeleteError;
+  }
+
+  const flowDeleteError = await deleteFlowEntry(flowEntry);
+  if (flowDeleteError) {
+    return flowDeleteError;
   }
 
   const httpDeleteError = await deleteHttpMessages(httpMessages);

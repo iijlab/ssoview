@@ -114,16 +114,7 @@ async function onStopMonitoring(tabId: number): Promise<void | Error> {
 }
 
 async function onGetSessionSummaries(tabId: number): Promise<SessionSummary[] | Error> {
-  const summaries = await getSessionSummaries(tabId);
-  if (summaries instanceof Error) {
-    return summaries;
-  }
-
-  return summaries.map((summary) => ({
-    ...summary,
-    // for backward compatibility
-    source: summary.imported ? "imported" : "captured",
-  }));
+  return await getSessionSummaries(tabId);
 }
 
 async function onRemoveSession(tabId: number, sessionId: string): Promise<void | Error> {

@@ -11,7 +11,12 @@ import {
   removeSessionStorageItems,
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
-import { deleteSamlTraces, findSamlTraces, saveSamlTrace } from "./saml-store.ts";
+import {
+  deleteSamlTracesByFlowId,
+  findSamlTraces,
+  findSamlTracesByFlowId,
+  saveSamlTrace,
+} from "./saml-store.ts";
 
 vi.mock("@/common/utils/chrome-storage.ts", () => ({
   getAllSessionStorageKeys: vi.fn(),
@@ -47,7 +52,6 @@ function makeTrace(overrides: Record<string, unknown> = {}): SamlTrace {
     httpMessageId: "msg-1",
     observedAt: "2026-01-01T00:00:00Z",
     serverHostname: "sp.example.com",
-    sessionId: "session-1",
     action: "test action",
     step: 2,
     type: "IncomingAuthnRequest",
@@ -105,16 +109,64 @@ describe("findSamlTraces", () => {
   });
 });
 
-describe("deleteSamlTraces", () => {
-  it("removes only the traces of the tab and session", async () => {
-    await saveSamlTrace(makeTrace({ id: "trace-1", sessionId: "session-1" }), 1);
-    await saveSamlTrace(makeTrace({ id: "trace-2", sessionId: "session-2" }), 1);
-    await saveSamlTrace(makeTrace({ id: "trace-3", sessionId: "session-1" }), 2);
+describe("findSamlTracesByFlowId", () => {
+  it("returns the traces of the flow across tabs in id order", async () => {
+    await saveSamlTrace(makeTrace({ id: "trace-2", flowId: "flow-1" }), 1);
+    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }), 2);
+    await saveSamlTrace(makeTrace({ id: "trace-3", flowId: "flow-2" }), 1);
 
-    const result = await deleteSamlTraces(1, "session-1");
+    const result = await findSamlTracesByFlowId("flow-1");
+
+    expect(result).not.toBeInstanceOf(Error);
+    expect((result as SamlTrace[]).map((t) => t.id)).toEqual(["trace-1", "trace-2"]);
+  });
+
+  it("reads only the items with matching keys", async () => {
+    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }), 1);
+    await saveSamlTrace(makeTrace({ id: "trace-2", flowId: "flow-2" }), 1);
+
+    await findSamlTracesByFlowId("flow-1");
+
+    expect(getSessionStorageItems).toHaveBeenCalledWith([
+      '{"id":"trace-1","kind":"trace","tabId":1,"flowId":"flow-1"}',
+    ]);
+  });
+
+  it("propagates an error from the storage", async () => {
+    const error = new Error("storage error");
+    vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
+
+    expect(await findSamlTracesByFlowId("flow-1")).toBe(error);
+  });
+});
+
+describe("deleteSamlTracesByFlowId", () => {
+  it("removes only the traces of the flow", async () => {
+    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }), 1);
+    await saveSamlTrace(makeTrace({ id: "trace-2", flowId: "flow-2" }), 1);
+    await saveSamlTrace(makeTrace({ id: "trace-3", flowId: "flow-1" }), 2);
+
+    const result = await deleteSamlTracesByFlowId("flow-1");
 
     expect(result).toBeUndefined();
+    expect(getSessionStorageItems).not.toHaveBeenCalled();
     expect(((await findSamlTraces(1)) as SamlTrace[]).map((t) => t.id)).toEqual(["trace-2"]);
-    expect(((await findSamlTraces(2)) as SamlTrace[]).map((t) => t.id)).toEqual(["trace-3"]);
+    expect(await findSamlTraces(2)).toEqual([]);
+  });
+
+  it("propagates an error from the key retrieval", async () => {
+    const error = new Error("storage error");
+    vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
+
+    expect(await deleteSamlTracesByFlowId("flow-1")).toBe(error);
+    expect(removeSessionStorageItems).not.toHaveBeenCalled();
+  });
+
+  it("propagates an error from the removal", async () => {
+    const error = new Error("storage error");
+    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }), 1);
+    vi.mocked(removeSessionStorageItems).mockResolvedValue(error);
+
+    expect(await deleteSamlTracesByFlowId("flow-1")).toBe(error);
   });
 });

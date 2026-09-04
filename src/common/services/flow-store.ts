@@ -7,12 +7,17 @@ import { type FlowEntry, isFlowEntry } from "@/common/models/flow-entry.ts";
 import {
   getAllSessionStorageKeys,
   getSessionStorageItems,
+  removeSessionStorageItems,
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
 export async function saveFlowEntry(flowEntry: FlowEntry): Promise<void | Error> {
   return await setSessionStorageItem(makeFlowEntryKey(flowEntry), flowEntry);
+}
+
+export async function deleteFlowEntry(flowEntry: FlowEntry): Promise<void | Error> {
+  return await removeSessionStorageItems([makeFlowEntryKey(flowEntry)]);
 }
 
 export async function findFlowEntriesByCaptureSessionId(

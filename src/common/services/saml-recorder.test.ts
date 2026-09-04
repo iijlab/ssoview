@@ -113,7 +113,6 @@ describe("recordSamlTrace", () => {
       httpMessageId: pairedHttpRequest.id,
       observedAt: pairedHttpRequest.observedAt,
       serverHostname: "sp.example.com",
-      sessionId: "authn-req-1",
       action: "User Agent requests a secured resource at Service Provider",
     });
   });

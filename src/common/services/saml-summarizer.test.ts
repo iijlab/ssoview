@@ -20,7 +20,6 @@ function makeSamlTrace(overrides: Partial<SamlTrace>): SamlTrace {
     httpMessageId: "msg-1",
     observedAt: "2026-01-01T00:00:00.000Z",
     serverHostname: "sp.example.com",
-    sessionId: "session-1",
     action: "test action",
     step: 2,
     type: "IncomingAuthnRequest",

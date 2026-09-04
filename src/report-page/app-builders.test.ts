@@ -48,7 +48,6 @@ function makeSamlTrace(id: string, step: SamlTrace["step"], httpMessageId: strin
     httpMessageId,
     observedAt: "2026-01-01T00:00:00Z",
     serverHostname: "sp.example.com",
-    sessionId: "corr-1",
     action: "test action",
     step,
     type: "UnauthenticatedResourceRequest",

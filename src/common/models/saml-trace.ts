@@ -23,7 +23,6 @@ type SamlTraceBase = {
   httpMessageId: string;
   observedAt: string;
   serverHostname: string;
-  sessionId: string;
   action: string;
 };
 
@@ -73,7 +72,6 @@ export function isSamlTrace(u: unknown): u is SamlTrace {
     typeof u.httpMessageId === "string" &&
     typeof u.observedAt === "string" &&
     typeof u.serverHostname === "string" &&
-    typeof u.sessionId === "string" &&
     (!("samlStatusCode" in u) || typeof u.samlStatusCode === "string")
   );
 }
@@ -94,7 +92,6 @@ export function newSamlTrace(
     httpMessageId: httpMessage.id,
     observedAt: httpMessage.observedAt,
     serverHostname: hostname,
-    sessionId: detection.correlationKey,
   };
 
   switch (detection.step) {
@@ -169,7 +166,7 @@ export const debugSamlTrace =
 async function debugSamlTraceImpl(samlTrace: SamlTrace) {
   const debug = await createLabeledDebugLogger([
     "SAML",
-    samlTrace.sessionId,
+    samlTrace.flowId,
     `Step ${samlTrace.step}`,
   ]);
   debug({ [samlTrace.type]: samlTrace });
