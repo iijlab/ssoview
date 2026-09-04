@@ -8,10 +8,8 @@ import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
-import {
-  findFlowEntryByCorrelationKeyInTab,
-  findHttpMessagesOfFlow,
-} from "@/common/services/flow-query.ts";
+import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import { saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
@@ -30,8 +28,11 @@ vi.mock("@/common/services/event-store.ts", () => ({
 }));
 
 vi.mock("@/common/services/flow-query.ts", () => ({
-  findFlowEntryByCorrelationKeyInTab: vi.fn(),
   findHttpMessagesOfFlow: vi.fn(),
+}));
+
+vi.mock("@/common/services/flow-store.ts", () => ({
+  findFlowEntryById: vi.fn(),
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -62,42 +63,42 @@ describe("dumpSessionArchive", () => {
 
   it("returns HAR string on success", async () => {
     const httpMessages = [{} as HttpMessage];
-    vi.mocked(findFlowEntryByCorrelationKeyInTab).mockResolvedValue(flowEntry);
+    vi.mocked(findFlowEntryById).mockResolvedValue(flowEntry);
     vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(httpMessages);
     vi.mocked(newHar).mockReturnValue('{"log":{}}');
 
-    const result = await dumpSessionArchive(1, "session-1");
+    const result = await dumpSessionArchive(1, "flow-1");
 
-    expect(findFlowEntryByCorrelationKeyInTab).toHaveBeenCalledWith(1, "session-1");
+    expect(findFlowEntryById).toHaveBeenCalledWith("flow-1");
     expect(findHttpMessagesOfFlow).toHaveBeenCalledWith("flow-1");
     expect(newHar).toHaveBeenCalledWith(httpMessages);
     expect(result).toBe('{"log":{}}');
   });
 
   it("returns Error when the flow cannot be found", async () => {
-    vi.mocked(findFlowEntryByCorrelationKeyInTab).mockResolvedValue(new Error("storage error"));
+    vi.mocked(findFlowEntryById).mockResolvedValue(new Error("storage error"));
 
-    const result = await dumpSessionArchive(1, "session-1");
+    const result = await dumpSessionArchive(1, "flow-1");
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("storage error");
     expect(findHttpMessagesOfFlow).not.toHaveBeenCalled();
   });
 
-  it("returns Error when no flow has the session ID", async () => {
-    vi.mocked(findFlowEntryByCorrelationKeyInTab).mockResolvedValue(undefined);
+  it("returns Error when no flow has the flow ID", async () => {
+    vi.mocked(findFlowEntryById).mockResolvedValue(undefined);
 
-    const result = await dumpSessionArchive(1, "session-1");
+    const result = await dumpSessionArchive(1, "flow-1");
 
     expect(result).toBeInstanceOf(Error);
     expect(findHttpMessagesOfFlow).not.toHaveBeenCalled();
   });
 
   it("returns Error when findHttpMessagesOfFlow fails", async () => {
-    vi.mocked(findFlowEntryByCorrelationKeyInTab).mockResolvedValue(flowEntry);
+    vi.mocked(findFlowEntryById).mockResolvedValue(flowEntry);
     vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(new Error("storage error"));
 
-    const result = await dumpSessionArchive(1, "session-1");
+    const result = await dumpSessionArchive(1, "flow-1");
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("storage error");
@@ -128,7 +129,6 @@ describe("loadSessionArchive", () => {
     expect(saveHttpMessage).toHaveBeenCalledWith(importedHttpMessage);
     expect(recordSamlTrace).toHaveBeenCalledWith(
       importedRecord.id,
-      1,
       { step: 3, correlationKey: "session-1" },
       importedHttpMessage,
       undefined,
@@ -199,7 +199,6 @@ describe("loadSessionArchive", () => {
     expect(saveHttpMessage).toHaveBeenNthCalledWith(2, importedHttpMessage);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
       importedRecord.id,
-      1,
       { step: 6, correlationKey: "session-1" },
       importedHttpMessage,
       importedPairedRequest,

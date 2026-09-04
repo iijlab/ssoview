@@ -12,10 +12,8 @@ import {
 } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
-import {
-  findFlowEntryByCorrelationKeyInTab,
-  findHttpMessagesOfFlow,
-} from "@/common/services/flow-query.ts";
+import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import { saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
@@ -24,17 +22,14 @@ import {
 import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
 
 /**
- * Export session data as an HTTP Archive (HAR) JSON string.
+ * Export SSO flow data as an HTTP Archive (HAR) JSON string.
  *
- * @param tabId - The tab ID associated with the session
- * @param sessionId - The session ID to export
+ * @param _tabId - Unused. Kept until the side panel stops passing it
+ * @param flowId - The flow ID to export
  * @returns The HAR JSON string, or an Error if retrieval fails
  */
-export async function dumpSessionArchive(
-  tabId: number,
-  sessionId: string,
-): Promise<string | Error> {
-  const flowEntry = await findFlowEntryByCorrelationKeyInTab(tabId, sessionId);
+export async function dumpSessionArchive(_tabId: number, flowId: string): Promise<string | Error> {
+  const flowEntry = await findFlowEntryById(flowId);
   if (flowEntry instanceof Error) {
     return flowEntry;
   } else if (flowEntry === undefined) {
@@ -54,11 +49,11 @@ export async function dumpSessionArchive(
  *
  * A single archive may contain multiple sessions.
  *
- * @param tabId - The tab ID to associate with imported sessions
+ * @param _tabId - Unused. Kept until the side panel stops passing it
  * @param har - The HAR JSON string to import
  * @returns An array of imported session IDs, or an Error if import fails
  */
-export async function loadSessionArchive(tabId: number, har: string): Promise<string[] | Error> {
+export async function loadSessionArchive(_tabId: number, har: string): Promise<string[] | Error> {
   const archivedHttpMessages = toHttpMessages(har);
   if (archivedHttpMessages instanceof Error) {
     return archivedHttpMessages;
@@ -112,7 +107,6 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
 
     const recordError = await recordSamlTrace(
       captureSessionId,
-      tabId,
       detection,
       httpMessage,
       pairedHttpRequest,

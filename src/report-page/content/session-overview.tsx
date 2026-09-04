@@ -49,10 +49,6 @@ export function SessionOverview({
           <table className="w-full border-collapse">
             <tbody>
               <tr className="border-b border-gray-800 even:bg-gray-800/80">
-                <td className="w-1/3 px-4 py-3 font-semibold text-gray-300">Session ID</td>
-                <td className="px-4 py-3">{sessionData.sessionId}</td>
-              </tr>
-              <tr className="border-b border-gray-800 even:bg-gray-800/80">
                 <td className="w-1/3 px-4 py-3 font-semibold text-gray-300">Session Start Time</td>
                 <td className="px-4 py-3">{sessionData.sessionStartTime}</td>
               </tr>

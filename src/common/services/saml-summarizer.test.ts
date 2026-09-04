@@ -66,7 +66,7 @@ describe("summarizeSamlFlow", () => {
 
     expect(result).toMatchObject({
       protocol: "saml",
-      sessionId: "corr-1",
+      sessionId: "flow-1",
       imported: false,
       capturing: false,
       start: "2026-01-01T00:00:00.000Z",
@@ -164,12 +164,12 @@ describe("summarizeSamlFlow", () => {
     expect(result).toMatchObject({ action: "third action" });
   });
 
-  it("uses the correlation key of the flow as the session ID", () => {
+  it("uses the flow ID as the session ID", () => {
     const result = summarizeSamlFlow(flowEntry, captureSession, [
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest" }),
     ]);
 
-    expect(result).toMatchObject({ sessionId: "corr-1", imported: false });
+    expect(result).toMatchObject({ sessionId: "flow-1", imported: false });
   });
 
   it("derives imported from the capture session", () => {

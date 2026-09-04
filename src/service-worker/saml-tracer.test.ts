@@ -76,7 +76,7 @@ describe("processHttpRequest", () => {
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
 
-    const result = await processHttpRequest(1, request);
+    const result = await processHttpRequest(request);
 
     expect(result).toBeUndefined();
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(request);
@@ -88,7 +88,7 @@ describe("processHttpRequest", () => {
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(new Error("detection error"));
 
-    const result = await processHttpRequest(1, request);
+    const result = await processHttpRequest(request);
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("detection error");
@@ -105,13 +105,12 @@ describe("processHttpRequest", () => {
     });
     vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
 
-    const result = await processHttpRequest(1, request);
+    const result = await processHttpRequest(request);
 
     expect(result).toBe("session-1");
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(request);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
       "capture-session-1",
-      1,
       { step: 3, correlationKey: "session-1" },
       request,
     );
@@ -121,7 +120,7 @@ describe("processHttpRequest", () => {
     const request = makeRequest();
     vi.mocked(saveHttpMessage).mockResolvedValue(new Error("store error"));
 
-    const result = await processHttpRequest(1, request);
+    const result = await processHttpRequest(request);
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("store error");
@@ -138,7 +137,7 @@ describe("processHttpRequest", () => {
     });
     vi.mocked(recordSamlTrace).mockResolvedValue(new Error("record error"));
 
-    const result = await processHttpRequest(1, request);
+    const result = await processHttpRequest(request);
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("record error");
@@ -156,14 +155,13 @@ describe("processHttpResponse", () => {
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
 
-    const result = await processHttpResponse(1, response, pairedRequest);
+    const result = await processHttpResponse(response, pairedRequest);
 
     expect(result).toBe("session-1");
     expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(response, pairedRequest);
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(response);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
       "capture-session-1",
-      1,
       { step: 2, correlationKey: "session-1" },
       response,
       pairedRequest,
@@ -178,7 +176,7 @@ describe("processHttpResponse", () => {
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
     vi.mocked(deleteHttpMessages).mockResolvedValue(undefined);
 
-    const result = await processHttpResponse(1, response, pairedRequest);
+    const result = await processHttpResponse(response, pairedRequest);
 
     expect(result).toBeUndefined();
     expect(saveHttpMessage).not.toHaveBeenCalled();
@@ -196,7 +194,7 @@ describe("processHttpResponse", () => {
       correlationKey: "session-1",
     });
 
-    const result = await processHttpResponse(1, response, pairedRequest);
+    const result = await processHttpResponse(response, pairedRequest);
 
     expect(result).toBeUndefined();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
@@ -209,7 +207,7 @@ describe("processHttpResponse", () => {
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
     vi.mocked(deleteHttpMessages).mockResolvedValue(new Error("delete error"));
 
-    const result = await processHttpResponse(1, response, pairedRequest);
+    const result = await processHttpResponse(response, pairedRequest);
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("delete error");
@@ -220,7 +218,7 @@ describe("processHttpResponse", () => {
     const response = makeResponse();
     vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue(new Error("detection error"));
 
-    const result = await processHttpResponse(1, response, pairedRequest);
+    const result = await processHttpResponse(response, pairedRequest);
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("detection error");
@@ -237,7 +235,7 @@ describe("processHttpResponse", () => {
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(new Error("store error"));
 
-    const result = await processHttpResponse(1, response, pairedRequest);
+    const result = await processHttpResponse(response, pairedRequest);
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("store error");
@@ -254,7 +252,7 @@ describe("processHttpResponse", () => {
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(recordSamlTrace).mockResolvedValue(new Error("record error"));
 
-    const result = await processHttpResponse(1, response, pairedRequest);
+    const result = await processHttpResponse(response, pairedRequest);
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("record error");

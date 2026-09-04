@@ -17,7 +17,6 @@ import {
 import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
 
 export async function processHttpRequest(
-  tabId: number,
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   await debugHttpRequest(httpRequest);
@@ -34,12 +33,7 @@ export async function processHttpRequest(
     return undefined;
   }
 
-  const recordError = await recordSamlTrace(
-    httpRequest.captureSessionId,
-    tabId,
-    detection,
-    httpRequest,
-  );
+  const recordError = await recordSamlTrace(httpRequest.captureSessionId, detection, httpRequest);
   if (recordError) {
     return recordError;
   }
@@ -48,7 +42,6 @@ export async function processHttpRequest(
 }
 
 export async function processHttpResponse(
-  tabId: number,
   httpResponse: HttpResponse,
   pairedHttpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
@@ -79,7 +72,6 @@ export async function processHttpResponse(
 
   const recordError = await recordSamlTrace(
     httpResponse.captureSessionId,
-    tabId,
     detection,
     httpResponse,
     pairedHttpRequest,

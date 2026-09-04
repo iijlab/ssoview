@@ -133,7 +133,6 @@ const sampleResponseXml = `
 describe("buildSessionData", () => {
   it("maps sessionSummary fields", () => {
     const summary = makeSessionSummary({
-      sessionId: "ses-abc",
       start: "2026-01-01T00:00:00Z",
       end: "2026-01-01T00:01:00Z",
       sp: "sp.example.com",
@@ -142,7 +141,6 @@ describe("buildSessionData", () => {
 
     const result = buildSessionData(summary);
 
-    expect(result.sessionId).toBe("ses-abc");
     expect(result.sessionStartTime).toBe("2026-01-01T00:00:00Z");
     expect(result.sessionEndTime).toBe("2026-01-01T00:01:00Z");
     expect(result.serviceProvider).toBe("sp.example.com");

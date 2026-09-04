@@ -12,7 +12,6 @@ import { saveSamlTrace } from "@/common/services/saml-store.ts";
 
 export async function recordSamlTrace(
   captureSessionId: string,
-  tabId: number,
   detection: SamlDetection,
   httpMessage: HttpMessage,
   pairedHttpRequest?: HttpRequest,
@@ -25,7 +24,6 @@ export async function recordSamlTrace(
     } else {
       const recordError = await recordSamlTrace(
         captureSessionId,
-        tabId,
         {
           step: 1,
           correlationKey: detection.correlationKey,
@@ -48,7 +46,7 @@ export async function recordSamlTrace(
     return samlTrace;
   }
 
-  const saveError = await saveSamlTrace(samlTrace, tabId);
+  const saveError = await saveSamlTrace(samlTrace);
   if (saveError) {
     return saveError;
   }

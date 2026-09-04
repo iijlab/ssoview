@@ -31,10 +31,9 @@ export function App() {
   useEffect(() => {
     const fetchSessionData = async () => {
       const params = new URLSearchParams(window.location.search);
-      const tabId = Number(params.get("tabId"));
-      const sessionId = params.get("sessionId");
+      const flowId = params.get("sessionId");
 
-      const flowData = await loadFlowData(tabId, sessionId);
+      const flowData = await loadFlowData(flowId);
       if (flowData instanceof Error) {
         console.warn("Failed to load flow data:", { error: flowData });
         return;

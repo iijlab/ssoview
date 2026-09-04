@@ -10,9 +10,9 @@ import {
   newHttpRequest,
   newHttpResponse,
 } from "@/common/models/http-message.ts";
+import { getOngoingCaptureSessionId } from "@/common/services/capture-query.ts";
 import { findHttpRequestByFetchRequestId } from "@/common/services/http-store.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
-import { getOngoingCaptureSessionId } from "@/service-worker/capture-manager.ts";
 
 export function registerHttpInterceptionHandlers(
   onInterceptHttpRequest: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
