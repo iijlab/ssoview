@@ -149,11 +149,6 @@ async function resolvePairedHttpRequest(
   if (httpRequest instanceof Error) {
     console.warn("Failed to find the paired request:", httpRequest);
     return undefined;
-  } else if (httpRequest === undefined) {
-    console.warn("No paired request stored, skipping the HTTP response:", {
-      tabId,
-      fetchRequestId,
-    });
   }
 
   return httpRequest;
