@@ -12,8 +12,8 @@ import {
 } from "@/common/utils/chrome-storage.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
-export async function saveSamlTrace(samlTrace: SamlTrace, tabId: number): Promise<void | Error> {
-  return await setSessionStorageItem(makeSamlTraceKey(samlTrace, tabId), samlTrace);
+export async function saveSamlTrace(samlTrace: SamlTrace): Promise<void | Error> {
+  return await setSessionStorageItem(makeSamlTraceKey(samlTrace), samlTrace);
 }
 
 export async function deleteSamlTracesByFlowId(flowId: string): Promise<void | Error> {
@@ -72,7 +72,6 @@ const samlTraceKind = "trace";
 type SamlTraceKeyFields = {
   id: string;
   kind: typeof samlTraceKind;
-  tabId: number;
   flowId: string;
 };
 
@@ -81,18 +80,12 @@ function isSamlTraceKeyFields(u: unknown): u is SamlTraceKeyFields {
     isObject(u) &&
     typeof u.id === "string" &&
     u.kind === samlTraceKind &&
-    typeof u.tabId === "number" &&
     typeof u.flowId === "string"
   );
 }
 
-function makeSamlTraceKey(samlTrace: SamlTrace, tabId: number): string {
-  return JSON.stringify({ ...samlTrace, kind: samlTraceKind, tabId }, [
-    "id",
-    "kind",
-    "tabId",
-    "flowId",
-  ]);
+function makeSamlTraceKey(samlTrace: SamlTrace): string {
+  return JSON.stringify({ ...samlTrace, kind: samlTraceKind }, ["id", "kind", "flowId"]);
 }
 
 function parseSamlTraceKey(key: string): SamlTraceKeyFields | undefined {

@@ -76,7 +76,6 @@ describe("recordSamlTrace", () => {
   it("issues a flow for an unknown correlation key and stores the trace", async () => {
     const result = await recordSamlTrace(
       "cs-1",
-      1,
       { step: 6, correlationKey: "authn-req-1" },
       makeResponse(),
     );
@@ -99,7 +98,6 @@ describe("recordSamlTrace", () => {
 
     const result = await recordSamlTrace(
       "cs-1",
-      1,
       { step: 2, correlationKey: "authn-req-1" },
       makeResponse(),
       pairedHttpRequest,
@@ -120,7 +118,7 @@ describe("recordSamlTrace", () => {
   it("skips the step 1 trace when the paired request is missing", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await recordSamlTrace("cs-1", 1, { step: 2, correlationKey: "authn-req-1" }, makeResponse());
+    await recordSamlTrace("cs-1", { step: 2, correlationKey: "authn-req-1" }, makeResponse());
 
     expect(storedSamlTraces().map((t) => t.step)).toEqual([2]);
     expect(consoleWarn).toHaveBeenCalledOnce();
@@ -129,7 +127,6 @@ describe("recordSamlTrace", () => {
   it("does not issue a step 1 trace for steps other than 2", async () => {
     await recordSamlTrace(
       "cs-1",
-      1,
       { step: 6, correlationKey: "authn-req-1" },
       makeResponse(),
       makeRequest(),
@@ -143,7 +140,6 @@ describe("recordSamlTrace", () => {
 
     const result = await recordSamlTrace(
       "cs-1",
-      1,
       { step: 2, correlationKey: "authn-req-1" },
       makeResponse(),
       pairedHttpRequest,
@@ -155,16 +151,16 @@ describe("recordSamlTrace", () => {
 
   it("reuses the flow of the same correlation key", async () => {
     const detection = { step: 2, correlationKey: "authn-req-1" } as const;
-    await recordSamlTrace("cs-1", 1, detection, makeResponse(), makeRequest());
-    await recordSamlTrace("cs-1", 1, { step: 6, correlationKey: "authn-req-1" }, makeResponse());
+    await recordSamlTrace("cs-1", detection, makeResponse(), makeRequest());
+    await recordSamlTrace("cs-1", { step: 6, correlationKey: "authn-req-1" }, makeResponse());
 
     expect(storedFlowEntries()).toHaveLength(1);
   });
 
   it("issues a flow per capture session", async () => {
     const detection = { step: 2, correlationKey: "authn-req-1" } as const;
-    await recordSamlTrace("cs-1", 1, detection, makeResponse(), makeRequest());
-    await recordSamlTrace("cs-2", 1, detection, makeResponse(), makeRequest());
+    await recordSamlTrace("cs-1", detection, makeResponse(), makeRequest());
+    await recordSamlTrace("cs-2", detection, makeResponse(), makeRequest());
 
     expect(storedFlowEntries().map((f) => f.captureSessionId)).toEqual(["cs-1", "cs-2"]);
   });
@@ -174,7 +170,6 @@ describe("recordSamlTrace", () => {
 
     const result = await recordSamlTrace(
       "cs-1",
-      1,
       { step: 2, correlationKey: "authn-req-1" },
       httpResponse,
       makeRequest(),
@@ -189,7 +184,6 @@ describe("recordSamlTrace", () => {
 
     const result = await recordSamlTrace(
       "cs-1",
-      1,
       { step: 6, correlationKey: "authn-req-1" },
       makeResponse(),
     );

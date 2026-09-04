@@ -49,11 +49,11 @@ export async function dumpSessionArchive(_tabId: number, flowId: string): Promis
  *
  * A single archive may contain multiple sessions.
  *
- * @param tabId - The tab ID to associate with imported sessions
+ * @param _tabId - Unused. Kept until the side panel stops passing it
  * @param har - The HAR JSON string to import
  * @returns An array of imported session IDs, or an Error if import fails
  */
-export async function loadSessionArchive(tabId: number, har: string): Promise<string[] | Error> {
+export async function loadSessionArchive(_tabId: number, har: string): Promise<string[] | Error> {
   const archivedHttpMessages = toHttpMessages(har);
   if (archivedHttpMessages instanceof Error) {
     return archivedHttpMessages;
@@ -107,7 +107,6 @@ export async function loadSessionArchive(tabId: number, har: string): Promise<st
 
     const recordError = await recordSamlTrace(
       captureSessionId,
-      tabId,
       detection,
       httpMessage,
       pairedHttpRequest,

@@ -32,7 +32,7 @@ function init() {
 
   registerHttpInterceptionHandlers(
     async (tabId, httpRequest) => {
-      const sessionId = await processHttpRequest(tabId, httpRequest);
+      const sessionId = await processHttpRequest(httpRequest);
       if (sessionId instanceof Error) {
         console.warn("Failed to process HTTP request:", sessionId);
       } else if (sessionId !== undefined) {
@@ -43,7 +43,7 @@ function init() {
       }
     },
     async (tabId, httpResponse, pairedHttpRequest) => {
-      const sessionId = await processHttpResponse(tabId, httpResponse, pairedHttpRequest);
+      const sessionId = await processHttpResponse(httpResponse, pairedHttpRequest);
       if (sessionId instanceof Error) {
         console.warn("Failed to process HTTP response:", sessionId);
       } else if (sessionId !== undefined) {

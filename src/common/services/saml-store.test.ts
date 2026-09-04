@@ -55,28 +55,28 @@ function makeTrace(overrides: Record<string, unknown> = {}): SamlTrace {
 }
 
 describe("saveSamlTrace", () => {
-  it("stores the trace under a JSON key with id, kind, tabId, and flowId", async () => {
-    const result = await saveSamlTrace(makeTrace(), 1);
+  it("stores the trace under a JSON key of the ID, kind, and flow", async () => {
+    const result = await saveSamlTrace(makeTrace());
 
     expect(result).toBeUndefined();
     expect(storage).toEqual({
-      '{"id":"trace-1","kind":"trace","tabId":1,"flowId":"flow-1"}': makeTrace(),
+      '{"id":"trace-1","kind":"trace","flowId":"flow-1"}': makeTrace(),
     });
   });
 
   it("keeps traces of the same step as separate records", async () => {
-    await saveSamlTrace(makeTrace({ id: "trace-1", step: 2 }), 1);
-    await saveSamlTrace(makeTrace({ id: "trace-2", step: 2 }), 1);
+    await saveSamlTrace(makeTrace({ id: "trace-1", step: 2 }));
+    await saveSamlTrace(makeTrace({ id: "trace-2", step: 2 }));
 
     expect(await findSamlTracesByFlowId("flow-1")).toHaveLength(2);
   });
 });
 
 describe("findSamlTracesByFlowId", () => {
-  it("returns the traces of the flow across tabs in id order", async () => {
-    await saveSamlTrace(makeTrace({ id: "trace-2", flowId: "flow-1" }), 1);
-    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }), 2);
-    await saveSamlTrace(makeTrace({ id: "trace-3", flowId: "flow-2" }), 1);
+  it("returns the traces of the flow in id order", async () => {
+    await saveSamlTrace(makeTrace({ id: "trace-2", flowId: "flow-1" }));
+    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }));
+    await saveSamlTrace(makeTrace({ id: "trace-3", flowId: "flow-2" }));
 
     const result = await findSamlTracesByFlowId("flow-1");
 
@@ -85,13 +85,13 @@ describe("findSamlTracesByFlowId", () => {
   });
 
   it("reads only the items with matching keys", async () => {
-    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }), 1);
-    await saveSamlTrace(makeTrace({ id: "trace-2", flowId: "flow-2" }), 1);
+    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }));
+    await saveSamlTrace(makeTrace({ id: "trace-2", flowId: "flow-2" }));
 
     await findSamlTracesByFlowId("flow-1");
 
     expect(getSessionStorageItems).toHaveBeenCalledWith([
-      '{"id":"trace-1","kind":"trace","tabId":1,"flowId":"flow-1"}',
+      '{"id":"trace-1","kind":"trace","flowId":"flow-1"}',
     ]);
   });
 
@@ -105,9 +105,9 @@ describe("findSamlTracesByFlowId", () => {
 
 describe("deleteSamlTracesByFlowId", () => {
   it("removes only the traces of the flow", async () => {
-    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }), 1);
-    await saveSamlTrace(makeTrace({ id: "trace-2", flowId: "flow-2" }), 1);
-    await saveSamlTrace(makeTrace({ id: "trace-3", flowId: "flow-1" }), 2);
+    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }));
+    await saveSamlTrace(makeTrace({ id: "trace-2", flowId: "flow-2" }));
+    await saveSamlTrace(makeTrace({ id: "trace-3", flowId: "flow-1" }));
 
     const result = await deleteSamlTracesByFlowId("flow-1");
 
@@ -129,7 +129,7 @@ describe("deleteSamlTracesByFlowId", () => {
 
   it("propagates an error from the removal", async () => {
     const error = new Error("storage error");
-    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }), 1);
+    await saveSamlTrace(makeTrace({ id: "trace-1", flowId: "flow-1" }));
     vi.mocked(removeSessionStorageItems).mockResolvedValue(error);
 
     expect(await deleteSamlTracesByFlowId("flow-1")).toBe(error);

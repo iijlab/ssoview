@@ -129,7 +129,6 @@ describe("loadSessionArchive", () => {
     expect(saveHttpMessage).toHaveBeenCalledWith(importedHttpMessage);
     expect(recordSamlTrace).toHaveBeenCalledWith(
       importedRecord.id,
-      1,
       { step: 3, correlationKey: "session-1" },
       importedHttpMessage,
       undefined,
@@ -200,7 +199,6 @@ describe("loadSessionArchive", () => {
     expect(saveHttpMessage).toHaveBeenNthCalledWith(2, importedHttpMessage);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
       importedRecord.id,
-      1,
       { step: 6, correlationKey: "session-1" },
       importedHttpMessage,
       importedPairedRequest,
