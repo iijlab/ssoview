@@ -9,7 +9,7 @@
 
 import { isObject } from "@/common/utils/type-guard.ts";
 
-type Event = "SessionUpdateEvent" | "SessionRemoveEvent" | "CaptureTerminatedEvent";
+type Event = "SessionUpdateEvent" | "CaptureTerminatedEvent";
 
 //
 // Session update event
@@ -36,35 +36,6 @@ export function subscribeSessionUpdateEvent(
       await handler(data.tabId, data.sessionId);
     } else {
       console.error("Invalid SessionUpdateEvent data:", data);
-    }
-  });
-}
-
-//
-// Session remove event
-//
-
-type SessionRemoveEventData = {
-  tabId: number;
-  sessionId: string;
-};
-
-export async function publishSessionRemoveEvent(
-  tabId: number,
-  sessionId: string,
-): Promise<void | Error> {
-  const data: SessionRemoveEventData = { tabId, sessionId };
-  return await publishEvent("SessionRemoveEvent", data);
-}
-
-export function subscribeSessionRemoveEvent(
-  handler: (tabId: number, sessionId: string) => Promise<void>,
-): void | Error {
-  return subscribeEvent("SessionRemoveEvent", async (data: unknown): Promise<void> => {
-    if (isSessionRemoveEventData(data)) {
-      await handler(data.tabId, data.sessionId);
-    } else {
-      console.error("Invalid SessionRemoveEvent data:", data);
     }
   });
 }
@@ -144,10 +115,6 @@ function subscribeEvent(event: Event, handler: (data: unknown) => Promise<unknow
 //
 
 function isSessionUpdateEventData(u: unknown): u is SessionUpdateEventData {
-  return isObject(u) && typeof u.tabId === "number" && typeof u.sessionId === "string";
-}
-
-function isSessionRemoveEventData(u: unknown): u is SessionRemoveEventData {
   return isObject(u) && typeof u.tabId === "number" && typeof u.sessionId === "string";
 }
 
