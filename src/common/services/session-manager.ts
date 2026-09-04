@@ -6,12 +6,8 @@
 import { type CaptureSession } from "@/common/models/capture-session.ts";
 import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
 import { getCaptureSession } from "@/common/services/capture-query.ts";
-import {
-  findFlowEntriesByTabId,
-  findFlowEntryByCorrelationKeyInTab,
-  findHttpMessagesOfFlow,
-} from "@/common/services/flow-query.ts";
-import { deleteFlowEntry } from "@/common/services/flow-store.ts";
+import { findFlowEntriesByTabId, findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { deleteFlowEntry, findFlowEntryById } from "@/common/services/flow-store.ts";
 import { deleteHttpMessages } from "@/common/services/http-store.ts";
 import { deleteSamlTracesByFlowId, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
 import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
@@ -70,18 +66,18 @@ function isOngoing(captureSession: CaptureSession): boolean {
 }
 
 /**
- * Delete all data for a specific session.
+ * Delete all data for a specific SSO flow.
  *
- * @param tabId - The tab ID associated with the session
- * @param sessionId - The session ID to delete
+ * @param _tabId - Unused. Kept until the side panel stops passing it
+ * @param flowId - The flow ID to delete
  * @returns void on success, or an Error
  */
-export async function deleteSession(tabId: number, sessionId: string): Promise<void | Error> {
-  const flowEntry = await findFlowEntryByCorrelationKeyInTab(tabId, sessionId);
+export async function deleteSession(_tabId: number, flowId: string): Promise<void | Error> {
+  const flowEntry = await findFlowEntryById(flowId);
   if (flowEntry instanceof Error) {
     return flowEntry;
   } else if (flowEntry === undefined) {
-    console.warn("No flow to delete:", { tabId, sessionId });
+    console.warn("No flow to delete:", { flowId });
     return;
   }
 

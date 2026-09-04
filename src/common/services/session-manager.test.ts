@@ -9,12 +9,8 @@ import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { getCaptureSession } from "@/common/services/capture-query.ts";
-import {
-  findFlowEntriesByTabId,
-  findFlowEntryByCorrelationKeyInTab,
-  findHttpMessagesOfFlow,
-} from "@/common/services/flow-query.ts";
-import { deleteFlowEntry } from "@/common/services/flow-store.ts";
+import { findFlowEntriesByTabId, findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { deleteFlowEntry, findFlowEntryById } from "@/common/services/flow-store.ts";
 import { deleteHttpMessages } from "@/common/services/http-store.ts";
 import { deleteSamlTracesByFlowId, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
 import { isWatching } from "@/common/services/watch-query.ts";
@@ -26,12 +22,12 @@ vi.mock("@/common/services/capture-query.ts", () => ({
 
 vi.mock("@/common/services/flow-query.ts", () => ({
   findFlowEntriesByTabId: vi.fn(),
-  findFlowEntryByCorrelationKeyInTab: vi.fn(),
   findHttpMessagesOfFlow: vi.fn(),
 }));
 
 vi.mock("@/common/services/flow-store.ts", () => ({
   deleteFlowEntry: vi.fn(),
+  findFlowEntryById: vi.fn(),
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -54,7 +50,7 @@ beforeEach(() => {
   vi.mocked(getCaptureSession).mockResolvedValue(undefined);
   vi.mocked(findSamlTracesByFlowId).mockResolvedValue([]);
   vi.mocked(isWatching).mockResolvedValue(false);
-  vi.mocked(findFlowEntryByCorrelationKeyInTab).mockResolvedValue(makeFlowEntry());
+  vi.mocked(findFlowEntryById).mockResolvedValue(makeFlowEntry());
   vi.mocked(findHttpMessagesOfFlow).mockResolvedValue([]);
   vi.mocked(deleteSamlTracesByFlowId).mockResolvedValue(undefined);
   vi.mocked(deleteFlowEntry).mockResolvedValue(undefined);
@@ -127,8 +123,8 @@ describe("getSessionSummaries", () => {
 
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toMatchObject([
-      { sessionId: "corr-2", action: "other action" },
-      { sessionId: "corr-1", action: "second action" },
+      { sessionId: "flow-2", action: "other action" },
+      { sessionId: "flow-1", action: "second action" },
     ]);
   });
 
@@ -218,8 +214,8 @@ describe("deleteSession", () => {
     const httpMessages = [{ id: "msg-1" } as HttpMessage];
     vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(httpMessages);
 
-    expect(await deleteSession(1, "corr-1")).toBeUndefined();
-    expect(findFlowEntryByCorrelationKeyInTab).toHaveBeenCalledWith(1, "corr-1");
+    expect(await deleteSession(1, "flow-1")).toBeUndefined();
+    expect(findFlowEntryById).toHaveBeenCalledWith("flow-1");
     expect(findHttpMessagesOfFlow).toHaveBeenCalledWith("flow-1");
     expect(deleteSamlTracesByFlowId).toHaveBeenCalledWith("flow-1");
     expect(deleteFlowEntry).toHaveBeenCalledWith(flowEntry);
@@ -230,11 +226,11 @@ describe("deleteSession", () => {
     expect(order).toEqual(order.toSorted((a, b) => a - b));
   });
 
-  it("does nothing with a warning when no flow has the session ID", async () => {
+  it("does nothing with a warning when no flow has the flow ID", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.mocked(findFlowEntryByCorrelationKeyInTab).mockResolvedValue(undefined);
+    vi.mocked(findFlowEntryById).mockResolvedValue(undefined);
 
-    expect(await deleteSession(1, "corr-1")).toBeUndefined();
+    expect(await deleteSession(1, "flow-1")).toBeUndefined();
     expect(consoleWarn).toHaveBeenCalledOnce();
     expect(deleteSamlTracesByFlowId).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
@@ -242,9 +238,9 @@ describe("deleteSession", () => {
 
   it("returns an error when the flow cannot be found", async () => {
     const error = new Error("flow query error");
-    vi.mocked(findFlowEntryByCorrelationKeyInTab).mockResolvedValue(error);
+    vi.mocked(findFlowEntryById).mockResolvedValue(error);
 
-    expect(await deleteSession(1, "corr-1")).toBe(error);
+    expect(await deleteSession(1, "flow-1")).toBe(error);
     expect(deleteSamlTracesByFlowId).not.toHaveBeenCalled();
   });
 
@@ -252,7 +248,7 @@ describe("deleteSession", () => {
     const error = new Error("query error");
     vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(error);
 
-    expect(await deleteSession(1, "corr-1")).toBe(error);
+    expect(await deleteSession(1, "flow-1")).toBe(error);
     expect(deleteSamlTracesByFlowId).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
@@ -261,7 +257,7 @@ describe("deleteSession", () => {
     const error = new Error("saml delete error");
     vi.mocked(deleteSamlTracesByFlowId).mockResolvedValue(error);
 
-    expect(await deleteSession(1, "corr-1")).toBe(error);
+    expect(await deleteSession(1, "flow-1")).toBe(error);
     expect(deleteFlowEntry).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
@@ -270,7 +266,7 @@ describe("deleteSession", () => {
     const error = new Error("flow delete error");
     vi.mocked(deleteFlowEntry).mockResolvedValue(error);
 
-    expect(await deleteSession(1, "corr-1")).toBe(error);
+    expect(await deleteSession(1, "flow-1")).toBe(error);
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
 
@@ -278,7 +274,7 @@ describe("deleteSession", () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.mocked(deleteHttpMessages).mockResolvedValue(new Error("http delete error"));
 
-    expect(await deleteSession(1, "corr-1")).toBeUndefined();
+    expect(await deleteSession(1, "flow-1")).toBeUndefined();
     expect(consoleWarn).toHaveBeenCalledOnce();
   });
 });

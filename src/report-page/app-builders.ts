@@ -6,10 +6,8 @@
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { getCaptureSession } from "@/common/services/capture-query.ts";
-import {
-  findFlowEntryByCorrelationKeyInTab,
-  findHttpMessagesOfFlow,
-} from "@/common/services/flow-query.ts";
+import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import {
   extractSamlAuthnRequestXml,
   extractSamlResponseXml,
@@ -17,21 +15,18 @@ import {
 import { findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
 import { type FlowData } from "@/report-page/common/types.ts";
 
-export async function loadFlowData(
-  tabId: number,
-  sessionId: string | null,
-): Promise<FlowData | Error> {
-  if (!Number.isSafeInteger(tabId) || tabId <= 0 || sessionId === null) {
+export async function loadFlowData(flowId: string | null): Promise<FlowData | Error> {
+  if (flowId === null) {
     // In development mode, fall back to sample data
     if (import.meta.env.MODE === "development") {
       const { buildSampleFlowData } = await import("@/report-page/dev/sample-flow.ts");
       return buildSampleFlowData();
     } else {
-      return new Error(`Invalid URL params: tabId=${tabId}, sessionId=${sessionId}`);
+      return new Error("Invalid URL params");
     }
   }
 
-  const flowEntry = await findFlowEntryByCorrelationKeyInTab(tabId, sessionId);
+  const flowEntry = await findFlowEntryById(flowId);
   if (flowEntry instanceof Error) {
     return flowEntry;
   } else if (flowEntry === undefined) {

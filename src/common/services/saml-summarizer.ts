@@ -17,7 +17,7 @@ export function summarizeSamlFlow(
     protocol: "saml",
     imported: captureSession.imported,
     capturing: false,
-    sessionId: flowEntry.correlationKey,
+    sessionId: flowEntry.id,
     warning: [],
   });
 }
