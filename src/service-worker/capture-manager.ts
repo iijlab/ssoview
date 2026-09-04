@@ -4,7 +4,7 @@
  */
 
 import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/common/models/event-record.ts";
-import { findEventRecordKeyFieldsByTypes, saveEventRecord } from "@/common/services/event-store.ts";
+import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
 import {
   getWatchedTabIds,
   registerWatchStopHandler,
@@ -26,12 +26,14 @@ export function registerCaptureStopHandler(
 }
 
 export async function getOngoingCaptureSessionId(): Promise<string | undefined | Error> {
-  const keyFields = await findEventRecordKeyFieldsByTypes(["CaptureStarted", "CaptureStopped"]);
-  if (keyFields instanceof Error) {
-    return keyFields;
+  const records = await findAllEventRecords();
+  if (records instanceof Error) {
+    return records;
   }
 
-  const latest = keyFields.at(-1);
+  const latest = records
+    .filter((r) => r.type === "CaptureStarted" || r.type === "CaptureStopped")
+    .at(-1);
   return latest?.type === "CaptureStarted" ? latest.id : undefined;
 }
 
