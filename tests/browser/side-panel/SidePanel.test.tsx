@@ -16,7 +16,6 @@ import type { SessionSummary } from "@/common/models/session-summary.ts";
 
 vi.mock("@/common/pubsub.ts", () => ({
   subscribeCaptureTerminatedEvent: vi.fn(),
-  subscribeSessionRemoveEvent: vi.fn(),
   subscribeSessionUpdateEvent: vi.fn(),
 }));
 

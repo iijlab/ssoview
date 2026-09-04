@@ -3,20 +3,8 @@
  * @license BSD-3-Clause
  */
 
-import { type SessionSummary } from "@/common/models/session-summary.ts";
-import {
-  publishCaptureTerminatedEvent,
-  publishSessionRemoveEvent,
-  publishSessionUpdateEvent,
-} from "@/common/pubsub.ts";
-import {
-  registerDumpSessionHandler,
-  registerGetSessionSummariesHandler,
-  registerLoadSessionHandler,
-  registerRemoveSessionHandler,
-  registerStartMonitoringHandler,
-  registerStopMonitoringHandler,
-} from "@/common/rpc.ts";
+import { publishCaptureTerminatedEvent, publishSessionUpdateEvent } from "@/common/pubsub.ts";
+import { registerStartMonitoringHandler, registerStopMonitoringHandler } from "@/common/rpc.ts";
 import { dumpSessionArchive, loadSessionArchive } from "@/common/services/session-archiver.ts";
 import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
@@ -41,10 +29,6 @@ import {
 function init() {
   registerStartMonitoringHandler(onStartMonitoring);
   registerStopMonitoringHandler(onStopMonitoring);
-  registerGetSessionSummariesHandler(onGetSessionSummaries);
-  registerRemoveSessionHandler(onRemoveSession);
-  registerDumpSessionHandler(onDumpSession);
-  registerLoadSessionHandler(onLoadSession);
 
   registerHttpInterceptionHandlers(
     async (tabId, httpRequest) => {
@@ -113,37 +97,6 @@ async function onStopMonitoring(tabId: number): Promise<void | Error> {
   hideBadge();
 }
 
-async function onGetSessionSummaries(tabId: number): Promise<SessionSummary[] | Error> {
-  return await getSessionSummaries(tabId);
-}
-
-async function onRemoveSession(tabId: number, sessionId: string): Promise<void | Error> {
-  const deleteError = await deleteSession(tabId, sessionId);
-  if (deleteError) {
-    return deleteError;
-  }
-
-  return publishSessionRemoveEvent(tabId, sessionId);
-}
-
-async function onDumpSession(tabId: number, sessionId: string): Promise<string | Error> {
-  return await dumpSessionArchive(tabId, sessionId);
-}
-
-async function onLoadSession(tabId: number, har: string): Promise<void | Error> {
-  const sessionIds = await loadSessionArchive(tabId, har);
-  if (sessionIds instanceof Error) {
-    return sessionIds;
-  }
-
-  for (const sessionId of sessionIds) {
-    const publishError = await publishSessionUpdateEvent(tabId, sessionId);
-    if (publishError) {
-      return publishError;
-    }
-  }
-}
-
 init();
 
 //
@@ -157,16 +110,16 @@ if (import.meta.env.MODE === "development") {
       return await debugStorage();
     },
     getSessionSummaries: async (tid: number) => {
-      return await onGetSessionSummaries(tid);
+      return await getSessionSummaries(tid);
     },
     removeSession: async (tid: number, sid: string) => {
-      return await onRemoveSession(tid, sid);
+      return await deleteSession(tid, sid);
     },
     dumpSession: async (tid: number, sid: string) => {
-      return await onDumpSession(tid, sid);
+      return await dumpSessionArchive(tid, sid);
     },
     loadSession: async (tid: number, sar: string) => {
-      return await onLoadSession(tid, sar);
+      return await loadSessionArchive(tid, sar);
     },
   };
 
