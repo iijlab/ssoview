@@ -5,10 +5,12 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  type EventRecordKeyFields,
-  findEventRecordKeyFieldsByTypes,
-  saveEventRecord,
-} from "@/common/services/event-store.ts";
+  type EventRecord,
+  newCaptureStartedRecord,
+  newCaptureStoppedRecord,
+  newWatchStartedRecord,
+} from "@/common/models/event-record.ts";
+import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
 import {
   getWatchedTabIds,
   registerWatchStopHandler,
@@ -24,7 +26,7 @@ import {
 } from "./capture-manager.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  findEventRecordKeyFieldsByTypes: vi.fn(),
+  findAllEventRecords: vi.fn(),
   saveEventRecord: vi.fn(),
 }));
 
@@ -47,7 +49,7 @@ beforeEach(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.mocked(saveEventRecord).mockResolvedValue(undefined);
-  vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue([]);
+  vi.mocked(findAllEventRecords).mockResolvedValue([]);
   vi.mocked(getWatchedTabIds).mockResolvedValue([]);
   vi.mocked(startWatching).mockResolvedValue(undefined);
   vi.mocked(stopWatching).mockResolvedValue(undefined);
@@ -62,10 +64,10 @@ function registerAndGetHandler(onCaptureStopped: CaptureStopHandler): WatchStopH
   return handler as WatchStopHandler;
 }
 
-function captureKeyFields(
-  ...types: ("CaptureStarted" | "CaptureStopped")[]
-): EventRecordKeyFields[] {
-  return types.map((type, index) => ({ id: `capture-${index}`, kind: "event", type }));
+function captureRecords(...types: ("CaptureStarted" | "CaptureStopped")[]): EventRecord[] {
+  return types.map((type) =>
+    type === "CaptureStarted" ? newCaptureStartedRecord() : newCaptureStoppedRecord(),
+  );
 }
 
 // Types of the event records stored so far, in order
@@ -112,9 +114,7 @@ describe("startCapturing", () => {
   });
 
   it("closes an inconsistent capture before starting a new one", async () => {
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(
-      captureKeyFields("CaptureStarted"),
-    );
+    vi.mocked(findAllEventRecords).mockResolvedValue(captureRecords("CaptureStarted"));
 
     const result = await startCapturing(1);
 
@@ -124,9 +124,7 @@ describe("startCapturing", () => {
   });
 
   it("does not start another capture while one is in progress", async () => {
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(
-      captureKeyFields("CaptureStarted"),
-    );
+    vi.mocked(findAllEventRecords).mockResolvedValue(captureRecords("CaptureStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
     const result = await startCapturing(1);
@@ -139,9 +137,7 @@ describe("startCapturing", () => {
 
   it("does not start when the inconsistent capture cannot be closed", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(
-      captureKeyFields("CaptureStarted"),
-    );
+    vi.mocked(findAllEventRecords).mockResolvedValue(captureRecords("CaptureStarted"));
     vi.mocked(saveEventRecord).mockResolvedValue(error);
 
     const result = await startCapturing(1);
@@ -216,16 +212,23 @@ describe("registerCaptureStopHandler", () => {
 
 describe("getOngoingCaptureSessionId", () => {
   it("returns the ID of the record that started the ongoing capture", async () => {
-    const keyFields = captureKeyFields("CaptureStarted", "CaptureStopped", "CaptureStarted");
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(keyFields);
+    const records = captureRecords("CaptureStarted", "CaptureStopped", "CaptureStarted");
+    vi.mocked(findAllEventRecords).mockResolvedValue(records);
 
-    expect(await getOngoingCaptureSessionId()).toBe(keyFields[2]?.id);
+    expect(await getOngoingCaptureSessionId()).toBe(records[2]?.id);
     expect(getWatchedTabIds).not.toHaveBeenCalled();
   });
 
+  it("ignores records other than capture records", async () => {
+    const records = [...captureRecords("CaptureStarted"), newWatchStartedRecord(1)];
+    vi.mocked(findAllEventRecords).mockResolvedValue(records);
+
+    expect(await getOngoingCaptureSessionId()).toBe(records[0]?.id);
+  });
+
   it("returns undefined when the latest capture has stopped", async () => {
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(
-      captureKeyFields("CaptureStarted", "CaptureStopped"),
+    vi.mocked(findAllEventRecords).mockResolvedValue(
+      captureRecords("CaptureStarted", "CaptureStopped"),
     );
 
     expect(await getOngoingCaptureSessionId()).toBeUndefined();
@@ -235,18 +238,9 @@ describe("getOngoingCaptureSessionId", () => {
     expect(await getOngoingCaptureSessionId()).toBeUndefined();
   });
 
-  it("reads the keys of the capture records only", async () => {
-    await getOngoingCaptureSessionId();
-
-    expect(findEventRecordKeyFieldsByTypes).toHaveBeenCalledExactlyOnceWith([
-      "CaptureStarted",
-      "CaptureStopped",
-    ]);
-  });
-
-  it("returns the error when the keys cannot be retrieved", async () => {
+  it("returns the error when the records cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(error);
+    vi.mocked(findAllEventRecords).mockResolvedValue(error);
 
     expect(await getOngoingCaptureSessionId()).toBe(error);
   });
@@ -254,17 +248,15 @@ describe("getOngoingCaptureSessionId", () => {
 
 describe("isCapturing", () => {
   it("returns true when a capture has started and a tab is still watched", async () => {
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(
-      captureKeyFields("CaptureStarted"),
-    );
+    vi.mocked(findAllEventRecords).mockResolvedValue(captureRecords("CaptureStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
     expect(await isCapturing()).toBe(true);
   });
 
   it("returns false when the latest capture has stopped", async () => {
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(
-      captureKeyFields("CaptureStarted", "CaptureStopped"),
+    vi.mocked(findAllEventRecords).mockResolvedValue(
+      captureRecords("CaptureStarted", "CaptureStopped"),
     );
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
@@ -273,8 +265,8 @@ describe("isCapturing", () => {
   });
 
   it("returns true when a capture has started again after stopping", async () => {
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(
-      captureKeyFields("CaptureStarted", "CaptureStopped", "CaptureStarted"),
+    vi.mocked(findAllEventRecords).mockResolvedValue(
+      captureRecords("CaptureStarted", "CaptureStopped", "CaptureStarted"),
     );
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
@@ -288,25 +280,21 @@ describe("isCapturing", () => {
   });
 
   it("returns false when no tab is watched even though the capture is left open", async () => {
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(
-      captureKeyFields("CaptureStarted"),
-    );
+    vi.mocked(findAllEventRecords).mockResolvedValue(captureRecords("CaptureStarted"));
 
     expect(await isCapturing()).toBe(false);
   });
 
   it("returns the error when the records cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(error);
+    vi.mocked(findAllEventRecords).mockResolvedValue(error);
 
     expect(await isCapturing()).toBe(error);
   });
 
   it("returns the error when the watched tabs cannot be determined", async () => {
     const error = new Error("targets failed");
-    vi.mocked(findEventRecordKeyFieldsByTypes).mockResolvedValue(
-      captureKeyFields("CaptureStarted"),
-    );
+    vi.mocked(findAllEventRecords).mockResolvedValue(captureRecords("CaptureStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue(error);
 
     expect(await isCapturing()).toBe(error);

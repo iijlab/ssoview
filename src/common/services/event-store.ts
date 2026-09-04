@@ -20,21 +20,6 @@ export async function saveEventRecord(record: EventRecord): Promise<void | Error
   return await setSessionStorageItem(makeEventRecordKey(record), record);
 }
 
-export async function findEventRecordKeyFieldsByTypes(
-  eventRecordTypes: EventRecordType[],
-): Promise<EventRecordKeyFields[] | Error> {
-  const allKeys = await getAllSessionStorageKeys();
-  if (allKeys instanceof Error) {
-    return allKeys;
-  }
-
-  return allKeys
-    .map(parseEventRecordKey)
-    .filter((f) => f !== undefined)
-    .filter((f) => eventRecordTypes.includes(f.type))
-    .toSorted((a, b) => (a.id < b.id ? -1 : 1));
-}
-
 export async function findAllEventRecords(): Promise<EventRecord[] | Error> {
   const allKeys = await getAllSessionStorageKeys();
   if (allKeys instanceof Error) {
@@ -60,7 +45,7 @@ export async function findAllEventRecords(): Promise<EventRecord[] | Error> {
 
 const eventRecordKind = "event";
 
-export type EventRecordKeyFields = {
+type EventRecordKeyFields = {
   id: string;
   kind: typeof eventRecordKind;
   type: EventRecordType;

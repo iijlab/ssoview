@@ -9,7 +9,7 @@ import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import { findHttpMessagesByIds } from "@/common/services/http-store.ts";
-import { findSamlTraces, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
+import { findSamlTracesByFlowId, findSamlTracesByTabId } from "@/common/services/saml-store.ts";
 import {
   findFlowEntriesByTabId,
   findFlowEntryByCorrelationKeyInTab,
@@ -25,8 +25,8 @@ vi.mock("@/common/services/http-store.ts", () => ({
 }));
 
 vi.mock("@/common/services/saml-store.ts", () => ({
-  findSamlTraces: vi.fn(),
   findSamlTracesByFlowId: vi.fn(),
+  findSamlTracesByTabId: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -142,7 +142,7 @@ describe("findFlowEntriesByTabId", () => {
   it("returns the flows of the traces in the tab, newest first", async () => {
     const flow1 = makeFlowEntry("flow-1");
     const flow2 = makeFlowEntry("flow-2");
-    vi.mocked(findSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTracesByTabId).mockResolvedValue([
       makeSamlTrace("msg-1", "flow-1"),
       makeSamlTrace("msg-2", "flow-1"),
       makeSamlTrace("msg-3", "flow-2"),
@@ -151,13 +151,13 @@ describe("findFlowEntriesByTabId", () => {
 
     const result = await findFlowEntriesByTabId(1);
 
-    expect(findSamlTraces).toHaveBeenCalledWith(1);
+    expect(findSamlTracesByTabId).toHaveBeenCalledWith(1);
     expect(findFlowEntryById).toHaveBeenCalledTimes(2);
     expect(result).toEqual([flow2, flow1]);
   });
 
   it("returns an empty array when the tab has no traces", async () => {
-    vi.mocked(findSamlTraces).mockResolvedValue([]);
+    vi.mocked(findSamlTracesByTabId).mockResolvedValue([]);
 
     expect(await findFlowEntriesByTabId(1)).toEqual([]);
     expect(findFlowEntryById).not.toHaveBeenCalled();
@@ -166,7 +166,7 @@ describe("findFlowEntriesByTabId", () => {
   it("skips traces without a flow entry with a warning", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const flow1 = makeFlowEntry("flow-1");
-    vi.mocked(findSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTracesByTabId).mockResolvedValue([
       makeSamlTrace("msg-1", "flow-1"),
       makeSamlTrace("msg-2", "flow-x"),
     ]);
@@ -178,7 +178,7 @@ describe("findFlowEntriesByTabId", () => {
 
   it("returns an error when the traces cannot be found", async () => {
     const error = new Error("saml store error");
-    vi.mocked(findSamlTraces).mockResolvedValue(error);
+    vi.mocked(findSamlTracesByTabId).mockResolvedValue(error);
 
     expect(await findFlowEntriesByTabId(1)).toBe(error);
     expect(findFlowEntryById).not.toHaveBeenCalled();
@@ -186,7 +186,7 @@ describe("findFlowEntriesByTabId", () => {
 
   it("returns an error when a flow cannot be found", async () => {
     const error = new Error("flow store error");
-    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace("msg-1")]);
+    vi.mocked(findSamlTracesByTabId).mockResolvedValue([makeSamlTrace("msg-1")]);
     vi.mocked(findFlowEntryById).mockResolvedValue(error);
 
     expect(await findFlowEntriesByTabId(1)).toBe(error);
@@ -196,7 +196,7 @@ describe("findFlowEntriesByTabId", () => {
 describe("findFlowEntryByCorrelationKeyInTab", () => {
   it("returns the flow with the correlation key among the flows of the tab", async () => {
     const flow2 = makeFlowEntry("flow-2");
-    vi.mocked(findSamlTraces).mockResolvedValue([
+    vi.mocked(findSamlTracesByTabId).mockResolvedValue([
       makeSamlTrace("msg-1", "flow-1"),
       makeSamlTrace("msg-2", "flow-2"),
     ]);
@@ -206,7 +206,7 @@ describe("findFlowEntryByCorrelationKeyInTab", () => {
   });
 
   it("returns undefined when no flow of the tab has the correlation key", async () => {
-    vi.mocked(findSamlTraces).mockResolvedValue([makeSamlTrace("msg-1", "flow-1")]);
+    vi.mocked(findSamlTracesByTabId).mockResolvedValue([makeSamlTrace("msg-1", "flow-1")]);
     mockFlowStore(makeFlowEntry("flow-1"));
 
     expect(await findFlowEntryByCorrelationKeyInTab(1, "corr-x")).toBeUndefined();
@@ -214,7 +214,7 @@ describe("findFlowEntryByCorrelationKeyInTab", () => {
 
   it("returns an error when the flows cannot be found", async () => {
     const error = new Error("saml store error");
-    vi.mocked(findSamlTraces).mockResolvedValue(error);
+    vi.mocked(findSamlTracesByTabId).mockResolvedValue(error);
 
     expect(await findFlowEntryByCorrelationKeyInTab(1, "corr-flow-1")).toBe(error);
   });

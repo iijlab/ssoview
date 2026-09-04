@@ -77,7 +77,7 @@ describe("recordSamlTrace", () => {
     const result = await recordSamlTrace(
       "cs-1",
       1,
-      { step: 2, correlationKey: "authn-req-1" },
+      { step: 6, correlationKey: "authn-req-1" },
       makeResponse(),
     );
 
@@ -190,7 +190,7 @@ describe("recordSamlTrace", () => {
     const result = await recordSamlTrace(
       "cs-1",
       1,
-      { step: 2, correlationKey: "authn-req-1" },
+      { step: 6, correlationKey: "authn-req-1" },
       makeResponse(),
     );
 
