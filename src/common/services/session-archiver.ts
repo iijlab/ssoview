@@ -12,7 +12,10 @@ import {
 } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
 import { saveEventRecord } from "@/common/services/event-store.ts";
-import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import {
+  findFlowEntryByCorrelationKeyInTab,
+  findHttpMessagesOfFlow,
+} from "@/common/services/flow-query.ts";
 import { saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlStepFromHttpRequest,
@@ -31,7 +34,14 @@ export async function dumpSessionArchive(
   tabId: number,
   sessionId: string,
 ): Promise<string | Error> {
-  const httpMessages = await findHttpMessagesOfFlow(tabId, sessionId);
+  const flowEntry = await findFlowEntryByCorrelationKeyInTab(tabId, sessionId);
+  if (flowEntry instanceof Error) {
+    return flowEntry;
+  } else if (flowEntry === undefined) {
+    return new Error("Flow not found");
+  }
+
+  const httpMessages = await findHttpMessagesOfFlow(flowEntry.id);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }

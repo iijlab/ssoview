@@ -6,13 +6,15 @@
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { getCaptureSession } from "@/common/services/capture-query.ts";
-import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
-import { findFlowEntryById } from "@/common/services/flow-store.ts";
+import {
+  findFlowEntryByCorrelationKeyInTab,
+  findHttpMessagesOfFlow,
+} from "@/common/services/flow-query.ts";
 import {
   extractSamlAuthnRequestXml,
   extractSamlResponseXml,
 } from "@/common/services/saml-detector.ts";
-import { findSamlTraces } from "@/common/services/saml-store.ts";
+import { findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
 import { type FlowData } from "@/report-page/common/types.ts";
 
 export async function loadFlowData(
@@ -29,22 +31,11 @@ export async function loadFlowData(
     }
   }
 
-  const tabSamlTraces = await findSamlTraces(tabId);
-  if (tabSamlTraces instanceof Error) {
-    return tabSamlTraces;
-  }
-
-  const samlTraces = tabSamlTraces.filter((t) => t.sessionId === sessionId);
-  const firstSamlTrace = samlTraces[0];
-  if (firstSamlTrace === undefined) {
-    return new Error(`No SAML traces: tabId=${tabId}, sessionId=${sessionId}`);
-  }
-
-  const flowEntry = await findFlowEntryById(firstSamlTrace.flowId);
+  const flowEntry = await findFlowEntryByCorrelationKeyInTab(tabId, sessionId);
   if (flowEntry instanceof Error) {
     return flowEntry;
   } else if (flowEntry === undefined) {
-    return new Error(`No flow entry: ${firstSamlTrace.flowId}`);
+    return new Error("Flow not found");
   }
 
   const captureSession = await getCaptureSession(flowEntry.captureSessionId);
@@ -54,7 +45,12 @@ export async function loadFlowData(
     return new Error(`No capture session: ${flowEntry.captureSessionId}`);
   }
 
-  const httpMessages = await findHttpMessagesOfFlow(tabId, sessionId);
+  const samlTraces = await findSamlTracesByFlowId(flowEntry.id);
+  if (samlTraces instanceof Error) {
+    return samlTraces;
+  }
+
+  const httpMessages = await findHttpMessagesOfFlow(flowEntry.id);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }

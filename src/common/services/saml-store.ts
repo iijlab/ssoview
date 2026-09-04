@@ -16,54 +16,59 @@ export async function saveSamlTrace(samlTrace: SamlTrace, tabId: number): Promis
   return await setSessionStorageItem(makeSamlTraceKey(samlTrace, tabId), samlTrace);
 }
 
-export async function deleteSamlTraces(tabId: number, sessionId: string): Promise<void | Error> {
-  const entries = await findSamlTraceEntriesBy((k) => k.tabId === tabId);
-  if (entries instanceof Error) {
-    return entries;
+export async function deleteSamlTracesByFlowId(flowId: string): Promise<void | Error> {
+  const keys = await findSamlTraceKeysBy((k) => k.flowId === flowId);
+  if (keys instanceof Error) {
+    return keys;
   }
 
-  const keys = entries
-    .filter(([, samlTrace]) => samlTrace.sessionId === sessionId)
-    .map(([key]) => key);
   return await removeSessionStorageItems(keys);
 }
 
 export async function findSamlTraces(tabId: number): Promise<SamlTrace[] | Error> {
-  const entries = await findSamlTraceEntriesBy((k) => k.tabId === tabId);
-  if (entries instanceof Error) {
-    return entries;
-  }
-
-  return entries.map(([, samlTrace]) => samlTrace);
+  return await findSamlTracesBy((k) => k.tabId === tabId);
 }
 
-async function findSamlTraceEntriesBy(
-  predicate: (keyFields: SamlTraceKeyFields) => boolean,
-): Promise<[string, SamlTrace][] | Error> {
-  const allKeys = await getAllSessionStorageKeys();
-  if (allKeys instanceof Error) {
-    return allKeys;
-  }
+export async function findSamlTracesByFlowId(flowId: string): Promise<SamlTrace[] | Error> {
+  return await findSamlTracesBy((k) => k.flowId === flowId);
+}
 
-  const keys = allKeys.filter((k) => {
-    const keyFields = parseSamlTraceKey(k);
-    return keyFields !== undefined && predicate(keyFields);
-  });
+async function findSamlTracesBy(
+  predicate: (keyFields: SamlTraceKeyFields) => boolean,
+): Promise<SamlTrace[] | Error> {
+  const keys = await findSamlTraceKeysBy(predicate);
+  if (keys instanceof Error) {
+    return keys;
+  }
 
   const items = await getSessionStorageItems(keys);
   if (items instanceof Error) {
     return items;
   }
 
-  return Object.entries(items)
-    .filter((entry): entry is [string, SamlTrace] => {
-      const valid = isSamlTrace(entry[1]);
+  return Object.values(items)
+    .filter((t): t is SamlTrace => {
+      const valid = isSamlTrace(t);
       if (!valid) {
-        console.warn("Invalid SAML trace:", entry[1]);
+        console.warn("Invalid SAML trace:", t);
       }
       return valid;
     })
-    .toSorted(([, a], [, b]) => (a.id < b.id ? -1 : 1));
+    .toSorted((a, b) => (a.id < b.id ? -1 : 1));
+}
+
+async function findSamlTraceKeysBy(
+  predicate: (keyFields: SamlTraceKeyFields) => boolean,
+): Promise<string[] | Error> {
+  const allKeys = await getAllSessionStorageKeys();
+  if (allKeys instanceof Error) {
+    return allKeys;
+  }
+
+  return allKeys.filter((k) => {
+    const keyFields = parseSamlTraceKey(k);
+    return keyFields !== undefined && predicate(keyFields);
+  });
 }
 
 const samlTraceKind = "trace";
