@@ -11,8 +11,8 @@ import {
   newWatchStartedRecord,
 } from "@/common/models/event-record.ts";
 import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
+import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 import {
-  getWatchedTabIds,
   registerWatchStopHandler,
   startWatching,
   stopWatching,
@@ -30,8 +30,11 @@ vi.mock("@/common/services/event-store.ts", () => ({
   saveEventRecord: vi.fn(),
 }));
 
-vi.mock("@/service-worker/tab-watcher.ts", () => ({
+vi.mock("@/common/services/watch-query.ts", () => ({
   getWatchedTabIds: vi.fn(),
+}));
+
+vi.mock("@/service-worker/tab-watcher.ts", () => ({
   registerWatchStopHandler: vi.fn(),
   startWatching: vi.fn(),
   stopWatching: vi.fn(),

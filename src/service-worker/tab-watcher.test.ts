@@ -4,24 +4,16 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { newWatchStartedRecord, newWatchStoppedRecord } from "@/common/models/event-record.ts";
-import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
+import { saveEventRecord } from "@/common/services/event-store.ts";
 import { tabExists } from "@/common/utils/chrome-tabs.ts";
 import {
-  isDebugging,
   registerDebuggerDetachHandler,
   startDebugging,
   stopDebugging,
 } from "@/service-worker/debugger-controller.ts";
-import {
-  getWatchedTabIds,
-  registerWatchStopHandler,
-  startWatching,
-  stopWatching,
-} from "./tab-watcher.ts";
+import { registerWatchStopHandler, startWatching, stopWatching } from "./tab-watcher.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  findAllEventRecords: vi.fn(),
   saveEventRecord: vi.fn(),
 }));
 
@@ -30,7 +22,6 @@ vi.mock("@/common/utils/chrome-tabs.ts", () => ({
 }));
 
 vi.mock("@/service-worker/debugger-controller.ts", () => ({
-  isDebugging: vi.fn(),
   registerDebuggerDetachHandler: vi.fn(),
   startDebugging: vi.fn(),
   stopDebugging: vi.fn(),
@@ -48,8 +39,6 @@ beforeEach(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.mocked(saveEventRecord).mockResolvedValue(undefined);
-  vi.mocked(findAllEventRecords).mockResolvedValue([]);
-  vi.mocked(isDebugging).mockResolvedValue(true);
   vi.mocked(startDebugging).mockResolvedValue(undefined);
   vi.mocked(stopDebugging).mockResolvedValue(undefined);
 });
@@ -206,56 +195,5 @@ describe("registerWatchStopHandler", () => {
 
     expect(onWatchStopped).toHaveBeenCalledExactlyOnceWith(1);
     expect(console.warn).toHaveBeenCalled();
-  });
-});
-
-describe("getWatchedTabIds", () => {
-  it("returns the tabs whose watch has started and not stopped", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newWatchStartedRecord(2),
-      newWatchStoppedRecord(1),
-    ]);
-
-    expect(await getWatchedTabIds()).toEqual([2]);
-  });
-
-  it("returns the tab when its watch started again after stopping", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newWatchStoppedRecord(1),
-      newWatchStartedRecord(1),
-    ]);
-
-    expect(await getWatchedTabIds()).toEqual([1]);
-  });
-
-  it("drops the tabs that are no longer debugged", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newWatchStartedRecord(2),
-    ]);
-    vi.mocked(isDebugging).mockImplementation(async (tabId) => tabId === 1);
-
-    expect(await getWatchedTabIds()).toEqual([1]);
-  });
-
-  it("returns an empty array when no watch has started", async () => {
-    expect(await getWatchedTabIds()).toEqual([]);
-  });
-
-  it("returns the error when the records cannot be retrieved", async () => {
-    const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(error);
-
-    expect(await getWatchedTabIds()).toBe(error);
-  });
-
-  it("returns the error when the debugging state cannot be determined", async () => {
-    const error = new Error("targets failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue([newWatchStartedRecord(1)]);
-    vi.mocked(isDebugging).mockResolvedValue(error);
-
-    expect(await getWatchedTabIds()).toBe(error);
   });
 });

@@ -7,7 +7,7 @@ import {
   newDebuggerAttachedRecord,
   newDebuggerDetachedRecord,
 } from "@/common/models/event-record.ts";
-import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
+import { saveEventRecord } from "@/common/services/event-store.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
 
 // chrome.debugger.DetachReason is an enum, which is not compatible with the callback parameter
@@ -38,32 +38,6 @@ export function registerDebuggerDetachHandler(
       console.error("Unexpected error in debugger.onDetach event:", { error: err });
     });
   });
-}
-
-export async function isDebugging(tabId: number): Promise<boolean | Error> {
-  // How the debugger record and the chrome.debugger API decide the result:
-  //
-  //   record   | chrome | result
-  //   ---------+--------+-------
-  //   attached | yes    | debugging
-  //   attached | no     | not debugging -- the detach record was lost [1]
-  //   detached | yes    | not debugging -- the record wins [2]
-  //   detached | no     | not debugging
-  //
-  // [1] The record write was missed or incomplete, so the record alone cannot be trusted.
-  // [2] The attachment may be DevTools or another extension. The attach record is reliable
-  //     because a failed write triggers an immediate detach, so trust it here.
-
-  const records = await findAllEventRecords();
-  if (records instanceof Error) {
-    return records;
-  }
-
-  const latest = records.findLast(
-    (r) => (r.type === "DebuggerAttached" || r.type === "DebuggerDetached") && r.tabId === tabId,
-  );
-
-  return latest !== undefined && latest.type === "DebuggerAttached" && (await isAttached(tabId));
 }
 
 export async function startDebugging(tabId: number, retry = false): Promise<void | Error> {

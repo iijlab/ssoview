@@ -5,8 +5,8 @@
 
 import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/common/models/event-record.ts";
 import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
+import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 import {
-  getWatchedTabIds,
   registerWatchStopHandler,
   startWatching,
   stopWatching,
