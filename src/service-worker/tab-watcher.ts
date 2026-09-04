@@ -76,15 +76,6 @@ export async function getWatchedTabIds(): Promise<number[] | Error> {
   return actualWatchedTabIds;
 }
 
-export async function isWatching(tabId: number): Promise<boolean | Error> {
-  const tabIds = await getWatchedTabIds();
-  if (tabIds instanceof Error) {
-    return tabIds;
-  }
-
-  return tabIds.includes(tabId);
-}
-
 export async function startWatching(tabId: number): Promise<void | Error> {
   const saveError = await saveEventRecord(newWatchStartedRecord(tabId));
   if (saveError) {

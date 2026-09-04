@@ -15,7 +15,6 @@ import {
 } from "@/service-worker/debugger-controller.ts";
 import {
   getWatchedTabIds,
-  isWatching,
   registerWatchStopHandler,
   startWatching,
   stopWatching,
@@ -258,26 +257,5 @@ describe("getWatchedTabIds", () => {
     vi.mocked(isDebugging).mockResolvedValue(error);
 
     expect(await getWatchedTabIds()).toBe(error);
-  });
-});
-
-describe("isWatching", () => {
-  it("returns true when the tab is watched", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([newWatchStartedRecord(1)]);
-
-    expect(await isWatching(1)).toBe(true);
-  });
-
-  it("returns false when another tab is watched", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([newWatchStartedRecord(2)]);
-
-    expect(await isWatching(1)).toBe(false);
-  });
-
-  it("returns the error when the watched tabs cannot be determined", async () => {
-    const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(error);
-
-    expect(await isWatching(1)).toBe(error);
   });
 });
