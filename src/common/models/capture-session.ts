@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-export type CaptureSession = {
+export type TracingSession = {
   id: string;
 } & (
   | {

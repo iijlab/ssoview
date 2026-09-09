@@ -10,7 +10,7 @@ import {
   newHttpRequest,
   newHttpResponse,
 } from "@/common/models/http-message.ts";
-import { getOngoingCaptureSessionId } from "@/common/services/capture-query.ts";
+import { getOngoingTracingSessionId } from "@/common/services/capture-query.ts";
 import { findHttpRequestByFetchRequestId } from "@/common/services/http-store.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
@@ -57,17 +57,17 @@ function onFetchRequestPausedEvent(
     // Ignore non-http URLs like chrome://
     const isHttpUrl = requestPausedEvent.request.url.startsWith("http");
 
-    const captureSessionId = await resolveCaptureSessionId();
-    if (!captureSessionId) {
-      console.warn("No ongoing capture session, skipping the HTTP message:", { tabId });
+    const tracingSessionId = await resolveTracingSessionId();
+    if (!tracingSessionId) {
+      console.warn("No ongoing tracing session, skipping the HTTP message:", { tabId });
     }
 
     // Determine request or response stage based on the presence of status code
     if (!requestPausedEvent.responseStatusCode) {
-      if (isHttpUrl && captureSessionId) {
+      if (isHttpUrl && tracingSessionId) {
         await onInterceptHttpRequest(
           tabId,
-          newHttpRequest(captureSessionId, tabId, requestPausedEvent),
+          newHttpRequest(tracingSessionId, tabId, requestPausedEvent),
         );
       }
 
@@ -80,9 +80,9 @@ function onFetchRequestPausedEvent(
         console.error("Failed to send Fetch.continueRequest command:", err);
       }
     } else {
-      if (isHttpUrl && captureSessionId) {
+      if (isHttpUrl && tracingSessionId) {
         const pairedHttpRequest = await resolvePairedHttpRequest(
-          captureSessionId,
+          tracingSessionId,
           tabId,
           requestPausedEvent.requestId,
         );
@@ -100,7 +100,7 @@ function onFetchRequestPausedEvent(
             console.warn("Failed to get response body:", { error: getResponseBodyResponse });
           } else {
             const httpResponse = newHttpResponse(
-              captureSessionId,
+              tracingSessionId,
               tabId,
               requestPausedEvent,
               requestPausedEvent.responseStatusCode,
@@ -126,23 +126,23 @@ function onFetchRequestPausedEvent(
   });
 }
 
-async function resolveCaptureSessionId(): Promise<string | undefined> {
-  const captureSessionId = await getOngoingCaptureSessionId();
-  if (captureSessionId instanceof Error) {
-    console.warn("Failed to get ongoing capture session:", captureSessionId);
+async function resolveTracingSessionId(): Promise<string | undefined> {
+  const tracingSessionId = await getOngoingTracingSessionId();
+  if (tracingSessionId instanceof Error) {
+    console.warn("Failed to get ongoing tracing session:", tracingSessionId);
     return undefined;
   }
 
-  return captureSessionId;
+  return tracingSessionId;
 }
 
 async function resolvePairedHttpRequest(
-  captureSessionId: string,
+  tracingSessionId: string,
   tabId: number,
   fetchRequestId: Protocol.Fetch.RequestId,
 ): Promise<HttpRequest | undefined> {
   const httpRequest = await findHttpRequestByFetchRequestId(
-    captureSessionId,
+    tracingSessionId,
     tabId,
     fetchRequestId,
   );

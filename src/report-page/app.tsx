@@ -38,7 +38,7 @@ export function App() {
         console.warn("Failed to load flow data:", { error: flowData });
         return;
       }
-      const { flowEntry, captureSession, samlTraces, httpMessages } = flowData;
+      const { flowEntry, tracingSession, samlTraces, httpMessages } = flowData;
 
       const httpMessageRecord = buildHttpMessageRecord(samlTraces, httpMessages);
       if (Object.keys(httpMessageRecord).length === 0) {
@@ -46,7 +46,7 @@ export function App() {
         return;
       }
 
-      const sessionSummary = summarizeSamlFlow(flowEntry, captureSession, samlTraces);
+      const sessionSummary = summarizeSamlFlow(flowEntry, tracingSession, samlTraces);
       const authnRequestXml = await getSamlAuthnRequestXml(httpMessageRecord);
       const responseXml = await getSamlResponseXml(httpMessageRecord);
 

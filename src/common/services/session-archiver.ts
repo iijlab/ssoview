@@ -60,7 +60,7 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
   }
 
   const archiveImportedEvent = newArchiveImportedEvent();
-  const captureSessionId = archiveImportedEvent.id;
+  const tracingSessionId = archiveImportedEvent.id;
 
   const saveError = await saveTracingLifecycleEvent(archiveImportedEvent);
   if (saveError) {
@@ -69,7 +69,7 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
 
   const httpMessages = archivedHttpMessages.map(({ tabId, fetchRequestId, ...m }) => ({
     ...m,
-    captureSessionId,
+    tracingSessionId,
   }));
 
   // Ideally we could just store all imported logs, but because the storage key
@@ -106,7 +106,7 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
     }
 
     const recordError = await recordSamlTrace(
-      captureSessionId,
+      tracingSessionId,
       detection,
       httpMessage,
       pairedHttpRequest,

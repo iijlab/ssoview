@@ -37,7 +37,7 @@ beforeEach(() => {
 function makeRequest(overrides: Record<string, unknown> = {}): HttpMessage {
   return {
     id: "msg-1",
-    captureSessionId: "cs-1",
+    tracingSessionId: "cs-1",
     observedAt: "2026-01-01T00:00:00Z",
     tabId: 1,
     fetchRequestId: "req-1",
@@ -60,10 +60,10 @@ function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
 }
 
 function keyOf(httpMessage: HttpMessage): string {
-  const { id, captureSessionId, tabId, fetchRequestId, stage } = httpMessage;
+  const { id, tracingSessionId, tabId, fetchRequestId, stage } = httpMessage;
   const observation =
     tabId === undefined ? "" : `"tabId":${tabId},"fetchRequestId":"${fetchRequestId}",`;
-  return `{"id":"${id}","kind":"http","captureSessionId":"${captureSessionId}",${observation}"stage":"${stage}"}`;
+  return `{"id":"${id}","kind":"http","tracingSessionId":"${tracingSessionId}",${observation}"stage":"${stage}"}`;
 }
 
 // Puts the messages into the mocked storage, in the given order of keys
@@ -80,7 +80,7 @@ function mockStorage(...httpMessages: HttpMessage[]): void {
 //
 
 describe("saveHttpMessage", () => {
-  it("stores the message under a JSON key of the ID, kind, capture session, tab, request ID, and stage", async () => {
+  it("stores the message under a JSON key of the ID, kind, tracing session, tab, request ID, and stage", async () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
     const httpMessage = makeRequest();
 
@@ -88,7 +88,7 @@ describe("saveHttpMessage", () => {
 
     expect(result).toBeUndefined();
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
-      '{"id":"msg-1","kind":"http","captureSessionId":"cs-1","tabId":1,"fetchRequestId":"req-1","stage":"Request"}',
+      '{"id":"msg-1","kind":"http","tracingSessionId":"cs-1","tabId":1,"fetchRequestId":"req-1","stage":"Request"}',
       httpMessage,
     );
   });
@@ -100,7 +100,7 @@ describe("saveHttpMessage", () => {
     await saveHttpMessage(httpMessage);
 
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
-      '{"id":"msg-1","kind":"http","captureSessionId":"cs-1","stage":"Request"}',
+      '{"id":"msg-1","kind":"http","tracingSessionId":"cs-1","stage":"Request"}',
       httpMessage,
     );
   });
@@ -168,16 +168,16 @@ describe("findHttpMessagesByIds", () => {
 });
 
 describe("findHttpRequestByFetchRequestId", () => {
-  it("returns the request of the given capture session, tab, and request ID", async () => {
+  it("returns the request of the given tracing session, tab, and request ID", async () => {
     const request = makeRequest();
     mockStorage(request);
 
     expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toEqual(request);
   });
 
-  it("ignores requests of another capture session, tab, or request ID", async () => {
+  it("ignores requests of another tracing session, tab, or request ID", async () => {
     mockStorage(
-      makeRequest({ id: "msg-3", captureSessionId: "cs-2" }),
+      makeRequest({ id: "msg-3", tracingSessionId: "cs-2" }),
       makeRequest({ id: "msg-4", tabId: 2 }),
       makeRequest({ id: "msg-5", fetchRequestId: "req-2" }),
     );

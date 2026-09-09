@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { summarizeSamlFlow } from "./saml-summarizer.ts";
@@ -39,12 +39,12 @@ function makeSamlTrace(overrides: Partial<SamlTrace>): SamlTrace {
 
 const flowEntry: FlowEntry = {
   id: "flow-1",
-  captureSessionId: "cs-1",
+  tracingSessionId: "cs-1",
   protocol: "saml",
   correlationKey: "corr-1",
 };
 
-const captureSession: CaptureSession = {
+const tracingSession: TracingSession = {
   id: "cs-1",
   imported: false,
   startedAt: "2026-01-01T00:00:00Z",
@@ -56,7 +56,7 @@ const captureSession: CaptureSession = {
 
 describe("summarizeSamlFlow", () => {
   it("builds summary from a single trace", () => {
-    const result = summarizeSamlFlow(flowEntry, captureSession, [
+    const result = summarizeSamlFlow(flowEntry, tracingSession, [
       makeSamlTrace({
         step: 2,
         type: "IncomingAuthnRequest",
@@ -79,7 +79,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("sets status to in_progress before step 6", () => {
-    const result = summarizeSamlFlow(flowEntry, captureSession, [
+    const result = summarizeSamlFlow(flowEntry, tracingSession, [
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest" }),
       makeSamlTrace({ step: 3, type: "OutgoingAuthnRequest" }),
       makeSamlTrace({ step: 4, type: "IncomingResponse" }),
@@ -89,7 +89,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("sets status to succeeded when a step 6 trace is present", () => {
-    const result = summarizeSamlFlow(flowEntry, captureSession, [
+    const result = summarizeSamlFlow(flowEntry, tracingSession, [
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest" }),
       makeSamlTrace({ step: 6, type: "AuthenticatedResourceResponse" }),
     ]);
@@ -98,7 +98,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("sets status to failed when the samlStatusCode is not Success", () => {
-    const result = summarizeSamlFlow(flowEntry, captureSession, [
+    const result = summarizeSamlFlow(flowEntry, tracingSession, [
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest" }),
       makeSamlTrace({
         step: 4,
@@ -112,7 +112,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("sets start and end from the observedAt", () => {
-    const result = summarizeSamlFlow(flowEntry, captureSession, [
+    const result = summarizeSamlFlow(flowEntry, tracingSession, [
       makeSamlTrace({
         step: 2,
         type: "IncomingAuthnRequest",
@@ -132,7 +132,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("does not set end when status is in_progress", () => {
-    const result = summarizeSamlFlow(flowEntry, captureSession, [
+    const result = summarizeSamlFlow(flowEntry, tracingSession, [
       makeSamlTrace({
         step: 2,
         type: "IncomingAuthnRequest",
@@ -145,7 +145,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("assigns the serverHostname to sp or idp by the step", () => {
-    const result = summarizeSamlFlow(flowEntry, captureSession, [
+    const result = summarizeSamlFlow(flowEntry, tracingSession, [
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest", serverHostname: "sp.example.com" }),
       makeSamlTrace({ step: 3, type: "OutgoingAuthnRequest", serverHostname: "idp.example.org" }),
       makeSamlTrace({ step: 5, type: "OutgoingResponse", serverHostname: "second-sp.com" }),
@@ -155,7 +155,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("sets action to the last trace's action", () => {
-    const result = summarizeSamlFlow(flowEntry, captureSession, [
+    const result = summarizeSamlFlow(flowEntry, tracingSession, [
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest", action: "first action" }),
       makeSamlTrace({ step: 3, type: "OutgoingAuthnRequest", action: "second action" }),
       makeSamlTrace({ step: 4, type: "IncomingResponse", action: "third action" }),
@@ -165,15 +165,15 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("uses the flow ID as the session ID", () => {
-    const result = summarizeSamlFlow(flowEntry, captureSession, [
+    const result = summarizeSamlFlow(flowEntry, tracingSession, [
       makeSamlTrace({ step: 2, type: "IncomingAuthnRequest" }),
     ]);
 
     expect(result).toMatchObject({ sessionId: "flow-1", imported: false });
   });
 
-  it("derives imported from the capture session", () => {
-    const importedSession: CaptureSession = {
+  it("derives imported from the tracing session", () => {
+    const importedSession: TracingSession = {
       id: "cs-1",
       imported: true,
       importedAt: "2026-01-01T00:00:00Z",

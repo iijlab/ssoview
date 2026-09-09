@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
@@ -17,7 +17,7 @@ export type ArrowClickHandler = (sectionId: ContentSectionId) => void;
 
 export type FlowData = {
   flowEntry: FlowEntry;
-  captureSession: CaptureSession;
+  tracingSession: TracingSession;
   samlTraces: SamlTrace[];
   httpMessages: HttpMessage[];
 };

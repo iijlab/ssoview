@@ -4,11 +4,11 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
-import { getCaptureSessions, isCapturing } from "@/common/services/capture-query.ts";
+import { getTracingSessions, isCapturing } from "@/common/services/capture-query.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
 import {
   deleteFlowEntry,
@@ -20,7 +20,7 @@ import { deleteSamlTracesByFlowId, findSamlTracesByFlowId } from "@/common/servi
 import { deleteSession, getSessionSummaries } from "./session-manager.ts";
 
 vi.mock("@/common/services/capture-query.ts", () => ({
-  getCaptureSessions: vi.fn(),
+  getTracingSessions: vi.fn(),
   isCapturing: vi.fn(),
 }));
 
@@ -46,7 +46,7 @@ vi.mock("@/common/services/saml-store.ts", () => ({
 beforeEach(() => {
   vi.resetAllMocks();
 
-  vi.mocked(getCaptureSessions).mockResolvedValue([]);
+  vi.mocked(getTracingSessions).mockResolvedValue([]);
   vi.mocked(isCapturing).mockResolvedValue(false);
   vi.mocked(findAllFlowEntries).mockResolvedValue([]);
   vi.mocked(findSamlTracesByFlowId).mockResolvedValue([]);
@@ -78,21 +78,21 @@ function makeSamlTrace(overrides: Partial<SamlTrace>): SamlTrace {
 function makeFlowEntry(overrides: Partial<FlowEntry> = {}): FlowEntry {
   return {
     id: "flow-1",
-    captureSessionId: "cs-1",
+    tracingSessionId: "cs-1",
     protocol: "saml",
     correlationKey: "corr-1",
     ...overrides,
   };
 }
 
-function makeCaptureSession(overrides: Partial<CaptureSession> = {}): CaptureSession {
+function makeTracingSession(overrides: Partial<TracingSession> = {}): TracingSession {
   return {
     id: "cs-1",
     imported: false,
     startedAt: "2026-01-01T00:00:00Z",
     endedAt: "2026-01-01T00:01:00Z",
     ...overrides,
-  } as CaptureSession;
+  } as TracingSession;
 }
 
 //
@@ -100,17 +100,17 @@ function makeCaptureSession(overrides: Partial<CaptureSession> = {}): CaptureSes
 //
 
 describe("getSessionSummaries", () => {
-  it("returns an empty array when no capture session exists", async () => {
+  it("returns an empty array when no tracing session exists", async () => {
     expect(await getSessionSummaries(1)).toEqual([]);
   });
 
   it("builds one summary per flow in the given order", async () => {
-    vi.mocked(getCaptureSessions).mockResolvedValue([
-      makeCaptureSession({ id: "cs-2" }),
-      makeCaptureSession({ id: "cs-1" }),
+    vi.mocked(getTracingSessions).mockResolvedValue([
+      makeTracingSession({ id: "cs-2" }),
+      makeTracingSession({ id: "cs-1" }),
     ]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([
-      makeFlowEntry({ id: "flow-2", captureSessionId: "cs-2", correlationKey: "corr-2" }),
+      makeFlowEntry({ id: "flow-2", tracingSessionId: "cs-2", correlationKey: "corr-2" }),
       makeFlowEntry({ id: "flow-1", correlationKey: "corr-1" }),
     ]);
     vi.mocked(findSamlTracesByFlowId).mockImplementation(async (flowId) =>
@@ -131,9 +131,9 @@ describe("getSessionSummaries", () => {
     ]);
   });
 
-  it("derives imported from the capture session", async () => {
-    vi.mocked(getCaptureSessions).mockResolvedValue([
-      makeCaptureSession({ imported: true, importedAt: "2026-01-01T00:00:00Z" }),
+  it("derives imported from the tracing session", async () => {
+    vi.mocked(getTracingSessions).mockResolvedValue([
+      makeTracingSession({ imported: true, importedAt: "2026-01-01T00:00:00Z" }),
     ]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([makeFlowEntry()]);
     vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace({})]);
@@ -141,8 +141,8 @@ describe("getSessionSummaries", () => {
     expect(await getSessionSummaries(1)).toMatchObject([{ imported: true, capturing: false }]);
   });
 
-  it("sets capturing on the newest flow of the ongoing capture session", async () => {
-    vi.mocked(getCaptureSessions).mockResolvedValue([makeCaptureSession({ endedAt: undefined })]);
+  it("sets capturing on the newest flow of the ongoing tracing session", async () => {
+    vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ endedAt: undefined })]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([
       makeFlowEntry({ id: "flow-2", correlationKey: "corr-2" }),
       makeFlowEntry({ id: "flow-1", correlationKey: "corr-1" }),
@@ -156,13 +156,13 @@ describe("getSessionSummaries", () => {
     ]);
   });
 
-  it("sets capturing on the newest flow of the ongoing capture session, not of an import", async () => {
-    vi.mocked(getCaptureSessions).mockResolvedValue([
-      makeCaptureSession({ id: "cs-2", imported: true, importedAt: "2026-01-01T00:02:00Z" }),
-      makeCaptureSession({ id: "cs-1", endedAt: undefined }),
+  it("sets capturing on the newest flow of the ongoing tracing session, not of an import", async () => {
+    vi.mocked(getTracingSessions).mockResolvedValue([
+      makeTracingSession({ id: "cs-2", imported: true, importedAt: "2026-01-01T00:02:00Z" }),
+      makeTracingSession({ id: "cs-1", endedAt: undefined }),
     ]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([
-      makeFlowEntry({ id: "flow-2", captureSessionId: "cs-2", correlationKey: "corr-2" }),
+      makeFlowEntry({ id: "flow-2", tracingSessionId: "cs-2", correlationKey: "corr-2" }),
       makeFlowEntry({ id: "flow-1", correlationKey: "corr-1" }),
     ]);
     vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace({})]);
@@ -174,8 +174,8 @@ describe("getSessionSummaries", () => {
     ]);
   });
 
-  it("does not set capturing when the capture session has ended", async () => {
-    vi.mocked(getCaptureSessions).mockResolvedValue([makeCaptureSession()]);
+  it("does not set capturing when the tracing session has ended", async () => {
+    vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession()]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([makeFlowEntry()]);
     vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace({})]);
     vi.mocked(isCapturing).mockResolvedValue(true);
@@ -184,7 +184,7 @@ describe("getSessionSummaries", () => {
   });
 
   it("does not set capturing when no capture is running", async () => {
-    vi.mocked(getCaptureSessions).mockResolvedValue([makeCaptureSession({ endedAt: undefined })]);
+    vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ endedAt: undefined })]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([makeFlowEntry()]);
     vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace({})]);
     vi.mocked(isCapturing).mockResolvedValue(false);
@@ -192,9 +192,9 @@ describe("getSessionSummaries", () => {
     expect(await getSessionSummaries(1)).toMatchObject([{ capturing: false }]);
   });
 
-  it("skips a flow whose capture session is missing with a warning", async () => {
+  it("skips a flow whose tracing session is missing with a warning", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.mocked(getCaptureSessions).mockResolvedValue([makeCaptureSession({ id: "cs-2" })]);
+    vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ id: "cs-2" })]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([makeFlowEntry()]);
 
     expect(await getSessionSummaries(1)).toEqual([]);
@@ -209,16 +209,16 @@ describe("getSessionSummaries", () => {
     expect(await getSessionSummaries(1)).toBe(error);
   });
 
-  it("propagates an error from the capture session query", async () => {
+  it("propagates an error from the tracing session query", async () => {
     const error = new Error("capture query error");
-    vi.mocked(getCaptureSessions).mockResolvedValue(error);
+    vi.mocked(getTracingSessions).mockResolvedValue(error);
 
     expect(await getSessionSummaries(1)).toBe(error);
   });
 
   it("propagates an error from the flow store", async () => {
     const error = new Error("flow store error");
-    vi.mocked(getCaptureSessions).mockResolvedValue([makeCaptureSession()]);
+    vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession()]);
     vi.mocked(findAllFlowEntries).mockResolvedValue(error);
 
     expect(await getSessionSummaries(1)).toBe(error);
@@ -226,7 +226,7 @@ describe("getSessionSummaries", () => {
 
   it("propagates an error from the trace store", async () => {
     const error = new Error("trace store error");
-    vi.mocked(getCaptureSessions).mockResolvedValue([makeCaptureSession()]);
+    vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession()]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([makeFlowEntry()]);
     vi.mocked(findSamlTracesByFlowId).mockResolvedValue(error);
 

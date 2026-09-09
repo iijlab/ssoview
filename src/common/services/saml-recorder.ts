@@ -11,7 +11,7 @@ import { findFlowEntryByCorrelationKey, saveFlowEntry } from "@/common/services/
 import { saveSamlTrace } from "@/common/services/saml-store.ts";
 
 export async function recordSamlTrace(
-  captureSessionId: string,
+  tracingSessionId: string,
   detection: SamlDetection,
   httpMessage: HttpMessage,
   pairedHttpRequest?: HttpRequest,
@@ -23,7 +23,7 @@ export async function recordSamlTrace(
       });
     } else {
       const recordError = await recordSamlTrace(
-        captureSessionId,
+        tracingSessionId,
         {
           step: 1,
           correlationKey: detection.correlationKey,
@@ -36,7 +36,7 @@ export async function recordSamlTrace(
     }
   }
 
-  const flowEntry = await findOrIssueFlowEntry(captureSessionId, detection.correlationKey);
+  const flowEntry = await findOrIssueFlowEntry(tracingSessionId, detection.correlationKey);
   if (flowEntry instanceof Error) {
     return flowEntry;
   }
@@ -55,24 +55,24 @@ export async function recordSamlTrace(
 }
 
 async function findOrIssueFlowEntry(
-  captureSessionId: string,
+  tracingSessionId: string,
   correlationKey: string,
 ): Promise<FlowEntry | Error> {
-  const flowEntry = await findFlowEntryByCorrelationKey(captureSessionId, correlationKey);
+  const flowEntry = await findFlowEntryByCorrelationKey(tracingSessionId, correlationKey);
   if (flowEntry instanceof Error) {
     return flowEntry;
   }
 
   return flowEntry === undefined
-    ? await issueFlowEntry(captureSessionId, correlationKey)
+    ? await issueFlowEntry(tracingSessionId, correlationKey)
     : flowEntry;
 }
 
 async function issueFlowEntry(
-  captureSessionId: string,
+  tracingSessionId: string,
   correlationKey: string,
 ): Promise<FlowEntry | Error> {
-  const flowEntry = newFlowEntry(captureSessionId, "saml", correlationKey);
+  const flowEntry = newFlowEntry(tracingSessionId, "saml", correlationKey);
 
   const saveError = await saveFlowEntry(flowEntry);
   if (saveError) {

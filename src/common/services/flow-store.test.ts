@@ -31,8 +31,8 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
-function keyOf(flow: { id: string; captureSessionId: string; correlationKey: string }): string {
-  return `{"id":"${flow.id}","kind":"flow","captureSessionId":"${flow.captureSessionId}","correlationKey":"${flow.correlationKey}"}`;
+function keyOf(flow: { id: string; tracingSessionId: string; correlationKey: string }): string {
+  return `{"id":"${flow.id}","kind":"flow","tracingSessionId":"${flow.tracingSessionId}","correlationKey":"${flow.correlationKey}"}`;
 }
 
 // Puts the flows into the mocked storage, in the given order of keys
@@ -45,7 +45,7 @@ function mockStorage(...flows: FlowEntry[]): void {
 }
 
 describe("saveFlowEntry", () => {
-  it("stores the flow under a JSON key of the ID, kind, capture session, and correlation key", async () => {
+  it("stores the flow under a JSON key of the ID, kind, tracing session, and correlation key", async () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
     const flow = newFlowEntry("cs-1", "saml", "_authn-request-id");
 
@@ -108,7 +108,7 @@ describe("findAllFlowEntries", () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([
       "not-a-json-key",
       `{"id":"x","kind":"event","type":"TracingStarted"}`,
-      `{"id":"x","kind":"flow","captureSessionId":"cs-1"}`,
+      `{"id":"x","kind":"flow","tracingSessionId":"cs-1"}`,
       keyOf(flow),
     ]);
 
@@ -146,14 +146,14 @@ describe("findAllFlowEntries", () => {
 });
 
 describe("findFlowEntryByCorrelationKey", () => {
-  it("finds the flow with the correlation key in the capture session", async () => {
+  it("finds the flow with the correlation key in the tracing session", async () => {
     const target = newFlowEntry("cs-1", "saml", "key-1");
     mockStorage(newFlowEntry("cs-1", "saml", "key-2"), target);
 
     expect(await findFlowEntryByCorrelationKey("cs-1", "key-1")).toEqual(target);
   });
 
-  it("does not find a flow with the same correlation key in another capture session", async () => {
+  it("does not find a flow with the same correlation key in another tracing session", async () => {
     mockStorage(newFlowEntry("cs-2", "saml", "key-1"));
 
     expect(await findFlowEntryByCorrelationKey("cs-1", "key-1")).toBeUndefined();

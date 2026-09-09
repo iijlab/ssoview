@@ -6,12 +6,12 @@
 import type Protocol from "devtools-protocol";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type HttpRequest } from "@/common/models/http-message.ts";
-import { getOngoingCaptureSessionId } from "@/common/services/capture-query.ts";
+import { getOngoingTracingSessionId } from "@/common/services/capture-query.ts";
 import { findHttpRequestByFetchRequestId } from "@/common/services/http-store.ts";
 import { registerHttpInterceptionHandlers } from "./http-interception.ts";
 
 vi.mock("@/common/services/capture-query.ts", () => ({
-  getOngoingCaptureSessionId: vi.fn(),
+  getOngoingTracingSessionId: vi.fn(),
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -33,7 +33,7 @@ const sendCommand = vi.fn();
 
 const storedHttpRequest = {
   id: "stored-1",
-  captureSessionId: "capture-session-1",
+  tracingSessionId: "tracing-session-1",
   stage: "Request",
   tabId: 1,
   fetchRequestId: "req-1",
@@ -44,7 +44,7 @@ const storedHttpRequest = {
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(console, "warn").mockImplementation(() => {});
-  vi.mocked(getOngoingCaptureSessionId).mockReset().mockResolvedValue("capture-session-1");
+  vi.mocked(getOngoingTracingSessionId).mockReset().mockResolvedValue("tracing-session-1");
   vi.mocked(findHttpRequestByFetchRequestId).mockReset().mockResolvedValue(storedHttpRequest);
   eventListeners.length = 0;
   sendCommand.mockReset();
@@ -93,7 +93,7 @@ function makeResponsePausedEvent(responseStatusCode: number): Protocol.Fetch.Req
 //
 
 describe("registerHttpInterceptionHandlers", () => {
-  it("gives the request the ongoing capture session and the tab", async () => {
+  it("gives the request the ongoing tracing session and the tab", async () => {
     const onInterceptHttpRequest = vi.fn();
     registerHttpInterceptionHandlers(onInterceptHttpRequest, vi.fn());
 
@@ -102,11 +102,11 @@ describe("registerHttpInterceptionHandlers", () => {
     await vi.waitFor(() => expect(onInterceptHttpRequest).toHaveBeenCalledOnce());
     expect(onInterceptHttpRequest).toHaveBeenCalledWith(
       1,
-      expect.objectContaining({ captureSessionId: "capture-session-1", tabId: 1 }),
+      expect.objectContaining({ tracingSessionId: "tracing-session-1", tabId: 1 }),
     );
   });
 
-  it("gives the response the ongoing capture session and the tab", async () => {
+  it("gives the response the ongoing tracing session and the tab", async () => {
     const onInterceptHttpResponse = vi.fn();
     registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
 
@@ -115,13 +115,13 @@ describe("registerHttpInterceptionHandlers", () => {
     await vi.waitFor(() => expect(onInterceptHttpResponse).toHaveBeenCalledOnce());
     expect(onInterceptHttpResponse).toHaveBeenCalledWith(
       1,
-      expect.objectContaining({ captureSessionId: "capture-session-1", tabId: 1 }),
+      expect.objectContaining({ tracingSessionId: "tracing-session-1", tabId: 1 }),
       storedHttpRequest,
     );
   });
 
-  it("skips the request but continues it when no capture session is ongoing", async () => {
-    vi.mocked(getOngoingCaptureSessionId).mockResolvedValue(undefined);
+  it("skips the request but continues it when no tracing session is ongoing", async () => {
+    vi.mocked(getOngoingTracingSessionId).mockResolvedValue(undefined);
     const onInterceptHttpRequest = vi.fn();
     registerHttpInterceptionHandlers(onInterceptHttpRequest, vi.fn());
 
@@ -137,8 +137,8 @@ describe("registerHttpInterceptionHandlers", () => {
     expect(console.warn).toHaveBeenCalled();
   });
 
-  it("skips the response but continues it when no capture session is ongoing", async () => {
-    vi.mocked(getOngoingCaptureSessionId).mockResolvedValue(undefined);
+  it("skips the response but continues it when no tracing session is ongoing", async () => {
+    vi.mocked(getOngoingTracingSessionId).mockResolvedValue(undefined);
     const onInterceptHttpResponse = vi.fn();
     registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
 
@@ -185,7 +185,7 @@ describe("registerHttpInterceptionHandlers", () => {
 
     await vi.waitFor(() => expect(onInterceptHttpResponse).toHaveBeenCalledOnce());
     expect(findHttpRequestByFetchRequestId).toHaveBeenCalledExactlyOnceWith(
-      "capture-session-1",
+      "tracing-session-1",
       1,
       "req-1",
     );

@@ -33,7 +33,7 @@ export async function processHttpRequest(
     return undefined;
   }
 
-  const recordError = await recordSamlTrace(httpRequest.captureSessionId, detection, httpRequest);
+  const recordError = await recordSamlTrace(httpRequest.tracingSessionId, detection, httpRequest);
   if (recordError) {
     return recordError;
   }
@@ -71,7 +71,7 @@ export async function processHttpResponse(
   }
 
   const recordError = await recordSamlTrace(
-    httpResponse.captureSessionId,
+    httpResponse.tracingSessionId,
     detection,
     httpResponse,
     pairedHttpRequest,

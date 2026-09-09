@@ -14,7 +14,7 @@ export function isSsoProtocol(u: unknown): u is SsoProtocol {
 
 export type FlowEntry = {
   id: string;
-  captureSessionId: string;
+  tracingSessionId: string;
   protocol: SsoProtocol;
   // The value that ties an SSO trace to its flow varies by protocol. In SAML, it is the
   // AuthnRequest ID for an SP-Initiated flow or the Response ID for an IdP-Initiated flow.
@@ -25,20 +25,20 @@ export function isFlowEntry(u: unknown): u is FlowEntry {
   return (
     isObject(u) &&
     typeof u.id === "string" &&
-    typeof u.captureSessionId === "string" &&
+    typeof u.tracingSessionId === "string" &&
     isSsoProtocol(u.protocol) &&
     typeof u.correlationKey === "string"
   );
 }
 
 export function newFlowEntry(
-  captureSessionId: string,
+  tracingSessionId: string,
   protocol: SsoProtocol,
   correlationKey: string,
 ): FlowEntry {
   return {
     id: uuidv7(),
-    captureSessionId,
+    tracingSessionId,
     protocol,
     correlationKey,
   };

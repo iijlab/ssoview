@@ -22,14 +22,14 @@ export async function findHttpMessagesByIds(ids: string[]): Promise<HttpMessage[
 }
 
 export async function findHttpRequestByFetchRequestId(
-  captureSessionId: string,
+  tracingSessionId: string,
   tabId: number,
   fetchRequestId: string,
 ): Promise<HttpRequest | undefined | Error> {
   const httpMessages = await findHttpMessagesBy(
     (k) =>
       k.stage === "Request" &&
-      k.captureSessionId === captureSessionId &&
+      k.tracingSessionId === tracingSessionId &&
       k.tabId === tabId &&
       k.fetchRequestId === fetchRequestId,
   );
@@ -78,7 +78,7 @@ const httpMessageKind = "http";
 type HttpMessageKeyFields = {
   id: string;
   kind: typeof httpMessageKind;
-  captureSessionId: string;
+  tracingSessionId: string;
   tabId?: number;
   fetchRequestId?: string;
   stage: HttpMessage["stage"];
@@ -89,7 +89,7 @@ function isHttpMessageKeyFields(u: unknown): u is HttpMessageKeyFields {
     isObject(u) &&
     typeof u.id === "string" &&
     u.kind === httpMessageKind &&
-    typeof u.captureSessionId === "string" &&
+    typeof u.tracingSessionId === "string" &&
     (!("tabId" in u) || typeof u.tabId === "number") &&
     (!("fetchRequestId" in u) || typeof u.fetchRequestId === "string") &&
     (u.stage === "Request" || u.stage === "Response")
@@ -100,7 +100,7 @@ function makeHttpMessageKey(httpMessage: HttpMessage): string {
   return JSON.stringify({ ...httpMessage, kind: httpMessageKind }, [
     "id",
     "kind",
-    "captureSessionId",
+    "tracingSessionId",
     "tabId",
     "fetchRequestId",
     "stage",

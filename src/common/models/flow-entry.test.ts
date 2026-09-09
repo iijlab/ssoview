@@ -11,7 +11,7 @@ describe("newFlowEntry", () => {
   it("creates a flow with the given attributes", () => {
     const flow = newFlowEntry("cs-1", "saml", "_authn-request-id");
 
-    expect(flow.captureSessionId).toBe("cs-1");
+    expect(flow.tracingSessionId).toBe("cs-1");
     expect(flow.protocol).toBe("saml");
     expect(flow.correlationKey).toBe("_authn-request-id");
   });
@@ -43,10 +43,10 @@ describe("isFlowEntry", () => {
   });
 
   it.each([
-    ["id", { captureSessionId: "cs-1", protocol: "saml", correlationKey: "key" }],
-    ["captureSessionId", { id: "id", protocol: "saml", correlationKey: "key" }],
-    ["protocol", { id: "id", captureSessionId: "cs-1", correlationKey: "key" }],
-    ["correlationKey", { id: "id", captureSessionId: "cs-1", protocol: "saml" }],
+    ["id", { tracingSessionId: "cs-1", protocol: "saml", correlationKey: "key" }],
+    ["tracingSessionId", { id: "id", protocol: "saml", correlationKey: "key" }],
+    ["protocol", { id: "id", tracingSessionId: "cs-1", correlationKey: "key" }],
+    ["correlationKey", { id: "id", tracingSessionId: "cs-1", protocol: "saml" }],
   ])("rejects a value without %s", (_attribute, value) => {
     expect(isFlowEntry(value)).toBe(false);
   });

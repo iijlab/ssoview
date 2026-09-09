@@ -4,7 +4,7 @@
  */
 
 import { Base64 } from "js-base64";
-import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
@@ -29,7 +29,7 @@ const samlFailureResponseXml = samlFailureResponseXmlRaw.trim();
 const samlUnknownResponseXml = samlUnknownResponseXmlRaw.trim();
 
 const sampleFlowId = "flow-sample";
-const sampleCaptureSessionId = "cs-sample";
+const sampleTracingSessionId = "cs-sample";
 
 export async function buildSampleFlowData(): Promise<FlowData> {
   const sample = new URLSearchParams(window.location.search).get("sample");
@@ -44,19 +44,19 @@ export async function buildSampleFlowData(): Promise<FlowData> {
 
   const flowEntry: FlowEntry = {
     id: sampleFlowId,
-    captureSessionId: sampleCaptureSessionId,
+    tracingSessionId: sampleTracingSessionId,
     protocol: "saml",
     correlationKey,
   };
 
-  const captureSession: CaptureSession = {
-    id: sampleCaptureSessionId,
+  const tracingSession: TracingSession = {
+    id: sampleTracingSessionId,
     imported: false,
     startedAt: "2004-12-05T09:21:57.000Z",
     endedAt: "2004-12-05T09:22:06.000Z",
   };
 
-  return { flowEntry, captureSession, samlTraces, httpMessages };
+  return { flowEntry, tracingSession, samlTraces, httpMessages };
 }
 
 async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessage[]> {
@@ -76,7 +76,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
     id: "msg-001",
     stage: "Request" as const,
     observedAt: "2004-12-05T09:21:58.000Z",
-    captureSessionId: sampleCaptureSessionId,
+    tracingSessionId: sampleTracingSessionId,
     tabId: 1,
     fetchRequestId: "req-001",
     url: "https://sp.example.com/SAML2/resource",
@@ -90,7 +90,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
     id: "msg-002",
     stage: "Response" as const,
     observedAt: "2004-12-05T09:21:59.000Z",
-    captureSessionId: sampleCaptureSessionId,
+    tracingSessionId: sampleTracingSessionId,
     tabId: 1,
     fetchRequestId: "req-001",
     url: "https://sp.example.com/SAML2/resource",
@@ -110,7 +110,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
     id: "msg-003",
     stage: "Request" as const,
     observedAt: "2004-12-05T09:21:59.200Z",
-    captureSessionId: sampleCaptureSessionId,
+    tracingSessionId: sampleTracingSessionId,
     tabId: 1,
     fetchRequestId: "req-002",
     url: idpSsoUrl,
@@ -124,7 +124,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
     id: "msg-004",
     stage: "Response" as const,
     observedAt: "2004-12-05T09:22:05.000Z",
-    captureSessionId: sampleCaptureSessionId,
+    tracingSessionId: sampleTracingSessionId,
     tabId: 1,
     fetchRequestId: "req-002",
     url: idpSsoUrl,
@@ -154,7 +154,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
     id: "msg-005",
     stage: "Request" as const,
     observedAt: "2004-12-05T09:22:05.100Z",
-    captureSessionId: sampleCaptureSessionId,
+    tracingSessionId: sampleTracingSessionId,
     tabId: 1,
     fetchRequestId: "req-003",
     url: "https://sp.example.com/SAML2/SSO/POST",
@@ -172,7 +172,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
     id: "msg-006",
     stage: "Response" as const,
     observedAt: "2004-12-05T09:22:05.500Z",
-    captureSessionId: sampleCaptureSessionId,
+    tracingSessionId: sampleTracingSessionId,
     tabId: 1,
     fetchRequestId: "req-003",
     url: "https://sp.example.com/SAML2/SSO/POST",

@@ -56,7 +56,7 @@ beforeEach(() => {
 describe("dumpSessionArchive", () => {
   const flowEntry: FlowEntry = {
     id: "flow-1",
-    captureSessionId: "cs-1",
+    tracingSessionId: "cs-1",
     protocol: "saml",
     correlationKey: "session-1",
   };
@@ -125,7 +125,7 @@ describe("loadSessionArchive", () => {
 
     expect(result).toEqual(["session-1"]);
     const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
-    const importedHttpMessage = { ...httpMessage, captureSessionId: importedEvent.id };
+    const importedHttpMessage = { ...httpMessage, tracingSessionId: importedEvent.id };
     expect(saveHttpMessage).toHaveBeenCalledWith(importedHttpMessage);
     expect(recordSamlTrace).toHaveBeenCalledWith(
       importedEvent.id,
@@ -135,9 +135,9 @@ describe("loadSessionArchive", () => {
     );
   });
 
-  it("assigns the imported capture session and drops the observed tab and request ID", async () => {
+  it("assigns the imported tracing session and drops the observed tab and request ID", async () => {
     const httpMessage = {
-      captureSessionId: "cs-exported",
+      tracingSessionId: "cs-exported",
       tabId: 7,
       fetchRequestId: "req-7",
       stage: "Request",
@@ -156,7 +156,7 @@ describe("loadSessionArchive", () => {
 
     const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith({
-      captureSessionId: importedEvent.id,
+      tracingSessionId: importedEvent.id,
       stage: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
@@ -188,8 +188,8 @@ describe("loadSessionArchive", () => {
     await loadSessionArchive(1, "har-string");
 
     const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
-    const importedPairedRequest = { ...pairedRequest, captureSessionId: importedEvent.id };
-    const importedHttpMessage = { ...httpMessage, captureSessionId: importedEvent.id };
+    const importedPairedRequest = { ...pairedRequest, tracingSessionId: importedEvent.id };
+    const importedHttpMessage = { ...httpMessage, tracingSessionId: importedEvent.id };
     expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(
       importedHttpMessage,
       importedPairedRequest,
@@ -222,7 +222,7 @@ describe("loadSessionArchive", () => {
     expect(consoleError).toHaveBeenCalledOnce();
   });
 
-  it("records the traces under the imported capture session", async () => {
+  it("records the traces under the imported tracing session", async () => {
     const httpMessage = {
       stage: "Request",
       url: "https://idp.example.org/sso",

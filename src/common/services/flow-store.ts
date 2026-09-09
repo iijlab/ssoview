@@ -39,11 +39,11 @@ export async function findFlowEntryById(id: string): Promise<FlowEntry | undefin
 }
 
 export async function findFlowEntryByCorrelationKey(
-  captureSessionId: string,
+  tracingSessionId: string,
   correlationKey: string,
 ): Promise<FlowEntry | undefined | Error> {
   const entries = await findFlowEntriesBy(
-    (e) => e.captureSessionId === captureSessionId && e.correlationKey === correlationKey,
+    (e) => e.tracingSessionId === tracingSessionId && e.correlationKey === correlationKey,
   );
   if (entries instanceof Error) {
     return entries;
@@ -86,7 +86,7 @@ const flowEntryKind = "flow";
 type FlowEntryKeyFields = {
   id: string;
   kind: typeof flowEntryKind;
-  captureSessionId: string;
+  tracingSessionId: string;
   correlationKey: string;
 };
 
@@ -95,7 +95,7 @@ function isFlowEntryKeyFields(u: unknown): u is FlowEntryKeyFields {
     isObject(u) &&
     typeof u.id === "string" &&
     u.kind === flowEntryKind &&
-    typeof u.captureSessionId === "string" &&
+    typeof u.tracingSessionId === "string" &&
     typeof u.correlationKey === "string"
   );
 }
@@ -104,7 +104,7 @@ function makeFlowEntryKey(flow: FlowEntry): string {
   return JSON.stringify({ ...flow, kind: flowEntryKind }, [
     "id",
     "kind",
-    "captureSessionId",
+    "tracingSessionId",
     "correlationKey",
   ]);
 }

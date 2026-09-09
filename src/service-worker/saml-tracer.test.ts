@@ -39,7 +39,7 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     observedAt: "2026-01-01T00:00:00Z",
     stage: "Request",
-    captureSessionId: "capture-session-1",
+    tracingSessionId: "tracing-session-1",
     tabId: 1,
     fetchRequestId: "req-1",
     headers: [],
@@ -54,7 +54,7 @@ function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   return {
     observedAt: "2026-01-01T00:00:00Z",
     stage: "Response",
-    captureSessionId: "capture-session-1",
+    tracingSessionId: "tracing-session-1",
     tabId: 1,
     fetchRequestId: "req-1",
     headers: [{ name: "Date", value: "Thu, 01 Jan 2026 00:00:00 GMT" }],
@@ -110,7 +110,7 @@ describe("processHttpRequest", () => {
     expect(result).toBe("session-1");
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(request);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
-      "capture-session-1",
+      "tracing-session-1",
       { step: 3, correlationKey: "session-1" },
       request,
     );
@@ -161,7 +161,7 @@ describe("processHttpResponse", () => {
     expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(response, pairedRequest);
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(response);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
-      "capture-session-1",
+      "tracing-session-1",
       { step: 2, correlationKey: "session-1" },
       response,
       pairedRequest,

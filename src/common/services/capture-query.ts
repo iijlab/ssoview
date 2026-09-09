@@ -3,37 +3,37 @@
  * @license BSD-3-Clause
  */
 
-import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type TracingLifecycleEvent } from "@/common/models/event-record.ts";
 import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
 import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 
-export async function getCaptureSession(
-  captureSessionId: string,
-): Promise<CaptureSession | undefined | Error> {
-  const captureSessions = await getCaptureSessions();
-  if (captureSessions instanceof Error) {
-    return captureSessions;
+export async function getTracingSession(
+  tracingSessionId: string,
+): Promise<TracingSession | undefined | Error> {
+  const tracingSessions = await getTracingSessions();
+  if (tracingSessions instanceof Error) {
+    return tracingSessions;
   }
 
-  return captureSessions.find((s) => s.id === captureSessionId);
+  return tracingSessions.find((s) => s.id === tracingSessionId);
 }
 
-export async function getCaptureSessions(): Promise<CaptureSession[] | Error> {
+export async function getTracingSessions(): Promise<TracingSession[] | Error> {
   const tracingLifecycleEvents = await findAllTracingLifecycleEvents();
   if (tracingLifecycleEvents instanceof Error) {
     return tracingLifecycleEvents;
   }
 
-  return deriveCaptureSessions(tracingLifecycleEvents).toSorted((a, b) => (a.id < b.id ? 1 : -1));
+  return deriveTracingSessions(tracingLifecycleEvents).toSorted((a, b) => (a.id < b.id ? 1 : -1));
 }
 
-function deriveCaptureSessions(tracingLifecycleEvents: TracingLifecycleEvent[]): CaptureSession[] {
-  return tracingLifecycleEvents.reduce((captureSessions, event): CaptureSession[] => {
+function deriveTracingSessions(tracingLifecycleEvents: TracingLifecycleEvent[]): TracingSession[] {
+  return tracingLifecycleEvents.reduce((tracingSessions, event): TracingSession[] => {
     switch (event.type) {
       case "TracingStarted":
         return [
-          ...captureSessions,
+          ...tracingSessions,
           {
             id: event.id,
             imported: false,
@@ -41,10 +41,10 @@ function deriveCaptureSessions(tracingLifecycleEvents: TracingLifecycleEvent[]):
           },
         ];
       case "TracingStopped":
-        return terminateLastOngoingCaptureSession(captureSessions, event.recordedAt);
+        return terminateLastOngoingTracingSession(tracingSessions, event.recordedAt);
       case "ArchiveImported":
         return [
-          ...captureSessions,
+          ...tracingSessions,
           {
             id: event.id,
             imported: true,
@@ -52,24 +52,24 @@ function deriveCaptureSessions(tracingLifecycleEvents: TracingLifecycleEvent[]):
           },
         ];
       default:
-        return captureSessions;
+        return tracingSessions;
     }
   }, []);
 }
 
-function terminateLastOngoingCaptureSession(
-  captureSessions: CaptureSession[],
+function terminateLastOngoingTracingSession(
+  tracingSessions: TracingSession[],
   endedAt: string,
-): CaptureSession[] {
+): TracingSession[] {
   // Taking the last element is not enough: it may be an imported session.
-  // Search backwards for the ongoing capture session.
-  const ongoingCaptureSession = captureSessions.findLast(
+  // Search backwards for the ongoing tracing session.
+  const ongoingTracingSession = tracingSessions.findLast(
     (s) => !s.imported && s.endedAt === undefined,
   );
-  return ongoingCaptureSession === undefined
-    ? captureSessions
-    : captureSessions.map((s) =>
-        s.id === ongoingCaptureSession.id ? { ...ongoingCaptureSession, endedAt } : s,
+  return ongoingTracingSession === undefined
+    ? tracingSessions
+    : tracingSessions.map((s) =>
+        s.id === ongoingTracingSession.id ? { ...ongoingTracingSession, endedAt } : s,
       );
 }
 
@@ -87,7 +87,7 @@ export async function isCapturing(): Promise<boolean | Error> {
   //     never be stopped.
   // [2] The user can detach from the banner.
 
-  const sessionId = await getOngoingCaptureSessionId();
+  const sessionId = await getOngoingTracingSessionId();
   if (sessionId instanceof Error) {
     return sessionId;
   } else if (sessionId === undefined) {
@@ -102,7 +102,7 @@ export async function isCapturing(): Promise<boolean | Error> {
   return 0 < tabIds.length;
 }
 
-export async function getOngoingCaptureSessionId(): Promise<string | undefined | Error> {
+export async function getOngoingTracingSessionId(): Promise<string | undefined | Error> {
   const tracingLifecycleEvents = await findAllTracingLifecycleEvents();
   if (tracingLifecycleEvents instanceof Error) {
     return tracingLifecycleEvents;

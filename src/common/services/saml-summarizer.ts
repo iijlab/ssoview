@@ -3,19 +3,19 @@
  * @license BSD-3-Clause
  */
 
-import { type CaptureSession } from "@/common/models/capture-session.ts";
+import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
 import { type SessionSummary } from "@/common/models/session-summary.ts";
 
 export function summarizeSamlFlow(
   flowEntry: FlowEntry,
-  captureSession: CaptureSession,
+  tracingSession: TracingSession,
   samlTraces: SamlTrace[],
 ): SessionSummary {
   return samlTraces.reduce(updateSamlSessionSummary, {
     protocol: "saml",
-    imported: captureSession.imported,
+    imported: tracingSession.imported,
     capturing: false,
     sessionId: flowEntry.id,
     warning: [],

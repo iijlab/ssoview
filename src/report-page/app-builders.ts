@@ -5,7 +5,7 @@
 
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
-import { getCaptureSession } from "@/common/services/capture-query.ts";
+import { getTracingSession } from "@/common/services/capture-query.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
 import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import {
@@ -33,11 +33,11 @@ export async function loadFlowData(flowId: string | null): Promise<FlowData | Er
     return new Error("Flow not found");
   }
 
-  const captureSession = await getCaptureSession(flowEntry.captureSessionId);
-  if (captureSession instanceof Error) {
-    return captureSession;
-  } else if (captureSession === undefined) {
-    return new Error(`No capture session: ${flowEntry.captureSessionId}`);
+  const tracingSession = await getTracingSession(flowEntry.tracingSessionId);
+  if (tracingSession instanceof Error) {
+    return tracingSession;
+  } else if (tracingSession === undefined) {
+    return new Error(`No tracing session: ${flowEntry.tracingSessionId}`);
   }
 
   const samlTraces = await findSamlTracesByFlowId(flowEntry.id);
@@ -50,7 +50,7 @@ export async function loadFlowData(flowId: string | null): Promise<FlowData | Er
     return httpMessages;
   }
 
-  return { flowEntry, captureSession, samlTraces, httpMessages };
+  return { flowEntry, tracingSession, samlTraces, httpMessages };
 }
 
 export function buildHttpMessageRecord(

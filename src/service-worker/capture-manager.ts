@@ -4,7 +4,7 @@
  */
 
 import { newTracingStartedEvent, newTracingStoppedEvent } from "@/common/models/event-record.ts";
-import { getOngoingCaptureSessionId, isCapturing } from "@/common/services/capture-query.ts";
+import { getOngoingTracingSessionId, isCapturing } from "@/common/services/capture-query.ts";
 import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 import {
@@ -56,7 +56,7 @@ export async function startCapturing(tabId: number): Promise<void | Error> {
 }
 
 async function closeInconsistentCapture(): Promise<void | Error> {
-  const sessionId = await getOngoingCaptureSessionId();
+  const sessionId = await getOngoingTracingSessionId();
   if (sessionId instanceof Error) {
     return sessionId;
   }

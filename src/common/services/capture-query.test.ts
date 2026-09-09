@@ -17,9 +17,9 @@ import {
 import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
 import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 import {
-  getCaptureSession,
-  getCaptureSessions,
-  getOngoingCaptureSessionId,
+  getOngoingTracingSessionId,
+  getTracingSession,
+  getTracingSessions,
   isCapturing,
 } from "./capture-query.ts";
 
@@ -67,13 +67,13 @@ function tracingEvents(...types: ("TracingStarted" | "TracingStopped")[]): Traci
 // Tests
 //
 
-describe("getCaptureSessions", () => {
+describe("getTracingSessions", () => {
   it("derives a session from a pair of capture events", async () => {
     const started = event("TracingStarted");
     const stopped = event("TracingStopped");
     mockEvents(started, stopped);
 
-    expect(await getCaptureSessions()).toEqual([
+    expect(await getTracingSessions()).toEqual([
       {
         id: started.id,
         imported: false,
@@ -87,7 +87,7 @@ describe("getCaptureSessions", () => {
     const started = event("TracingStarted");
     mockEvents(started);
 
-    expect(await getCaptureSessions()).toEqual([
+    expect(await getTracingSessions()).toEqual([
       { id: started.id, imported: false, startedAt: started.recordedAt },
     ]);
   });
@@ -96,7 +96,7 @@ describe("getCaptureSessions", () => {
     const imported = event("ArchiveImported");
     mockEvents(imported);
 
-    expect(await getCaptureSessions()).toEqual([
+    expect(await getTracingSessions()).toEqual([
       { id: imported.id, imported: true, importedAt: imported.recordedAt },
     ]);
   });
@@ -107,7 +107,7 @@ describe("getCaptureSessions", () => {
     const stopped = event("TracingStopped");
     mockEvents(first, imported, stopped);
 
-    expect(await getCaptureSessions()).toEqual([
+    expect(await getTracingSessions()).toEqual([
       { id: imported.id, imported: true, importedAt: imported.recordedAt },
       { id: first.id, imported: false, startedAt: first.recordedAt, endedAt: stopped.recordedAt },
     ]);
@@ -116,7 +116,7 @@ describe("getCaptureSessions", () => {
   it("ignores a stop event without a capture in progress", async () => {
     mockEvents(event("TracingStopped"));
 
-    expect(await getCaptureSessions()).toEqual([]);
+    expect(await getTracingSessions()).toEqual([]);
   });
 
   it("closes the previous capture when another one starts", async () => {
@@ -124,7 +124,7 @@ describe("getCaptureSessions", () => {
     const second = event("TracingStarted");
     mockEvents(first, second);
 
-    expect(await getCaptureSessions()).toEqual([
+    expect(await getTracingSessions()).toEqual([
       { id: second.id, imported: false, startedAt: second.recordedAt },
       { id: first.id, imported: false, startedAt: first.recordedAt },
     ]);
@@ -140,7 +140,7 @@ describe("getCaptureSessions", () => {
       event("TabTracingStopped"),
     );
 
-    expect(await getCaptureSessions()).toEqual([
+    expect(await getTracingSessions()).toEqual([
       { id: started.id, imported: false, startedAt: started.recordedAt },
     ]);
   });
@@ -149,29 +149,29 @@ describe("getCaptureSessions", () => {
     const error = new Error("storage failed");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
-    expect(await getCaptureSessions()).toBe(error);
+    expect(await getTracingSessions()).toBe(error);
   });
 });
 
-describe("getCaptureSession", () => {
+describe("getTracingSession", () => {
   it("returns the imported session with the given ID", async () => {
     const started = event("TracingStarted");
     const imported = event("ArchiveImported");
     mockEvents(started, imported);
 
-    expect(await getCaptureSession(imported.id)).toEqual({
+    expect(await getTracingSession(imported.id)).toEqual({
       id: imported.id,
       imported: true,
       importedAt: imported.recordedAt,
     });
   });
 
-  it("returns the captured session with the given ID", async () => {
+  it("returns the tracing session with the given ID", async () => {
     const started = event("TracingStarted");
     const imported = event("ArchiveImported");
     mockEvents(started, imported);
 
-    expect(await getCaptureSession(started.id)).toEqual({
+    expect(await getTracingSession(started.id)).toEqual({
       id: started.id,
       imported: false,
       startedAt: started.recordedAt,
@@ -181,23 +181,23 @@ describe("getCaptureSession", () => {
   it("returns undefined for an unknown ID", async () => {
     mockEvents(event("ArchiveImported"));
 
-    expect(await getCaptureSession("unknown")).toBeUndefined();
+    expect(await getTracingSession("unknown")).toBeUndefined();
   });
 
   it("returns the error when the events cannot be retrieved", async () => {
     const error = new Error("storage failed");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
-    expect(await getCaptureSession("unknown")).toBe(error);
+    expect(await getTracingSession("unknown")).toBe(error);
   });
 });
 
-describe("getOngoingCaptureSessionId", () => {
+describe("getOngoingTracingSessionId", () => {
   it("returns the ID of the event that started the ongoing capture", async () => {
     const events = tracingEvents("TracingStarted", "TracingStopped", "TracingStarted");
     mockEvents(...events);
 
-    expect(await getOngoingCaptureSessionId()).toBe(events[2]?.id);
+    expect(await getOngoingTracingSessionId()).toBe(events[2]?.id);
     expect(getWatchedTabIds).not.toHaveBeenCalled();
   });
 
@@ -205,24 +205,24 @@ describe("getOngoingCaptureSessionId", () => {
     const started = event("TracingStarted");
     mockEvents(started, event("TabTracingStarted"));
 
-    expect(await getOngoingCaptureSessionId()).toBe(started.id);
+    expect(await getOngoingTracingSessionId()).toBe(started.id);
   });
 
   it("returns undefined when the latest capture has stopped", async () => {
     mockEvents(...tracingEvents("TracingStarted", "TracingStopped"));
 
-    expect(await getOngoingCaptureSessionId()).toBeUndefined();
+    expect(await getOngoingTracingSessionId()).toBeUndefined();
   });
 
   it("returns undefined when no capture has started", async () => {
-    expect(await getOngoingCaptureSessionId()).toBeUndefined();
+    expect(await getOngoingTracingSessionId()).toBeUndefined();
   });
 
   it("returns the error when the events cannot be retrieved", async () => {
     const error = new Error("storage failed");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
-    expect(await getOngoingCaptureSessionId()).toBe(error);
+    expect(await getOngoingTracingSessionId()).toBe(error);
   });
 });
 

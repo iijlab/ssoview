@@ -83,7 +83,7 @@ describe("recordSamlTrace", () => {
     expect(result).toBeUndefined();
     expect(storedFlowEntries()).toEqual([
       expect.objectContaining({
-        captureSessionId: "cs-1",
+        tracingSessionId: "cs-1",
         protocol: "saml",
         correlationKey: "authn-req-1",
       }),
@@ -157,12 +157,12 @@ describe("recordSamlTrace", () => {
     expect(storedFlowEntries()).toHaveLength(1);
   });
 
-  it("issues a flow per capture session", async () => {
+  it("issues a flow per tracing session", async () => {
     const detection = { step: 2, correlationKey: "authn-req-1" } as const;
     await recordSamlTrace("cs-1", detection, makeResponse(), makeRequest());
     await recordSamlTrace("cs-2", detection, makeResponse(), makeRequest());
 
-    expect(storedFlowEntries().map((f) => f.captureSessionId)).toEqual(["cs-1", "cs-2"]);
+    expect(storedFlowEntries().map((f) => f.tracingSessionId)).toEqual(["cs-1", "cs-2"]);
   });
 
   it("returns an error when the trace cannot be built", async () => {

@@ -23,7 +23,7 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
     id: "msg-1",
     observedAt: "2026-01-01T00:00:00Z",
     stage: "Request",
-    captureSessionId: "cs-1",
+    tracingSessionId: "cs-1",
     tabId: 1,
     fetchRequestId: "req-1",
     url: "https://example.com/",
@@ -58,7 +58,7 @@ describe("isHttpMessage", () => {
   const validHttpRequest = {
     id: "msg-123",
     observedAt: "2026-01-01T00:00:00Z",
-    captureSessionId: "cs-1",
+    tracingSessionId: "cs-1",
     tabId: 1,
     fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
@@ -71,7 +71,7 @@ describe("isHttpMessage", () => {
   const validHttpResponse = {
     id: "msg-124",
     observedAt: "2026-01-01T00:00:00Z",
-    captureSessionId: "cs-1",
+    tracingSessionId: "cs-1",
     tabId: 1,
     fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
@@ -109,12 +109,12 @@ describe("isHttpMessage", () => {
     expect(isHttpMessage(msg)).toBe(false);
   });
 
-  it("returns false when captureSessionId is missing", () => {
-    const { captureSessionId, ...msg } = validHttpRequest;
+  it("returns false when tracingSessionId is missing", () => {
+    const { tracingSessionId, ...msg } = validHttpRequest;
     expect(isHttpMessage(msg)).toBe(false);
   });
 
-  // Messages of an imported capture session have neither tabId nor fetchRequestId
+  // Messages of an imported tracing session have neither tabId nor fetchRequestId
   it("returns true when tabId and fetchRequestId are missing", () => {
     const { tabId, fetchRequestId, ...msg } = validHttpRequest;
     expect(isHttpMessage(msg)).toBe(true);
@@ -206,10 +206,10 @@ describe("newHttpRequest", () => {
     });
   });
 
-  it("belongs to the given capture session and tab", () => {
+  it("belongs to the given tracing session and tab", () => {
     const httpRequest = newHttpRequest("cs-1", 1, makeRequestPausedEvent());
 
-    expect(httpRequest).toMatchObject({ captureSessionId: "cs-1", tabId: 1 });
+    expect(httpRequest).toMatchObject({ tracingSessionId: "cs-1", tabId: 1 });
   });
 
   it("issues a unique id", () => {
@@ -301,7 +301,7 @@ describe("newHttpResponse", () => {
     });
   });
 
-  it("belongs to the given capture session and tab", () => {
+  it("belongs to the given tracing session and tab", () => {
     const httpResponse = newHttpResponse(
       "cs-1",
       1,
@@ -311,7 +311,7 @@ describe("newHttpResponse", () => {
       makeRequest(),
     );
 
-    expect(httpResponse).toMatchObject({ captureSessionId: "cs-1", tabId: 1 });
+    expect(httpResponse).toMatchObject({ tracingSessionId: "cs-1", tabId: 1 });
   });
 
   it("returns empty headers when responseHeaders is missing", () => {

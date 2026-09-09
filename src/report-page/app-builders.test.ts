@@ -22,7 +22,7 @@ function makeHttpMessage(id: string): HttpMessage {
     id,
     observedAt: "2026-01-01T00:00:00Z",
     stage: "Request",
-    captureSessionId: "cs-1",
+    tracingSessionId: "cs-1",
     tabId: 1,
     fetchRequestId: "req-1",
     url: "https://sp.example.com/",

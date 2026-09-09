@@ -4,7 +4,7 @@
  */
 
 import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
-import { getCaptureSessions, isCapturing } from "@/common/services/capture-query.ts";
+import { getTracingSessions, isCapturing } from "@/common/services/capture-query.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
 import {
   deleteFlowEntry,
@@ -20,7 +20,7 @@ import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
 // current scale.
 
 /**
- * Retrieve a summary of every flow in every capture session.
+ * Retrieve a summary of every flow in every tracing session.
  *
  * @param _tabId - Unused. Kept until the side panel stops passing it
  * @returns Flow summaries, newest first, or an Error
@@ -31,9 +31,9 @@ export async function getSessionSummaries(_tabId: number): Promise<SessionSummar
     return capturing;
   }
 
-  const captureSessions = await getCaptureSessions();
-  if (captureSessions instanceof Error) {
-    return captureSessions;
+  const tracingSessions = await getTracingSessions();
+  if (tracingSessions instanceof Error) {
+    return tracingSessions;
   }
 
   const flowEntries = await findAllFlowEntries();
@@ -41,17 +41,17 @@ export async function getSessionSummaries(_tabId: number): Promise<SessionSummar
     return flowEntries;
   }
 
-  const ongoingCaptureSession = captureSessions.find((s) => !s.imported && s.endedAt === undefined);
+  const ongoingTracingSession = tracingSessions.find((s) => !s.imported && s.endedAt === undefined);
   const ongoingFlowId =
-    ongoingCaptureSession !== undefined
-      ? flowEntries.find((f) => f.captureSessionId === ongoingCaptureSession.id)?.id
+    ongoingTracingSession !== undefined
+      ? flowEntries.find((f) => f.tracingSessionId === ongoingTracingSession.id)?.id
       : undefined;
 
   const summaries: SessionSummary[] = [];
   for (const flowEntry of flowEntries) {
-    const captureSession = captureSessions.find((s) => s.id === flowEntry.captureSessionId);
-    if (captureSession === undefined) {
-      console.warn("No capture session for the flow:", { flowId: flowEntry.id });
+    const tracingSession = tracingSessions.find((s) => s.id === flowEntry.tracingSessionId);
+    if (tracingSession === undefined) {
+      console.warn("No tracing session for the flow:", { flowId: flowEntry.id });
       continue;
     }
 
@@ -61,7 +61,7 @@ export async function getSessionSummaries(_tabId: number): Promise<SessionSummar
     }
 
     const summary = {
-      ...summarizeSamlFlow(flowEntry, captureSession, samlTraces),
+      ...summarizeSamlFlow(flowEntry, tracingSession, samlTraces),
       capturing: flowEntry.id === ongoingFlowId && capturing,
     };
 
