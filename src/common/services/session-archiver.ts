@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { newArchiveImportedRecord } from "@/common/models/event-record.ts";
+import { newArchiveImportedEvent } from "@/common/models/event-record.ts";
 import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
 import {
   type HttpMessage,
@@ -11,7 +11,7 @@ import {
   type HttpResponse,
 } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
-import { saveEventRecord } from "@/common/services/event-store.ts";
+import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
 import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import { saveHttpMessage } from "@/common/services/http-store.ts";
@@ -59,10 +59,10 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
     return archivedHttpMessages;
   }
 
-  const archiveImportedRecord = newArchiveImportedRecord();
-  const captureSessionId = archiveImportedRecord.id;
+  const archiveImportedEvent = newArchiveImportedEvent();
+  const captureSessionId = archiveImportedEvent.id;
 
-  const saveError = await saveEventRecord(archiveImportedRecord);
+  const saveError = await saveTracingLifecycleEvent(archiveImportedEvent);
   if (saveError) {
     return saveError;
   }

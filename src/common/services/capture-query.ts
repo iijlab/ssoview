@@ -4,8 +4,8 @@
  */
 
 import { type CaptureSession } from "@/common/models/capture-session.ts";
-import { type EventRecord } from "@/common/models/event-record.ts";
-import { findAllEventRecords } from "@/common/services/event-store.ts";
+import { type TracingLifecycleEvent } from "@/common/models/event-record.ts";
+import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
 import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 
 export async function getCaptureSession(
@@ -20,35 +20,35 @@ export async function getCaptureSession(
 }
 
 export async function getCaptureSessions(): Promise<CaptureSession[] | Error> {
-  const eventRecords = await findAllEventRecords();
-  if (eventRecords instanceof Error) {
-    return eventRecords;
+  const tracingLifecycleEvents = await findAllTracingLifecycleEvents();
+  if (tracingLifecycleEvents instanceof Error) {
+    return tracingLifecycleEvents;
   }
 
-  return deriveCaptureSessions(eventRecords).toSorted((a, b) => (a.id < b.id ? 1 : -1));
+  return deriveCaptureSessions(tracingLifecycleEvents).toSorted((a, b) => (a.id < b.id ? 1 : -1));
 }
 
-function deriveCaptureSessions(eventRecords: EventRecord[]): CaptureSession[] {
-  return eventRecords.reduce((captureSessions, eventRecord): CaptureSession[] => {
-    switch (eventRecord.type) {
-      case "CaptureStarted":
+function deriveCaptureSessions(tracingLifecycleEvents: TracingLifecycleEvent[]): CaptureSession[] {
+  return tracingLifecycleEvents.reduce((captureSessions, event): CaptureSession[] => {
+    switch (event.type) {
+      case "TracingStarted":
         return [
           ...captureSessions,
           {
-            id: eventRecord.id,
+            id: event.id,
             imported: false,
-            startedAt: eventRecord.date,
+            startedAt: event.recordedAt,
           },
         ];
-      case "CaptureStopped":
-        return terminateLastOngoingCaptureSession(captureSessions, eventRecord.date);
+      case "TracingStopped":
+        return terminateLastOngoingCaptureSession(captureSessions, event.recordedAt);
       case "ArchiveImported":
         return [
           ...captureSessions,
           {
-            id: eventRecord.id,
+            id: event.id,
             imported: true,
-            importedAt: eventRecord.date,
+            importedAt: event.recordedAt,
           },
         ];
       default:
@@ -74,13 +74,13 @@ function terminateLastOngoingCaptureSession(
 }
 
 export async function isCapturing(): Promise<boolean | Error> {
-  // How the capture record and the watched tabs decide the result:
+  // How the capture event and the watched tabs decide the result:
   //
-  //   record | watched tab | result
+  //   event  | watched tab | result
   //   -------+-------------+-------
   //   open   | yes         | capturing
-  //   open   | no          | not capturing -- the stop record was lost [1]
-  //   closed | yes         | not capturing -- the record wins [2]
+  //   open   | no          | not capturing -- the stop event was lost [1]
+  //   closed | yes         | not capturing -- the event wins [2]
   //   closed | no          | not capturing
   //
   // [1] The debugger is already detached, so staying "capturing" would show a recording that can
@@ -103,13 +103,13 @@ export async function isCapturing(): Promise<boolean | Error> {
 }
 
 export async function getOngoingCaptureSessionId(): Promise<string | undefined | Error> {
-  const records = await findAllEventRecords();
-  if (records instanceof Error) {
-    return records;
+  const tracingLifecycleEvents = await findAllTracingLifecycleEvents();
+  if (tracingLifecycleEvents instanceof Error) {
+    return tracingLifecycleEvents;
   }
 
-  const latest = records
-    .filter((r) => r.type === "CaptureStarted" || r.type === "CaptureStopped")
+  const latest = tracingLifecycleEvents
+    .filter((e) => e.type === "TracingStarted" || e.type === "TracingStopped")
     .at(-1);
-  return latest?.type === "CaptureStarted" ? latest.id : undefined;
+  return latest?.type === "TracingStarted" ? latest.id : undefined;
 }

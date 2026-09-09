@@ -4,10 +4,10 @@
  */
 
 import {
-  newDebuggerAttachedRecord,
-  newDebuggerDetachedRecord,
+  newDebuggingStartedEvent,
+  newDebuggingStoppedEvent,
 } from "@/common/models/event-record.ts";
-import { saveEventRecord } from "@/common/services/event-store.ts";
+import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
 
 // chrome.debugger.DetachReason is an enum, which is not compatible with the callback parameter
@@ -28,7 +28,7 @@ export function registerDebuggerDetachHandler(
     }
 
     (async (tabId: number) => {
-      const saveError = await saveEventRecord(newDebuggerDetachedRecord(tabId, reason));
+      const saveError = await saveTracingLifecycleEvent(newDebuggingStoppedEvent(tabId, reason));
       if (saveError) {
         console.warn("Failed to store the debugger detached event:", { error: saveError });
       }
@@ -40,7 +40,7 @@ export function registerDebuggerDetachHandler(
   });
 }
 
-export async function startDebugging(tabId: number, retry = false): Promise<void | Error> {
+export async function startDebugging(tabId: number, isRetry = false): Promise<void | Error> {
   const attached = await isAttached(tabId);
   if (attached instanceof Error) {
     return attached;
@@ -62,7 +62,7 @@ export async function startDebugging(tabId: number, retry = false): Promise<void
     return fetchError;
   }
 
-  const saveError = await saveEventRecord(newDebuggerAttachedRecord(tabId, retry));
+  const saveError = await saveTracingLifecycleEvent(newDebuggingStartedEvent(tabId, isRetry));
   if (saveError) {
     const detachError = await detachFromTab(tabId);
     if (detachError) {
@@ -78,7 +78,7 @@ export async function stopDebugging(tabId: number): Promise<void | Error> {
     return new Error("Failed to detach from tab", { cause: detachError });
   }
 
-  const saveError = await saveEventRecord(newDebuggerDetachedRecord(tabId));
+  const saveError = await saveTracingLifecycleEvent(newDebuggingStoppedEvent(tabId));
   if (saveError) {
     return new Error("Failed to store the debugger detached event", { cause: saveError });
   }

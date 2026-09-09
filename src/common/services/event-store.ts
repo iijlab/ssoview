@@ -4,10 +4,10 @@
  */
 
 import {
-  type EventRecord,
-  type EventRecordType,
-  isEventRecord,
-  isEventRecordType,
+  type TracingLifecycleEvent,
+  type TracingLifecycleEventType,
+  isTracingLifecycleEvent,
+  isTracingLifecycleEventType,
 } from "@/common/models/event-record.ts";
 import {
   getAllSessionStorageKeys,
@@ -16,60 +16,70 @@ import {
 } from "@/common/utils/chrome-storage.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
-export async function saveEventRecord(record: EventRecord): Promise<void | Error> {
-  return await setSessionStorageItem(makeEventRecordKey(record), record);
+export async function saveTracingLifecycleEvent(
+  tracingLifecycleEvent: TracingLifecycleEvent,
+): Promise<void | Error> {
+  return await setSessionStorageItem(
+    toTracingLifecycleEventKey(tracingLifecycleEvent),
+    tracingLifecycleEvent,
+  );
 }
 
-export async function findAllEventRecords(): Promise<EventRecord[] | Error> {
+export async function findAllTracingLifecycleEvents(): Promise<TracingLifecycleEvent[] | Error> {
   const allKeys = await getAllSessionStorageKeys();
   if (allKeys instanceof Error) {
     return allKeys;
   }
 
-  const keys = allKeys.filter((k) => parseEventRecordKey(k) !== undefined);
+  const keys = allKeys.filter((k) => parseTracingLifecycleEventKey(k) !== undefined);
   const items = await getSessionStorageItems(keys);
   if (items instanceof Error) {
     return items;
   }
 
   return Object.values(items)
-    .filter((r): r is EventRecord => {
-      const valid = isEventRecord(r);
+    .filter((e): e is TracingLifecycleEvent => {
+      const valid = isTracingLifecycleEvent(e);
       if (!valid) {
-        console.warn("Invalid event record:", r);
+        console.warn("Invalid tracing lifecycle event:", e);
       }
       return valid;
     })
     .toSorted((a, b) => (a.id < b.id ? -1 : 1));
 }
 
-const eventRecordKind = "event";
+const tracingLifecycleEventKind = "event";
 
-type EventRecordKeyFields = {
+type TracingLifecycleEventKeyFields = {
   id: string;
-  kind: typeof eventRecordKind;
-  type: EventRecordType;
+  kind: typeof tracingLifecycleEventKind;
+  type: TracingLifecycleEventType;
   tabId?: number;
 };
 
-function isEventRecordKeyFields(u: unknown): u is EventRecordKeyFields {
+function isTracingLifecycleEventKeyFields(u: unknown): u is TracingLifecycleEventKeyFields {
   return (
     isObject(u) &&
     typeof u.id === "string" &&
-    u.kind === eventRecordKind &&
-    isEventRecordType(u.type) &&
+    u.kind === tracingLifecycleEventKind &&
+    isTracingLifecycleEventType(u.type) &&
     (!("tabId" in u) || typeof u.tabId === "number")
   );
 }
 
-function makeEventRecordKey(record: EventRecord): string {
-  return JSON.stringify({ ...record, kind: eventRecordKind }, ["id", "kind", "type", "tabId"]);
+function toTracingLifecycleEventKey(tracingLifecycleEvent: TracingLifecycleEvent): string {
+  return JSON.stringify({ ...tracingLifecycleEvent, kind: tracingLifecycleEventKind }, [
+    "id",
+    "kind",
+    "type",
+    "tabId",
+  ]);
 }
 
-function parseEventRecordKey(key: string): EventRecordKeyFields | undefined {
+function parseTracingLifecycleEventKey(key: string): TracingLifecycleEventKeyFields | undefined {
   try {
     const parsed: unknown = JSON.parse(key);
-    return isEventRecordKeyFields(parsed) ? parsed : undefined;
+    return isTracingLifecycleEventKeyFields(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }

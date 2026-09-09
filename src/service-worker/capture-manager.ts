@@ -3,9 +3,9 @@
  * @license BSD-3-Clause
  */
 
-import { newCaptureStartedRecord, newCaptureStoppedRecord } from "@/common/models/event-record.ts";
+import { newTracingStartedEvent, newTracingStoppedEvent } from "@/common/models/event-record.ts";
 import { getOngoingCaptureSessionId, isCapturing } from "@/common/services/capture-query.ts";
-import { saveEventRecord } from "@/common/services/event-store.ts";
+import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 import {
   registerWatchStopHandler,
@@ -17,7 +17,7 @@ export function registerCaptureStopHandler(
   onCaptureStopped: (tabId: number) => Promise<void>,
 ): void {
   registerWatchStopHandler(async (tabId) => {
-    const saveError = await saveEventRecord(newCaptureStoppedRecord());
+    const saveError = await saveTracingLifecycleEvent(newTracingStoppedEvent());
     if (saveError) {
       console.warn("Failed to store the capture stopped event:", { error: saveError });
     }
@@ -40,14 +40,14 @@ export async function startCapturing(tabId: number): Promise<void | Error> {
     return;
   }
 
-  const saveError = await saveEventRecord(newCaptureStartedRecord());
+  const saveError = await saveTracingLifecycleEvent(newTracingStartedEvent());
   if (saveError) {
     return saveError;
   }
 
   const startError = await startWatching(tabId);
   if (startError) {
-    const saveError = await saveEventRecord(newCaptureStoppedRecord());
+    const saveError = await saveTracingLifecycleEvent(newTracingStoppedEvent());
     if (saveError) {
       console.warn("Failed to store the capture stopped event:", { error: saveError });
     }
@@ -68,8 +68,8 @@ async function closeInconsistentCapture(): Promise<void | Error> {
     }
 
     if (watchedTabIds.length === 0) {
-      // No tab is being watched, so the capture is stale. Write the stop record that went missing.
-      return await saveEventRecord(newCaptureStoppedRecord());
+      // No tab is being watched, so the capture is stale. Write the stop event that went missing.
+      return await saveTracingLifecycleEvent(newTracingStoppedEvent());
     }
   }
 }
@@ -80,7 +80,7 @@ export async function stopCapturing(tabId: number): Promise<void | Error> {
     return stopError;
   }
 
-  const saveError = await saveEventRecord(newCaptureStoppedRecord());
+  const saveError = await saveTracingLifecycleEvent(newTracingStoppedEvent());
   if (saveError) {
     return new Error("Failed to store the capture stopped event", { cause: saveError });
   }

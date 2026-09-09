@@ -5,11 +5,14 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  type EventRecord,
-  newCaptureStartedRecord,
-  newCaptureStoppedRecord,
+  type TracingLifecycleEvent,
+  newTracingStartedEvent,
+  newTracingStoppedEvent,
 } from "@/common/models/event-record.ts";
-import { findAllEventRecords, saveEventRecord } from "@/common/services/event-store.ts";
+import {
+  findAllTracingLifecycleEvents,
+  saveTracingLifecycleEvent,
+} from "@/common/services/event-store.ts";
 import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 import {
   registerWatchStopHandler,
@@ -19,8 +22,8 @@ import {
 import { registerCaptureStopHandler, startCapturing, stopCapturing } from "./capture-manager.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  findAllEventRecords: vi.fn(),
-  saveEventRecord: vi.fn(),
+  findAllTracingLifecycleEvents: vi.fn(),
+  saveTracingLifecycleEvent: vi.fn(),
 }));
 
 vi.mock("@/common/services/watch-query.ts", () => ({
@@ -44,8 +47,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
-  vi.mocked(saveEventRecord).mockResolvedValue(undefined);
-  vi.mocked(findAllEventRecords).mockResolvedValue([]);
+  vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(undefined);
+  vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([]);
   vi.mocked(getWatchedTabIds).mockResolvedValue([]);
   vi.mocked(startWatching).mockResolvedValue(undefined);
   vi.mocked(stopWatching).mockResolvedValue(undefined);
@@ -60,15 +63,15 @@ function registerAndGetHandler(onCaptureStopped: CaptureStopHandler): WatchStopH
   return handler as WatchStopHandler;
 }
 
-function captureRecords(...types: ("CaptureStarted" | "CaptureStopped")[]): EventRecord[] {
+function tracingEvents(...types: ("TracingStarted" | "TracingStopped")[]): TracingLifecycleEvent[] {
   return types.map((type) =>
-    type === "CaptureStarted" ? newCaptureStartedRecord() : newCaptureStoppedRecord(),
+    type === "TracingStarted" ? newTracingStartedEvent() : newTracingStoppedEvent(),
   );
 }
 
-// Types of the event records stored so far, in order
-function storedRecordTypes(): string[] {
-  return vi.mocked(saveEventRecord).mock.calls.map(([record]) => record.type);
+// Types of the events stored so far, in order
+function storedEventTypes(): string[] {
+  return vi.mocked(saveTracingLifecycleEvent).mock.calls.map(([event]) => event.type);
 }
 
 //
@@ -76,15 +79,15 @@ function storedRecordTypes(): string[] {
 //
 
 describe("startCapturing", () => {
-  it("stores a CaptureStarted record before starting the watch", async () => {
+  it("stores a TracingStarted event before starting the watch", async () => {
     const result = await startCapturing(1);
 
     expect(result).toBeUndefined();
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ type: "CaptureStarted" }),
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "TracingStarted" }),
     );
     expect(startWatching).toHaveBeenCalledExactlyOnceWith(1);
-    expect(vi.mocked(saveEventRecord).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(vi.mocked(saveTracingLifecycleEvent).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(startWatching).mock.invocationCallOrder[0] ?? 0,
     );
   });
@@ -96,12 +99,12 @@ describe("startCapturing", () => {
     const result = await startCapturing(1);
 
     expect(result).toBe(error);
-    expect(storedRecordTypes()).toEqual(["CaptureStarted", "CaptureStopped"]);
+    expect(storedEventTypes()).toEqual(["TracingStarted", "TracingStopped"]);
   });
 
-  it("does not start the watch when the record cannot be stored", async () => {
+  it("does not start the watch when the event cannot be stored", async () => {
     const error = new Error("storage failed");
-    vi.mocked(saveEventRecord).mockResolvedValue(error);
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await startCapturing(1);
 
@@ -110,31 +113,31 @@ describe("startCapturing", () => {
   });
 
   it("closes an inconsistent capture before starting a new one", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue(captureRecords("CaptureStarted"));
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(tracingEvents("TracingStarted"));
 
     const result = await startCapturing(1);
 
     expect(result).toBeUndefined();
-    expect(storedRecordTypes()).toEqual(["CaptureStopped", "CaptureStarted"]);
+    expect(storedEventTypes()).toEqual(["TracingStopped", "TracingStarted"]);
     expect(startWatching).toHaveBeenCalledExactlyOnceWith(1);
   });
 
   it("does not start another capture while one is in progress", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue(captureRecords("CaptureStarted"));
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(tracingEvents("TracingStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
     const result = await startCapturing(1);
 
     expect(result).toBeUndefined();
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
     expect(startWatching).not.toHaveBeenCalled();
     expect(console.info).toHaveBeenCalled();
   });
 
   it("does not start when the inconsistent capture cannot be closed", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(captureRecords("CaptureStarted"));
-    vi.mocked(saveEventRecord).mockResolvedValue(error);
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(tracingEvents("TracingStarted"));
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await startCapturing(1);
 
@@ -144,16 +147,16 @@ describe("startCapturing", () => {
 });
 
 describe("stopCapturing", () => {
-  it("stores a CaptureStopped record after stopping the watch", async () => {
+  it("stores a TracingStopped event after stopping the watch", async () => {
     const result = await stopCapturing(1);
 
     expect(result).toBeUndefined();
     expect(stopWatching).toHaveBeenCalledExactlyOnceWith(1);
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ type: "CaptureStopped" }),
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "TracingStopped" }),
     );
     expect(vi.mocked(stopWatching).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(saveEventRecord).mock.invocationCallOrder[0] ?? 0,
+      vi.mocked(saveTracingLifecycleEvent).mock.invocationCallOrder[0] ?? 0,
     );
   });
 
@@ -164,12 +167,12 @@ describe("stopCapturing", () => {
     const result = await stopCapturing(1);
 
     expect(result).toBe(error);
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
-  it("returns an error when the record cannot be stored", async () => {
+  it("returns an error when the event cannot be stored", async () => {
     const error = new Error("storage failed");
-    vi.mocked(saveEventRecord).mockResolvedValue(error);
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await stopCapturing(1);
 
@@ -185,17 +188,17 @@ describe("registerCaptureStopHandler", () => {
 
     await handler(1);
 
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ type: "CaptureStopped" }),
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "TracingStopped" }),
     );
     expect(onCaptureStopped).toHaveBeenCalledExactlyOnceWith(1);
-    expect(vi.mocked(saveEventRecord).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(vi.mocked(saveTracingLifecycleEvent).mock.invocationCallOrder[0]).toBeLessThan(
       onCaptureStopped.mock.invocationCallOrder[0] ?? 0,
     );
   });
 
-  it("reports the stop even when the record cannot be stored", async () => {
-    vi.mocked(saveEventRecord).mockResolvedValue(new Error("storage failed"));
+  it("reports the stop even when the event cannot be stored", async () => {
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("storage failed"));
     const onCaptureStopped = vi.fn();
     const handler = registerAndGetHandler(onCaptureStopped);
 

@@ -5,16 +5,16 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  newDebuggerAttachedRecord,
-  newDebuggerDetachedRecord,
-  newWatchStartedRecord,
-  newWatchStoppedRecord,
+  newDebuggingStartedEvent,
+  newDebuggingStoppedEvent,
+  newTabTracingStartedEvent,
+  newTabTracingStoppedEvent,
 } from "@/common/models/event-record.ts";
-import { findAllEventRecords } from "@/common/services/event-store.ts";
+import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
 import { getWatchedTabIds, isWatching } from "./watch-query.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  findAllEventRecords: vi.fn(),
+  findAllTracingLifecycleEvents: vi.fn(),
 }));
 
 //
@@ -25,7 +25,7 @@ const getTargets = vi.fn();
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(findAllEventRecords).mockResolvedValue([]);
+  vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([]);
   getTargets.mockResolvedValue([]);
   vi.stubGlobal("chrome", { debugger: { getTargets } });
 });
@@ -40,12 +40,12 @@ function attachedTargets(...tabIds: number[]) {
 
 describe("getWatchedTabIds", () => {
   it("returns the tabs whose watch has started and not stopped", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newDebuggerAttachedRecord(1, false),
-      newWatchStartedRecord(2),
-      newDebuggerAttachedRecord(2, false),
-      newWatchStoppedRecord(1),
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
+      newTabTracingStartedEvent(1),
+      newDebuggingStartedEvent(1, false),
+      newTabTracingStartedEvent(2),
+      newDebuggingStartedEvent(2, false),
+      newTabTracingStoppedEvent(1),
     ]);
     getTargets.mockResolvedValue(attachedTargets(1, 2));
 
@@ -53,11 +53,11 @@ describe("getWatchedTabIds", () => {
   });
 
   it("returns the tab when its watch started again after stopping", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newWatchStoppedRecord(1),
-      newWatchStartedRecord(1),
-      newDebuggerAttachedRecord(1, false),
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
+      newTabTracingStartedEvent(1),
+      newTabTracingStoppedEvent(1),
+      newTabTracingStartedEvent(1),
+      newDebuggingStartedEvent(1, false),
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
@@ -69,22 +69,22 @@ describe("getWatchedTabIds", () => {
   });
 
   it("drops the tabs that are no longer attached", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newDebuggerAttachedRecord(1, false),
-      newWatchStartedRecord(2),
-      newDebuggerAttachedRecord(2, false),
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
+      newTabTracingStartedEvent(1),
+      newDebuggingStartedEvent(1, false),
+      newTabTracingStartedEvent(2),
+      newDebuggingStartedEvent(2, false),
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
     expect(await getWatchedTabIds()).toEqual([1]);
   });
 
-  it("drops the tab whose latest debugger record is a detach", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newDebuggerAttachedRecord(1, false),
-      newDebuggerDetachedRecord(1),
+  it("drops the tab whose latest debugger event is a detach", async () => {
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
+      newTabTracingStartedEvent(1),
+      newDebuggingStartedEvent(1, false),
+      newDebuggingStoppedEvent(1),
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
@@ -92,45 +92,45 @@ describe("getWatchedTabIds", () => {
   });
 
   it("returns the tab that was attached again after a detach", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newDebuggerAttachedRecord(1, false),
-      newDebuggerDetachedRecord(1),
-      newDebuggerAttachedRecord(1, true),
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
+      newTabTracingStartedEvent(1),
+      newDebuggingStartedEvent(1, false),
+      newDebuggingStoppedEvent(1),
+      newDebuggingStartedEvent(1, true),
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
     expect(await getWatchedTabIds()).toEqual([1]);
   });
 
-  it("drops the tab that no debugger record says was attached", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([newWatchStartedRecord(1)]);
+  it("drops the tab that no debugger event says was attached", async () => {
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([newTabTracingStartedEvent(1)]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
     expect(await getWatchedTabIds()).toEqual([]);
   });
 
-  it("ignores the debugger records of other tabs", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newDebuggerAttachedRecord(2, false),
+  it("ignores the debugger events of other tabs", async () => {
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
+      newTabTracingStartedEvent(1),
+      newDebuggingStartedEvent(2, false),
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
     expect(await getWatchedTabIds()).toEqual([]);
   });
 
-  it("returns the error when the records cannot be retrieved", async () => {
+  it("returns the error when the events cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await getWatchedTabIds()).toBe(error);
   });
 
   it("returns an error when the debugger targets cannot be retrieved", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newDebuggerAttachedRecord(1, false),
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
+      newTabTracingStartedEvent(1),
+      newDebuggingStartedEvent(1, false),
     ]);
     getTargets.mockRejectedValue(new Error("targets failed"));
 
@@ -140,9 +140,9 @@ describe("getWatchedTabIds", () => {
 
 describe("isWatching", () => {
   it("returns true when the tab is watched", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(1),
-      newDebuggerAttachedRecord(1, false),
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
+      newTabTracingStartedEvent(1),
+      newDebuggingStartedEvent(1, false),
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
@@ -150,9 +150,9 @@ describe("isWatching", () => {
   });
 
   it("returns false when another tab is watched", async () => {
-    vi.mocked(findAllEventRecords).mockResolvedValue([
-      newWatchStartedRecord(2),
-      newDebuggerAttachedRecord(2, false),
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
+      newTabTracingStartedEvent(2),
+      newDebuggingStartedEvent(2, false),
     ]);
     getTargets.mockResolvedValue(attachedTargets(2));
 
@@ -161,7 +161,7 @@ describe("isWatching", () => {
 
   it("returns the error when the watched tabs cannot be determined", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await isWatching(1)).toBe(error);
   });

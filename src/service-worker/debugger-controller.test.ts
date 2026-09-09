@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { saveEventRecord } from "@/common/services/event-store.ts";
+import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import {
   registerDebuggerDetachHandler,
   startDebugging,
@@ -12,7 +12,7 @@ import {
 } from "./debugger-controller.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  saveEventRecord: vi.fn(),
+  saveTracingLifecycleEvent: vi.fn(),
 }));
 
 //
@@ -36,7 +36,7 @@ beforeEach(() => {
   getTargets.mockReset().mockResolvedValue([]);
   attach.mockReset();
   detach.mockReset();
-  vi.mocked(saveEventRecord).mockReset().mockResolvedValue(undefined);
+  vi.mocked(saveTracingLifecycleEvent).mockReset().mockResolvedValue(undefined);
   vi.stubGlobal("chrome", {
     debugger: {
       onDetach: {
@@ -64,7 +64,7 @@ function fireDebuggerDetach(source: chrome.debugger.Debuggee, reason: string): v
 //
 
 describe("registerDebuggerDetachHandler", () => {
-  it("stores a DebuggerDetached record with the reason and calls the handler", async () => {
+  it("stores a DebuggingStopped event with the reason and calls the handler", async () => {
     const onDebuggerDetached = vi.fn();
     registerDebuggerDetachHandler(onDebuggerDetached);
 
@@ -73,9 +73,9 @@ describe("registerDebuggerDetachHandler", () => {
     await vi.waitFor(() =>
       expect(onDebuggerDetached).toHaveBeenCalledExactlyOnceWith(1, "canceled_by_user"),
     );
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
-        type: "DebuggerDetached",
+        type: "DebuggingStopped",
         tabId: 1,
         detachedBy: "chrome",
         detachReason: "canceled_by_user",
@@ -83,8 +83,8 @@ describe("registerDebuggerDetachHandler", () => {
     );
   });
 
-  it("calls the handler even when the record cannot be stored", async () => {
-    vi.mocked(saveEventRecord).mockResolvedValue(new Error("storage failed"));
+  it("calls the handler even when the event cannot be stored", async () => {
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("storage failed"));
     const onDebuggerDetached = vi.fn();
     registerDebuggerDetachHandler(onDebuggerDetached);
 
@@ -104,12 +104,12 @@ describe("registerDebuggerDetachHandler", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onDebuggerDetached).not.toHaveBeenCalled();
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 });
 
 describe("startDebugging", () => {
-  it("stores a DebuggerAttached record after attaching and enabling Fetch", async () => {
+  it("stores a DebuggingStarted event after attaching and enabling Fetch", async () => {
     const result = await startDebugging(1);
 
     expect(result).toBeUndefined();
@@ -119,8 +119,8 @@ describe("startDebugging", () => {
       "Fetch.enable",
       expect.anything(),
     );
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ type: "DebuggerAttached", tabId: 1, retry: false }),
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "DebuggingStarted", tabId: 1, isRetry: false }),
     );
   });
 
@@ -131,7 +131,7 @@ describe("startDebugging", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect(sendCommand).not.toHaveBeenCalled();
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
   it("detaches and stores nothing when Fetch cannot be enabled", async () => {
@@ -141,12 +141,12 @@ describe("startDebugging", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect(detach).toHaveBeenCalledExactlyOnceWith({ tabId: 1 });
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
-  it("detaches and returns the error when the record cannot be stored", async () => {
+  it("detaches and returns the error when the event cannot be stored", async () => {
     const error = new Error("storage failed");
-    vi.mocked(saveEventRecord).mockResolvedValue(error);
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await startDebugging(1);
 
@@ -156,15 +156,17 @@ describe("startDebugging", () => {
 });
 
 describe("stopDebugging", () => {
-  it("stores a DebuggerDetached record by self after detaching", async () => {
+  it("stores a DebuggingStopped event by self after detaching", async () => {
     const result = await stopDebugging(1);
 
     expect(result).toBeUndefined();
     expect(detach).toHaveBeenCalledExactlyOnceWith({ tabId: 1 });
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ type: "DebuggerDetached", tabId: 1, detachedBy: "self" }),
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "DebuggingStopped", tabId: 1, detachedBy: "self" }),
     );
-    expect(vi.mocked(saveEventRecord).mock.calls[0]?.[0]).not.toHaveProperty("detachReason");
+    expect(vi.mocked(saveTracingLifecycleEvent).mock.calls[0]?.[0]).not.toHaveProperty(
+      "detachReason",
+    );
   });
 
   it("stores nothing when detaching fails", async () => {
@@ -173,12 +175,12 @@ describe("stopDebugging", () => {
     const result = await stopDebugging(1);
 
     expect(result).toBeInstanceOf(Error);
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
-  it("returns an error when the record cannot be stored after detaching", async () => {
+  it("returns an error when the event cannot be stored after detaching", async () => {
     const error = new Error("storage failed");
-    vi.mocked(saveEventRecord).mockResolvedValue(error);
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await stopDebugging(1);
 

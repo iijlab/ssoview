@@ -5,17 +5,17 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  newCaptureStartedRecord,
-  newDebuggerAttachedRecord,
-  newDebuggerDetachedRecord,
-  newWatchStartedRecord,
+  newDebuggingStartedEvent,
+  newDebuggingStoppedEvent,
+  newTabTracingStartedEvent,
+  newTracingStartedEvent,
 } from "@/common/models/event-record.ts";
 import {
   getAllSessionStorageKeys,
   getSessionStorageItems,
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
-import { findAllEventRecords, saveEventRecord } from "./event-store.ts";
+import { findAllTracingLifecycleEvents, saveTracingLifecycleEvent } from "./event-store.ts";
 
 vi.mock("@/common/utils/chrome-storage.ts", () => ({
   getAllSessionStorageKeys: vi.fn(),
@@ -27,41 +27,41 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("saveEventRecord", () => {
-  it("stores the record under a JSON key of the ID, kind, and type", async () => {
+describe("saveTracingLifecycleEvent", () => {
+  it("stores the event under a JSON key of the ID, kind, and type", async () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
-    const record = newCaptureStartedRecord();
+    const event = newTracingStartedEvent();
 
-    const result = await saveEventRecord(record);
+    const result = await saveTracingLifecycleEvent(event);
 
     expect(result).toBeUndefined();
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
-      `{"id":"${record.id}","kind":"event","type":"CaptureStarted"}`,
-      record,
+      `{"id":"${event.id}","kind":"event","type":"TracingStarted"}`,
+      event,
     );
   });
 
-  it("includes the tab ID in the key for tab-scoped records", async () => {
+  it("includes the tab ID in the key for tab-scoped events", async () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
-    const record = newWatchStartedRecord(42);
+    const event = newTabTracingStartedEvent(42);
 
-    await saveEventRecord(record);
+    await saveTracingLifecycleEvent(event);
 
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
-      `{"id":"${record.id}","kind":"event","type":"WatchStarted","tabId":42}`,
-      record,
+      `{"id":"${event.id}","kind":"event","type":"TabTracingStarted","tabId":42}`,
+      event,
     );
   });
 
   it("excludes attributes other than the ID, kind, type, and tab ID from the key", async () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
-    const record = newDebuggerDetachedRecord(7, "target_closed");
+    const event = newDebuggingStoppedEvent(7, "target_closed");
 
-    await saveEventRecord(record);
+    await saveTracingLifecycleEvent(event);
 
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
-      `{"id":"${record.id}","kind":"event","type":"DebuggerDetached","tabId":7}`,
-      record,
+      `{"id":"${event.id}","kind":"event","type":"DebuggingStopped","tabId":7}`,
+      event,
     );
   });
 
@@ -69,20 +69,20 @@ describe("saveEventRecord", () => {
     const error = new Error("storage failed");
     vi.mocked(setSessionStorageItem).mockResolvedValue(error);
 
-    const result = await saveEventRecord(newCaptureStartedRecord());
+    const result = await saveTracingLifecycleEvent(newTracingStartedEvent());
 
     expect(result).toBe(error);
   });
 });
 
-describe("findAllEventRecords", () => {
-  it("retrieves event records sorted by ID", async () => {
-    const first = newCaptureStartedRecord();
-    const second = newWatchStartedRecord(1);
-    const third = newDebuggerAttachedRecord(1, false);
-    const firstKey = `{"id":"${first.id}","kind":"event","type":"CaptureStarted"}`;
-    const secondKey = `{"id":"${second.id}","kind":"event","type":"WatchStarted","tabId":1}`;
-    const thirdKey = `{"id":"${third.id}","kind":"event","type":"DebuggerAttached","tabId":1}`;
+describe("findAllTracingLifecycleEvents", () => {
+  it("retrieves events sorted by ID", async () => {
+    const first = newTracingStartedEvent();
+    const second = newTabTracingStartedEvent(1);
+    const third = newDebuggingStartedEvent(1, false);
+    const firstKey = `{"id":"${first.id}","kind":"event","type":"TracingStarted"}`;
+    const secondKey = `{"id":"${second.id}","kind":"event","type":"TabTracingStarted","tabId":1}`;
+    const thirdKey = `{"id":"${third.id}","kind":"event","type":"DebuggingStarted","tabId":1}`;
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([thirdKey, firstKey, secondKey]);
     vi.mocked(getSessionStorageItems).mockResolvedValue({
       [thirdKey]: third,
@@ -90,28 +90,28 @@ describe("findAllEventRecords", () => {
       [secondKey]: second,
     });
 
-    const result = await findAllEventRecords();
+    const result = await findAllTracingLifecycleEvents();
 
     expect(result).toEqual([first, second, third]);
   });
 
-  it("requests only keys that are event record keys", async () => {
-    const record = newCaptureStartedRecord();
-    const key = `{"id":"${record.id}","kind":"event","type":"CaptureStarted"}`;
+  it("requests only keys that are event keys", async () => {
+    const event = newTracingStartedEvent();
+    const key = `{"id":"${event.id}","kind":"event","type":"TracingStarted"}`;
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([
       "not-a-json-key",
-      '"CaptureStarted"',
+      '"TracingStarted"',
       '{"id":"x","kind":"event","type":"TabClosed"}',
-      '{"kind":"event","type":"CaptureStarted"}',
-      '{"id":"x","kind":"event","type":"WatchStarted","tabId":"42"}',
-      '{"id":"x","kind":"httpMessage","type":"CaptureStarted"}',
+      '{"kind":"event","type":"TracingStarted"}',
+      '{"id":"x","kind":"event","type":"TabTracingStarted","tabId":"42"}',
+      '{"id":"x","kind":"httpMessage","type":"TracingStarted"}',
       key,
     ]);
-    vi.mocked(getSessionStorageItems).mockResolvedValue({ [key]: record });
+    vi.mocked(getSessionStorageItems).mockResolvedValue({ [key]: event });
 
-    const result = await findAllEventRecords();
+    const result = await findAllTracingLifecycleEvents();
 
-    expect(result).toEqual([record]);
+    expect(result).toEqual([event]);
     expect(getSessionStorageItems).toHaveBeenCalledExactlyOnceWith([key]);
   });
 
@@ -119,28 +119,28 @@ describe("findAllEventRecords", () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([]);
     vi.mocked(getSessionStorageItems).mockResolvedValue({});
 
-    expect(await findAllEventRecords()).toEqual([]);
+    expect(await findAllTracingLifecycleEvents()).toEqual([]);
   });
 
-  it("filters out values that are not event records", async () => {
+  it("filters out values that are not events", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    const record = newCaptureStartedRecord();
-    const key = `{"id":"${record.id}","kind":"event","type":"CaptureStarted"}`;
-    const brokenKey = '{"id":"broken","kind":"event","type":"WatchStarted","tabId":1}';
+    const event = newTracingStartedEvent();
+    const key = `{"id":"${event.id}","kind":"event","type":"TracingStarted"}`;
+    const brokenKey = '{"id":"broken","kind":"event","type":"TabTracingStarted","tabId":1}';
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([key, brokenKey]);
     vi.mocked(getSessionStorageItems).mockResolvedValue({
-      [key]: record,
-      [brokenKey]: { type: "WatchStarted" },
+      [key]: event,
+      [brokenKey]: { type: "TabTracingStarted" },
     });
 
-    expect(await findAllEventRecords()).toEqual([record]);
+    expect(await findAllTracingLifecycleEvents()).toEqual([event]);
   });
 
   it("propagates an error from the key retrieval", async () => {
     const error = new Error("storage failed");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
-    expect(await findAllEventRecords()).toBe(error);
+    expect(await findAllTracingLifecycleEvents()).toBe(error);
   });
 
   it("propagates an error from the item retrieval", async () => {
@@ -148,6 +148,6 @@ describe("findAllEventRecords", () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([]);
     vi.mocked(getSessionStorageItems).mockResolvedValue(error);
 
-    expect(await findAllEventRecords()).toBe(error);
+    expect(await findAllTracingLifecycleEvents()).toBe(error);
   });
 });

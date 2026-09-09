@@ -6,175 +6,181 @@
 import { v7 as uuidv7 } from "uuid";
 import { isObject } from "@/common/utils/type-guard.ts";
 
-export type EventRecord =
-  | CaptureStartedRecord
-  | CaptureStoppedRecord
-  | WatchStartedRecord
-  | WatchStoppedRecord
-  | DebuggerAttachedRecord
-  | DebuggerDetachedRecord
-  | ArchiveImportedRecord;
+export type TracingLifecycleEvent =
+  | TracingStartedEvent
+  | TracingStoppedEvent
+  | TabTracingStartedEvent
+  | TabTracingStoppedEvent
+  | DebuggingStartedEvent
+  | DebuggingStoppedEvent
+  | ArchiveImportedEvent;
 
-export function isEventRecord(u: unknown): u is EventRecord {
+export function isTracingLifecycleEvent(u: unknown): u is TracingLifecycleEvent {
   return (
-    isCaptureStartedRecord(u) ||
-    isCaptureStoppedRecord(u) ||
-    isWatchStartedRecord(u) ||
-    isWatchStoppedRecord(u) ||
-    isDebuggerAttachedRecord(u) ||
-    isDebuggerDetachedRecord(u) ||
-    isArchiveImportedRecord(u)
+    isTracingStartedEvent(u) ||
+    isTracingStoppedEvent(u) ||
+    isTabTracingStartedEvent(u) ||
+    isTabTracingStoppedEvent(u) ||
+    isDebuggingStartedEvent(u) ||
+    isDebuggingStoppedEvent(u) ||
+    isArchiveImportedEvent(u)
   );
 }
 
-export type EventRecordType = EventRecord["type"];
+export type TracingLifecycleEventType = TracingLifecycleEvent["type"];
 
-const eventRecordTypeMap: Record<EventRecordType, true> = {
-  CaptureStarted: true,
-  CaptureStopped: true,
-  WatchStarted: true,
-  WatchStopped: true,
-  DebuggerAttached: true,
-  DebuggerDetached: true,
+const tracingLifecycleEventTypeMap: Record<TracingLifecycleEventType, true> = {
+  TracingStarted: true,
+  TracingStopped: true,
+  TabTracingStarted: true,
+  TabTracingStopped: true,
+  DebuggingStarted: true,
+  DebuggingStopped: true,
   ArchiveImported: true,
 };
 
-export function isEventRecordType(u: unknown): u is EventRecordType {
-  return typeof u === "string" && Object.hasOwn(eventRecordTypeMap, u);
+export function isTracingLifecycleEventType(u: unknown): u is TracingLifecycleEventType {
+  return typeof u === "string" && Object.hasOwn(tracingLifecycleEventTypeMap, u);
 }
 
-type EventRecordBase = {
+type TracingLifecycleEventBase = {
   id: string;
-  date: string;
+  recordedAt: string;
 };
 
-function isEventRecordBase(u: unknown): u is EventRecordBase {
-  return isObject(u) && typeof u.id === "string" && typeof u.date === "string";
+function isTracingLifecycleEventBase(u: unknown): u is TracingLifecycleEventBase {
+  return isObject(u) && typeof u.id === "string" && typeof u.recordedAt === "string";
 }
 
-function newEventRecordBase(): EventRecordBase {
+function newTracingLifecycleEventBase(): TracingLifecycleEventBase {
   return {
     id: uuidv7(),
-    date: new Date().toISOString(),
+    recordedAt: new Date().toISOString(),
   };
 }
 
-export type CaptureStartedRecord = EventRecordBase & {
-  type: "CaptureStarted";
+export type TracingStartedEvent = TracingLifecycleEventBase & {
+  type: "TracingStarted";
 };
 
-function isCaptureStartedRecord(u: unknown): u is CaptureStartedRecord {
-  return isObject(u) && u.type === "CaptureStarted" && isEventRecordBase(u);
+function isTracingStartedEvent(u: unknown): u is TracingStartedEvent {
+  return isObject(u) && u.type === "TracingStarted" && isTracingLifecycleEventBase(u);
 }
 
-export function newCaptureStartedRecord(): CaptureStartedRecord {
+export function newTracingStartedEvent(): TracingStartedEvent {
   return {
-    ...newEventRecordBase(),
-    type: "CaptureStarted",
+    ...newTracingLifecycleEventBase(),
+    type: "TracingStarted",
   };
 }
 
-export type CaptureStoppedRecord = EventRecordBase & {
-  type: "CaptureStopped";
+export type TracingStoppedEvent = TracingLifecycleEventBase & {
+  type: "TracingStopped";
 };
 
-function isCaptureStoppedRecord(u: unknown): u is CaptureStoppedRecord {
-  return isObject(u) && u.type === "CaptureStopped" && isEventRecordBase(u);
+function isTracingStoppedEvent(u: unknown): u is TracingStoppedEvent {
+  return isObject(u) && u.type === "TracingStopped" && isTracingLifecycleEventBase(u);
 }
 
-export function newCaptureStoppedRecord(): CaptureStoppedRecord {
+export function newTracingStoppedEvent(): TracingStoppedEvent {
   return {
-    ...newEventRecordBase(),
-    type: "CaptureStopped",
+    ...newTracingLifecycleEventBase(),
+    type: "TracingStopped",
   };
 }
 
-export type WatchStartedRecord = EventRecordBase & {
-  type: "WatchStarted";
+export type TabTracingStartedEvent = TracingLifecycleEventBase & {
+  type: "TabTracingStarted";
   tabId: number;
 };
 
-function isWatchStartedRecord(u: unknown): u is WatchStartedRecord {
-  return (
-    isObject(u) && u.type === "WatchStarted" && typeof u.tabId === "number" && isEventRecordBase(u)
-  );
-}
-
-export function newWatchStartedRecord(tabId: number): WatchStartedRecord {
-  return {
-    ...newEventRecordBase(),
-    type: "WatchStarted",
-    tabId,
-  };
-}
-
-export type WatchStoppedRecord = EventRecordBase & {
-  type: "WatchStopped";
-  tabId: number;
-};
-
-function isWatchStoppedRecord(u: unknown): u is WatchStoppedRecord {
-  return (
-    isObject(u) && u.type === "WatchStopped" && typeof u.tabId === "number" && isEventRecordBase(u)
-  );
-}
-
-export function newWatchStoppedRecord(tabId: number): WatchStoppedRecord {
-  return {
-    ...newEventRecordBase(),
-    type: "WatchStopped",
-    tabId,
-  };
-}
-
-export type DebuggerAttachedRecord = EventRecordBase & {
-  type: "DebuggerAttached";
-  tabId: number;
-  retry: boolean;
-};
-
-function isDebuggerAttachedRecord(u: unknown): u is DebuggerAttachedRecord {
+function isTabTracingStartedEvent(u: unknown): u is TabTracingStartedEvent {
   return (
     isObject(u) &&
-    u.type === "DebuggerAttached" &&
+    u.type === "TabTracingStarted" &&
     typeof u.tabId === "number" &&
-    typeof u.retry === "boolean" &&
-    isEventRecordBase(u)
+    isTracingLifecycleEventBase(u)
   );
 }
 
-export function newDebuggerAttachedRecord(tabId: number, retry: boolean): DebuggerAttachedRecord {
+export function newTabTracingStartedEvent(tabId: number): TabTracingStartedEvent {
   return {
-    ...newEventRecordBase(),
-    type: "DebuggerAttached",
+    ...newTracingLifecycleEventBase(),
+    type: "TabTracingStarted",
     tabId,
-    retry,
   };
 }
 
-export type DebuggerDetachedRecord = EventRecordBase & {
-  type: "DebuggerDetached";
+export type TabTracingStoppedEvent = TracingLifecycleEventBase & {
+  type: "TabTracingStopped";
+  tabId: number;
+};
+
+function isTabTracingStoppedEvent(u: unknown): u is TabTracingStoppedEvent {
+  return (
+    isObject(u) &&
+    u.type === "TabTracingStopped" &&
+    typeof u.tabId === "number" &&
+    isTracingLifecycleEventBase(u)
+  );
+}
+
+export function newTabTracingStoppedEvent(tabId: number): TabTracingStoppedEvent {
+  return {
+    ...newTracingLifecycleEventBase(),
+    type: "TabTracingStopped",
+    tabId,
+  };
+}
+
+export type DebuggingStartedEvent = TracingLifecycleEventBase & {
+  type: "DebuggingStarted";
+  tabId: number;
+  isRetry: boolean;
+};
+
+function isDebuggingStartedEvent(u: unknown): u is DebuggingStartedEvent {
+  return (
+    isObject(u) &&
+    u.type === "DebuggingStarted" &&
+    typeof u.tabId === "number" &&
+    typeof u.isRetry === "boolean" &&
+    isTracingLifecycleEventBase(u)
+  );
+}
+
+export function newDebuggingStartedEvent(tabId: number, isRetry: boolean): DebuggingStartedEvent {
+  return {
+    ...newTracingLifecycleEventBase(),
+    type: "DebuggingStarted",
+    tabId,
+    isRetry,
+  };
+}
+
+export type DebuggingStoppedEvent = TracingLifecycleEventBase & {
+  type: "DebuggingStopped";
   tabId: number;
 } & ({ detachedBy: "self" } | { detachedBy: "chrome"; detachReason: string });
 
-function isDebuggerDetachedRecord(u: unknown): u is DebuggerDetachedRecord {
+function isDebuggingStoppedEvent(u: unknown): u is DebuggingStoppedEvent {
   return (
     isObject(u) &&
-    u.type === "DebuggerDetached" &&
+    u.type === "DebuggingStopped" &&
     typeof u.tabId === "number" &&
     ((u.detachedBy === "self" && !("detachReason" in u)) ||
       (u.detachedBy === "chrome" && typeof u.detachReason === "string")) &&
-    isEventRecordBase(u)
+    isTracingLifecycleEventBase(u)
   );
 }
 
-export function newDebuggerDetachedRecord(
+export function newDebuggingStoppedEvent(
   tabId: number,
   detachReason?: string,
-): DebuggerDetachedRecord {
+): DebuggingStoppedEvent {
   return {
-    ...newEventRecordBase(),
-    type: "DebuggerDetached",
+    ...newTracingLifecycleEventBase(),
+    type: "DebuggingStopped",
     tabId,
     ...(detachReason === undefined
       ? { detachedBy: "self" }
@@ -182,17 +188,17 @@ export function newDebuggerDetachedRecord(
   };
 }
 
-export type ArchiveImportedRecord = EventRecordBase & {
+export type ArchiveImportedEvent = TracingLifecycleEventBase & {
   type: "ArchiveImported";
 };
 
-function isArchiveImportedRecord(u: unknown): u is ArchiveImportedRecord {
-  return isObject(u) && u.type === "ArchiveImported" && isEventRecordBase(u);
+function isArchiveImportedEvent(u: unknown): u is ArchiveImportedEvent {
+  return isObject(u) && u.type === "ArchiveImported" && isTracingLifecycleEventBase(u);
 }
 
-export function newArchiveImportedRecord(): ArchiveImportedRecord {
+export function newArchiveImportedEvent(): ArchiveImportedEvent {
   return {
-    ...newEventRecordBase(),
+    ...newTracingLifecycleEventBase(),
     type: "ArchiveImported",
   };
 }

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { saveEventRecord } from "@/common/services/event-store.ts";
+import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
 import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import { saveHttpMessage } from "@/common/services/http-store.ts";
@@ -24,7 +24,7 @@ vi.mock("@/common/models/http-archive.ts", () => ({
 }));
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  saveEventRecord: vi.fn(),
+  saveTracingLifecycleEvent: vi.fn(),
 }));
 
 vi.mock("@/common/services/flow-query.ts", () => ({
@@ -50,7 +50,7 @@ vi.mock("@/common/services/saml-recorder.ts", () => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(saveEventRecord).mockResolvedValue(undefined);
+  vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(undefined);
 });
 
 describe("dumpSessionArchive", () => {
@@ -124,11 +124,11 @@ describe("loadSessionArchive", () => {
     const result = await loadSessionArchive(1, "har-string");
 
     expect(result).toEqual(["session-1"]);
-    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
-    const importedHttpMessage = { ...httpMessage, captureSessionId: importedRecord.id };
+    const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
+    const importedHttpMessage = { ...httpMessage, captureSessionId: importedEvent.id };
     expect(saveHttpMessage).toHaveBeenCalledWith(importedHttpMessage);
     expect(recordSamlTrace).toHaveBeenCalledWith(
-      importedRecord.id,
+      importedEvent.id,
       { step: 3, correlationKey: "session-1" },
       importedHttpMessage,
       undefined,
@@ -154,9 +154,9 @@ describe("loadSessionArchive", () => {
 
     await loadSessionArchive(1, "har-string");
 
-    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
+    const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith({
-      captureSessionId: importedRecord.id,
+      captureSessionId: importedEvent.id,
       stage: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
@@ -187,9 +187,9 @@ describe("loadSessionArchive", () => {
 
     await loadSessionArchive(1, "har-string");
 
-    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
-    const importedPairedRequest = { ...pairedRequest, captureSessionId: importedRecord.id };
-    const importedHttpMessage = { ...httpMessage, captureSessionId: importedRecord.id };
+    const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
+    const importedPairedRequest = { ...pairedRequest, captureSessionId: importedEvent.id };
+    const importedHttpMessage = { ...httpMessage, captureSessionId: importedEvent.id };
     expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(
       importedHttpMessage,
       importedPairedRequest,
@@ -198,7 +198,7 @@ describe("loadSessionArchive", () => {
     expect(saveHttpMessage).toHaveBeenNthCalledWith(1, importedPairedRequest);
     expect(saveHttpMessage).toHaveBeenNthCalledWith(2, importedHttpMessage);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
-      importedRecord.id,
+      importedEvent.id,
       { step: 6, correlationKey: "session-1" },
       importedHttpMessage,
       importedPairedRequest,
@@ -238,8 +238,8 @@ describe("loadSessionArchive", () => {
 
     await loadSessionArchive(1, "har-string");
 
-    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
-    expect(vi.mocked(recordSamlTrace).mock.calls[0]![0]).toBe(importedRecord.id);
+    const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
+    expect(vi.mocked(recordSamlTrace).mock.calls[0]![0]).toBe(importedEvent.id);
   });
 
   it("aborts when a trace cannot be recorded", async () => {
@@ -265,7 +265,7 @@ describe("loadSessionArchive", () => {
 
     await loadSessionArchive(1, "har-string");
 
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "ArchiveImported" }),
     );
   });
@@ -277,13 +277,13 @@ describe("loadSessionArchive", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("parse error");
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
   it("returns Error when the import event cannot be stored", async () => {
     const error = new Error("storage failed");
     vi.mocked(toHttpMessages).mockReturnValue([]);
-    vi.mocked(saveEventRecord).mockResolvedValue(error);
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     expect(await loadSessionArchive(1, "har-string")).toBe(error);
     expect(detectSamlStepFromHttpRequest).not.toHaveBeenCalled();

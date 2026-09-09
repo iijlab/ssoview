@@ -6,181 +6,183 @@
 import { validate as uuidValidate, version as uuidVersion } from "uuid";
 import { describe, expect, it } from "vitest";
 import {
-  isEventRecord,
-  isEventRecordType,
-  newArchiveImportedRecord,
-  newCaptureStartedRecord,
-  newCaptureStoppedRecord,
-  newDebuggerAttachedRecord,
-  newDebuggerDetachedRecord,
-  newWatchStartedRecord,
-  newWatchStoppedRecord,
+  isTracingLifecycleEvent,
+  isTracingLifecycleEventType,
+  newArchiveImportedEvent,
+  newDebuggingStartedEvent,
+  newDebuggingStoppedEvent,
+  newTabTracingStartedEvent,
+  newTabTracingStoppedEvent,
+  newTracingStartedEvent,
+  newTracingStoppedEvent,
 } from "./event-record.ts";
 
 describe("factory functions", () => {
-  it("creates a CaptureStartedRecord", () => {
-    const record = newCaptureStartedRecord();
-    expect(record.type).toBe("CaptureStarted");
+  it("creates a TracingStartedEvent", () => {
+    const event = newTracingStartedEvent();
+    expect(event.type).toBe("TracingStarted");
   });
 
-  it("creates a CaptureStoppedRecord", () => {
-    const record = newCaptureStoppedRecord();
-    expect(record.type).toBe("CaptureStopped");
+  it("creates a TracingStoppedEvent", () => {
+    const event = newTracingStoppedEvent();
+    expect(event.type).toBe("TracingStopped");
   });
 
-  it("creates a WatchStartedRecord with the tab ID", () => {
-    const record = newWatchStartedRecord(42);
-    expect(record.type).toBe("WatchStarted");
-    expect(record.tabId).toBe(42);
+  it("creates a TabTracingStartedEvent with the tab ID", () => {
+    const event = newTabTracingStartedEvent(42);
+    expect(event.type).toBe("TabTracingStarted");
+    expect(event.tabId).toBe(42);
   });
 
-  it("creates a WatchStoppedRecord with the tab ID", () => {
-    const record = newWatchStoppedRecord(42);
-    expect(record.type).toBe("WatchStopped");
-    expect(record.tabId).toBe(42);
+  it("creates a TabTracingStoppedEvent with the tab ID", () => {
+    const event = newTabTracingStoppedEvent(42);
+    expect(event.type).toBe("TabTracingStopped");
+    expect(event.tabId).toBe(42);
   });
 
-  it("creates a DebuggerAttachedRecord with the tab ID and retry flag", () => {
-    const record = newDebuggerAttachedRecord(42, true);
-    expect(record.type).toBe("DebuggerAttached");
-    expect(record.tabId).toBe(42);
-    expect(record.retry).toBe(true);
+  it("creates a DebuggingStartedEvent with the tab ID and isRetry flag", () => {
+    const event = newDebuggingStartedEvent(42, true);
+    expect(event.type).toBe("DebuggingStarted");
+    expect(event.tabId).toBe(42);
+    expect(event.isRetry).toBe(true);
   });
 
-  it("creates a DebuggerDetachedRecord detached by self when no reason is given", () => {
-    const record = newDebuggerDetachedRecord(42);
-    expect(record.type).toBe("DebuggerDetached");
-    expect(record.tabId).toBe(42);
-    expect(record.detachedBy).toBe("self");
-    expect(record).not.toHaveProperty("detachReason");
+  it("creates a DebuggingStoppedEvent detached by self when no reason is given", () => {
+    const event = newDebuggingStoppedEvent(42);
+    expect(event.type).toBe("DebuggingStopped");
+    expect(event.tabId).toBe(42);
+    expect(event.detachedBy).toBe("self");
+    expect(event).not.toHaveProperty("detachReason");
   });
 
-  it("creates a DebuggerDetachedRecord detached by Chrome when a reason is given", () => {
-    const record = newDebuggerDetachedRecord(42, "target_closed");
-    expect(record.type).toBe("DebuggerDetached");
-    expect(record.tabId).toBe(42);
-    expect(record.detachedBy).toBe("chrome");
-    expect(record).toHaveProperty("detachReason", "target_closed");
+  it("creates a DebuggingStoppedEvent detached by Chrome when a reason is given", () => {
+    const event = newDebuggingStoppedEvent(42, "target_closed");
+    expect(event.type).toBe("DebuggingStopped");
+    expect(event.tabId).toBe(42);
+    expect(event.detachedBy).toBe("chrome");
+    expect(event).toHaveProperty("detachReason", "target_closed");
   });
 
-  it("creates an ArchiveImportedRecord", () => {
-    const record = newArchiveImportedRecord();
-    expect(record.type).toBe("ArchiveImported");
+  it("creates an ArchiveImportedEvent", () => {
+    const event = newArchiveImportedEvent();
+    expect(event.type).toBe("ArchiveImported");
   });
 
   it("assigns a UUIDv7 as the ID", () => {
-    const record = newCaptureStartedRecord();
-    expect(uuidValidate(record.id)).toBe(true);
-    expect(uuidVersion(record.id)).toBe(7);
+    const event = newTracingStartedEvent();
+    expect(uuidValidate(event.id)).toBe(true);
+    expect(uuidVersion(event.id)).toBe(7);
   });
 
   it("assigns an ISO 8601 date", () => {
-    const record = newCaptureStartedRecord();
-    expect(new Date(record.date).toISOString()).toBe(record.date);
+    const event = newTracingStartedEvent();
+    expect(new Date(event.recordedAt).toISOString()).toBe(event.recordedAt);
   });
 
   it("assigns IDs that sort in generation order", () => {
     const ids = [
-      newCaptureStartedRecord().id,
-      newWatchStartedRecord(1).id,
-      newDebuggerAttachedRecord(1, false).id,
-      newDebuggerDetachedRecord(1, "canceled_by_user").id,
-      newWatchStoppedRecord(1).id,
-      newCaptureStoppedRecord().id,
-      newArchiveImportedRecord().id,
+      newTracingStartedEvent().id,
+      newTabTracingStartedEvent(1).id,
+      newDebuggingStartedEvent(1, false).id,
+      newDebuggingStoppedEvent(1, "canceled_by_user").id,
+      newTabTracingStoppedEvent(1).id,
+      newTracingStoppedEvent().id,
+      newArchiveImportedEvent().id,
     ];
     expect([...ids].sort()).toEqual(ids);
   });
 });
 
-describe("isEventRecord", () => {
-  it("returns true for every record the factories create", () => {
-    expect(isEventRecord(newCaptureStartedRecord())).toBe(true);
-    expect(isEventRecord(newCaptureStoppedRecord())).toBe(true);
-    expect(isEventRecord(newWatchStartedRecord(1))).toBe(true);
-    expect(isEventRecord(newWatchStoppedRecord(1))).toBe(true);
-    expect(isEventRecord(newDebuggerAttachedRecord(1, false))).toBe(true);
-    expect(isEventRecord(newDebuggerDetachedRecord(1))).toBe(true);
-    expect(isEventRecord(newDebuggerDetachedRecord(1, "target_closed"))).toBe(true);
-    expect(isEventRecord(newArchiveImportedRecord())).toBe(true);
+describe("isTracingLifecycleEvent", () => {
+  it("returns true for every event the factories create", () => {
+    expect(isTracingLifecycleEvent(newTracingStartedEvent())).toBe(true);
+    expect(isTracingLifecycleEvent(newTracingStoppedEvent())).toBe(true);
+    expect(isTracingLifecycleEvent(newTabTracingStartedEvent(1))).toBe(true);
+    expect(isTracingLifecycleEvent(newTabTracingStoppedEvent(1))).toBe(true);
+    expect(isTracingLifecycleEvent(newDebuggingStartedEvent(1, false))).toBe(true);
+    expect(isTracingLifecycleEvent(newDebuggingStoppedEvent(1))).toBe(true);
+    expect(isTracingLifecycleEvent(newDebuggingStoppedEvent(1, "target_closed"))).toBe(true);
+    expect(isTracingLifecycleEvent(newArchiveImportedEvent())).toBe(true);
   });
 
   it("returns false for non-objects", () => {
-    expect(isEventRecord(null)).toBe(false);
-    expect(isEventRecord(undefined)).toBe(false);
-    expect(isEventRecord("CaptureStarted")).toBe(false);
-    expect(isEventRecord(42)).toBe(false);
+    expect(isTracingLifecycleEvent(null)).toBe(false);
+    expect(isTracingLifecycleEvent(undefined)).toBe(false);
+    expect(isTracingLifecycleEvent("TracingStarted")).toBe(false);
+    expect(isTracingLifecycleEvent(42)).toBe(false);
   });
 
   it("returns false for an object without a type", () => {
-    const { type: _, ...rest } = newCaptureStartedRecord();
-    expect(isEventRecord(rest)).toBe(false);
+    const { type: _, ...rest } = newTracingStartedEvent();
+    expect(isTracingLifecycleEvent(rest)).toBe(false);
   });
 
   it("returns false for an unknown type", () => {
-    const record = { ...newCaptureStartedRecord(), type: "TabClosed" };
-    expect(isEventRecord(record)).toBe(false);
+    const event = { ...newTracingStartedEvent(), type: "TabClosed" };
+    expect(isTracingLifecycleEvent(event)).toBe(false);
   });
 
   it("returns false when the ID is missing", () => {
-    const { id: _, ...rest } = newCaptureStartedRecord();
-    expect(isEventRecord(rest)).toBe(false);
+    const { id: _, ...rest } = newTracingStartedEvent();
+    expect(isTracingLifecycleEvent(rest)).toBe(false);
   });
 
-  it("returns false when the date is missing", () => {
-    const { date: _, ...rest } = newCaptureStartedRecord();
-    expect(isEventRecord(rest)).toBe(false);
+  it("returns false when recordedAt is missing", () => {
+    const { recordedAt: _, ...rest } = newTracingStartedEvent();
+    expect(isTracingLifecycleEvent(rest)).toBe(false);
   });
 
-  it("returns false when a tab-scoped record has no tab ID", () => {
-    const { tabId: _, ...rest } = newWatchStartedRecord(1);
-    expect(isEventRecord(rest)).toBe(false);
+  it("returns false when a tab-scoped event has no tab ID", () => {
+    const { tabId: _, ...rest } = newTabTracingStartedEvent(1);
+    expect(isTracingLifecycleEvent(rest)).toBe(false);
   });
 
-  it("returns false when a DebuggerAttachedRecord has no retry flag", () => {
-    const { retry: _, ...rest } = newDebuggerAttachedRecord(1, false);
-    expect(isEventRecord(rest)).toBe(false);
+  it("returns false when a DebuggingStartedEvent has no isRetry flag", () => {
+    const { isRetry: _, ...rest } = newDebuggingStartedEvent(1, false);
+    expect(isTracingLifecycleEvent(rest)).toBe(false);
   });
 
-  it("returns false when a DebuggerDetachedRecord has an unknown detachedBy", () => {
-    const record = { ...newDebuggerDetachedRecord(1), detachedBy: "user" };
-    expect(isEventRecord(record)).toBe(false);
+  it("returns false when a DebuggingStoppedEvent has an unknown detachedBy", () => {
+    const event = { ...newDebuggingStoppedEvent(1), detachedBy: "user" };
+    expect(isTracingLifecycleEvent(event)).toBe(false);
   });
 
-  it("returns false when a DebuggerDetachedRecord detached by Chrome has no reason", () => {
-    const record = { ...newDebuggerDetachedRecord(1), detachedBy: "chrome" };
-    expect(isEventRecord(record)).toBe(false);
+  it("returns false when a DebuggingStoppedEvent detached by Chrome has no reason", () => {
+    const event = { ...newDebuggingStoppedEvent(1), detachedBy: "chrome" };
+    expect(isTracingLifecycleEvent(event)).toBe(false);
   });
 
-  it("returns false when a DebuggerDetachedRecord detached by self has a reason", () => {
-    const record = { ...newDebuggerDetachedRecord(1), detachReason: "target_closed" };
-    expect(isEventRecord(record)).toBe(false);
+  it("returns false when a DebuggingStoppedEvent detached by self has a reason", () => {
+    const event = { ...newDebuggingStoppedEvent(1), detachReason: "target_closed" };
+    expect(isTracingLifecycleEvent(event)).toBe(false);
   });
 
   it("returns false when the tab ID is not a number", () => {
-    const record = { ...newWatchStartedRecord(1), tabId: "1" };
-    expect(isEventRecord(record)).toBe(false);
+    const event = { ...newTabTracingStartedEvent(1), tabId: "1" };
+    expect(isTracingLifecycleEvent(event)).toBe(false);
   });
 });
 
-describe("isEventRecordType", () => {
-  it("returns true for the type of every record the factories create", () => {
-    expect(isEventRecordType(newCaptureStartedRecord().type)).toBe(true);
-    expect(isEventRecordType(newCaptureStoppedRecord().type)).toBe(true);
-    expect(isEventRecordType(newWatchStartedRecord(1).type)).toBe(true);
-    expect(isEventRecordType(newWatchStoppedRecord(1).type)).toBe(true);
-    expect(isEventRecordType(newDebuggerAttachedRecord(1, false).type)).toBe(true);
-    expect(isEventRecordType(newDebuggerDetachedRecord(1).type)).toBe(true);
-    expect(isEventRecordType(newDebuggerDetachedRecord(1, "target_closed").type)).toBe(true);
-    expect(isEventRecordType(newArchiveImportedRecord().type)).toBe(true);
+describe("isTracingLifecycleEventType", () => {
+  it("returns true for the type of every event the factories create", () => {
+    expect(isTracingLifecycleEventType(newTracingStartedEvent().type)).toBe(true);
+    expect(isTracingLifecycleEventType(newTracingStoppedEvent().type)).toBe(true);
+    expect(isTracingLifecycleEventType(newTabTracingStartedEvent(1).type)).toBe(true);
+    expect(isTracingLifecycleEventType(newTabTracingStoppedEvent(1).type)).toBe(true);
+    expect(isTracingLifecycleEventType(newDebuggingStartedEvent(1, false).type)).toBe(true);
+    expect(isTracingLifecycleEventType(newDebuggingStoppedEvent(1).type)).toBe(true);
+    expect(isTracingLifecycleEventType(newDebuggingStoppedEvent(1, "target_closed").type)).toBe(
+      true,
+    );
+    expect(isTracingLifecycleEventType(newArchiveImportedEvent().type)).toBe(true);
   });
 
   it("returns false for an unknown type or a non-string", () => {
-    expect(isEventRecordType("TabClosed")).toBe(false);
-    expect(isEventRecordType(42)).toBe(false);
+    expect(isTracingLifecycleEventType("TabClosed")).toBe(false);
+    expect(isTracingLifecycleEventType(42)).toBe(false);
   });
 
   it("returns false for a property inherited from Object.prototype", () => {
-    expect(isEventRecordType("toString")).toBe(false);
+    expect(isTracingLifecycleEventType("toString")).toBe(false);
   });
 });

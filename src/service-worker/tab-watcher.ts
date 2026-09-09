@@ -3,8 +3,11 @@
  * @license BSD-3-Clause
  */
 
-import { newWatchStartedRecord, newWatchStoppedRecord } from "@/common/models/event-record.ts";
-import { saveEventRecord } from "@/common/services/event-store.ts";
+import {
+  newTabTracingStartedEvent,
+  newTabTracingStoppedEvent,
+} from "@/common/models/event-record.ts";
+import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { tabExists } from "@/common/utils/chrome-tabs.ts";
 import {
   registerDebuggerDetachHandler,
@@ -26,7 +29,7 @@ export function registerWatchStopHandler(onWatchStopped: (tabId: number) => Prom
       }
     }
 
-    const saveError = await saveEventRecord(newWatchStoppedRecord(tabId));
+    const saveError = await saveTracingLifecycleEvent(newTabTracingStoppedEvent(tabId));
     if (saveError) {
       console.warn("Failed to store the watch stopped event:", { error: saveError });
     }
@@ -36,14 +39,14 @@ export function registerWatchStopHandler(onWatchStopped: (tabId: number) => Prom
 }
 
 export async function startWatching(tabId: number): Promise<void | Error> {
-  const saveError = await saveEventRecord(newWatchStartedRecord(tabId));
+  const saveError = await saveTracingLifecycleEvent(newTabTracingStartedEvent(tabId));
   if (saveError) {
     return saveError;
   }
 
   const startError = await startDebugging(tabId);
   if (startError) {
-    const saveError = await saveEventRecord(newWatchStoppedRecord(tabId));
+    const saveError = await saveTracingLifecycleEvent(newTabTracingStoppedEvent(tabId));
     if (saveError) {
       console.warn("Failed to store the watch stopped event:", { error: saveError });
     }
@@ -57,7 +60,7 @@ export async function stopWatching(tabId: number): Promise<void | Error> {
     return stopError;
   }
 
-  const saveError = await saveEventRecord(newWatchStoppedRecord(tabId));
+  const saveError = await saveTracingLifecycleEvent(newTabTracingStoppedEvent(tabId));
   if (saveError) {
     return new Error("Failed to store the watch stopped event", { cause: saveError });
   }

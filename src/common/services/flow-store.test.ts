@@ -107,7 +107,7 @@ describe("findAllFlowEntries", () => {
     mockStorage(flow);
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([
       "not-a-json-key",
-      `{"id":"x","kind":"event","type":"CaptureStarted"}`,
+      `{"id":"x","kind":"event","type":"TracingStarted"}`,
       `{"id":"x","kind":"flow","captureSessionId":"cs-1"}`,
       keyOf(flow),
     ]);

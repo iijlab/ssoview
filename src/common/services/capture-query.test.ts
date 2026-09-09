@@ -5,16 +5,16 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  type EventRecord,
-  newArchiveImportedRecord,
-  newCaptureStartedRecord,
-  newCaptureStoppedRecord,
-  newDebuggerAttachedRecord,
-  newDebuggerDetachedRecord,
-  newWatchStartedRecord,
-  newWatchStoppedRecord,
+  type TracingLifecycleEvent,
+  newArchiveImportedEvent,
+  newDebuggingStartedEvent,
+  newDebuggingStoppedEvent,
+  newTabTracingStartedEvent,
+  newTabTracingStoppedEvent,
+  newTracingStartedEvent,
+  newTracingStoppedEvent,
 } from "@/common/models/event-record.ts";
-import { findAllEventRecords } from "@/common/services/event-store.ts";
+import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
 import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 import {
   getCaptureSession,
@@ -24,7 +24,7 @@ import {
 } from "./capture-query.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  findAllEventRecords: vi.fn(),
+  findAllTracingLifecycleEvents: vi.fn(),
 }));
 
 vi.mock("@/common/services/watch-query.ts", () => ({
@@ -33,7 +33,7 @@ vi.mock("@/common/services/watch-query.ts", () => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(findAllEventRecords).mockResolvedValue([]);
+  vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([]);
   vi.mocked(getWatchedTabIds).mockResolvedValue([]);
 });
 
@@ -42,25 +42,25 @@ beforeEach(() => {
 //
 
 const factories = {
-  CaptureStarted: newCaptureStartedRecord,
-  CaptureStopped: newCaptureStoppedRecord,
-  WatchStarted: () => newWatchStartedRecord(1),
-  WatchStopped: () => newWatchStoppedRecord(1),
-  DebuggerAttached: () => newDebuggerAttachedRecord(1, false),
-  DebuggerDetached: () => newDebuggerDetachedRecord(1),
-  ArchiveImported: newArchiveImportedRecord,
-} satisfies Record<EventRecord["type"], () => EventRecord>;
+  TracingStarted: newTracingStartedEvent,
+  TracingStopped: newTracingStoppedEvent,
+  TabTracingStarted: () => newTabTracingStartedEvent(1),
+  TabTracingStopped: () => newTabTracingStoppedEvent(1),
+  DebuggingStarted: () => newDebuggingStartedEvent(1, false),
+  DebuggingStopped: () => newDebuggingStoppedEvent(1),
+  ArchiveImported: newArchiveImportedEvent,
+} satisfies Record<TracingLifecycleEvent["type"], () => TracingLifecycleEvent>;
 
-function record(type: EventRecord["type"]): EventRecord {
+function event(type: TracingLifecycleEvent["type"]): TracingLifecycleEvent {
   return factories[type]();
 }
 
-function mockRecords(...records: EventRecord[]): void {
-  vi.mocked(findAllEventRecords).mockResolvedValue(records);
+function mockEvents(...events: TracingLifecycleEvent[]): void {
+  vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(events);
 }
 
-function captureRecords(...types: ("CaptureStarted" | "CaptureStopped")[]): EventRecord[] {
-  return types.map(record);
+function tracingEvents(...types: ("TracingStarted" | "TracingStopped")[]): TracingLifecycleEvent[] {
+  return types.map(event);
 }
 
 //
@@ -68,81 +68,86 @@ function captureRecords(...types: ("CaptureStarted" | "CaptureStopped")[]): Even
 //
 
 describe("getCaptureSessions", () => {
-  it("derives a session from a pair of capture records", async () => {
-    const started = record("CaptureStarted");
-    const stopped = record("CaptureStopped");
-    mockRecords(started, stopped);
+  it("derives a session from a pair of capture events", async () => {
+    const started = event("TracingStarted");
+    const stopped = event("TracingStopped");
+    mockEvents(started, stopped);
 
     expect(await getCaptureSessions()).toEqual([
-      { id: started.id, imported: false, startedAt: started.date, endedAt: stopped.date },
+      {
+        id: started.id,
+        imported: false,
+        startedAt: started.recordedAt,
+        endedAt: stopped.recordedAt,
+      },
     ]);
   });
 
   it("leaves out the end date while the capture is ongoing", async () => {
-    const started = record("CaptureStarted");
-    mockRecords(started);
+    const started = event("TracingStarted");
+    mockEvents(started);
 
     expect(await getCaptureSessions()).toEqual([
-      { id: started.id, imported: false, startedAt: started.date },
+      { id: started.id, imported: false, startedAt: started.recordedAt },
     ]);
   });
 
-  it("derives an imported session from an archive imported record", async () => {
-    const imported = record("ArchiveImported");
-    mockRecords(imported);
+  it("derives an imported session from an archive imported event", async () => {
+    const imported = event("ArchiveImported");
+    mockEvents(imported);
 
     expect(await getCaptureSessions()).toEqual([
-      { id: imported.id, imported: true, importedAt: imported.date },
+      { id: imported.id, imported: true, importedAt: imported.recordedAt },
     ]);
   });
 
   it("returns the sessions in descending order of ID", async () => {
-    const first = record("CaptureStarted");
-    const imported = record("ArchiveImported");
-    const stopped = record("CaptureStopped");
-    mockRecords(first, imported, stopped);
+    const first = event("TracingStarted");
+    const imported = event("ArchiveImported");
+    const stopped = event("TracingStopped");
+    mockEvents(first, imported, stopped);
 
     expect(await getCaptureSessions()).toEqual([
-      { id: imported.id, imported: true, importedAt: imported.date },
-      { id: first.id, imported: false, startedAt: first.date, endedAt: stopped.date },
+      { id: imported.id, imported: true, importedAt: imported.recordedAt },
+      { id: first.id, imported: false, startedAt: first.recordedAt, endedAt: stopped.recordedAt },
     ]);
   });
 
-  it("ignores a stop record without a capture in progress", async () => {
-    mockRecords(record("CaptureStopped"));
+  it("ignores a stop event without a capture in progress", async () => {
+    mockEvents(event("TracingStopped"));
 
     expect(await getCaptureSessions()).toEqual([]);
   });
 
   it("closes the previous capture when another one starts", async () => {
-    const first = record("CaptureStarted");
-    const second = record("CaptureStarted");
-    mockRecords(first, second);
+    const first = event("TracingStarted");
+    const second = event("TracingStarted");
+    mockEvents(first, second);
 
     expect(await getCaptureSessions()).toEqual([
-      { id: second.id, imported: false, startedAt: second.date },
-      { id: first.id, imported: false, startedAt: first.date },
+      { id: second.id, imported: false, startedAt: second.recordedAt },
+      { id: first.id, imported: false, startedAt: first.recordedAt },
     ]);
   });
 
-  it("ignores the records of the other layers", async () => {
-    const started = record("CaptureStarted");
-    mockRecords(
+  it("ignores the events of the other layers", async () => {
+    const started = event("TracingStarted");
+    mockEvents(
       started,
-      record("WatchStarted"),
-      record("DebuggerAttached"),
-      record("DebuggerDetached"),
-      record("WatchStopped"),
+      event("TabTracingStarted"),
+      event("DebuggingStarted"),
+      event("DebuggingStopped"),
+      event("TabTracingStopped"),
     );
 
     expect(await getCaptureSessions()).toEqual([
-      { id: started.id, imported: false, startedAt: started.date },
+      { id: started.id, imported: false, startedAt: started.recordedAt },
     ]);
   });
 
-  it("returns the error when the records cannot be retrieved", async () => {
+  it("returns the error when the events cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await getCaptureSessions()).toBe(error);
   });
@@ -150,61 +155,61 @@ describe("getCaptureSessions", () => {
 
 describe("getCaptureSession", () => {
   it("returns the imported session with the given ID", async () => {
-    const started = record("CaptureStarted");
-    const imported = record("ArchiveImported");
-    mockRecords(started, imported);
+    const started = event("TracingStarted");
+    const imported = event("ArchiveImported");
+    mockEvents(started, imported);
 
     expect(await getCaptureSession(imported.id)).toEqual({
       id: imported.id,
       imported: true,
-      importedAt: imported.date,
+      importedAt: imported.recordedAt,
     });
   });
 
   it("returns the captured session with the given ID", async () => {
-    const started = record("CaptureStarted");
-    const imported = record("ArchiveImported");
-    mockRecords(started, imported);
+    const started = event("TracingStarted");
+    const imported = event("ArchiveImported");
+    mockEvents(started, imported);
 
     expect(await getCaptureSession(started.id)).toEqual({
       id: started.id,
       imported: false,
-      startedAt: started.date,
+      startedAt: started.recordedAt,
     });
   });
 
   it("returns undefined for an unknown ID", async () => {
-    mockRecords(record("ArchiveImported"));
+    mockEvents(event("ArchiveImported"));
 
     expect(await getCaptureSession("unknown")).toBeUndefined();
   });
 
-  it("returns the error when the records cannot be retrieved", async () => {
+  it("returns the error when the events cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await getCaptureSession("unknown")).toBe(error);
   });
 });
 
 describe("getOngoingCaptureSessionId", () => {
-  it("returns the ID of the record that started the ongoing capture", async () => {
-    const records = captureRecords("CaptureStarted", "CaptureStopped", "CaptureStarted");
-    mockRecords(...records);
+  it("returns the ID of the event that started the ongoing capture", async () => {
+    const events = tracingEvents("TracingStarted", "TracingStopped", "TracingStarted");
+    mockEvents(...events);
 
-    expect(await getOngoingCaptureSessionId()).toBe(records[2]?.id);
+    expect(await getOngoingCaptureSessionId()).toBe(events[2]?.id);
     expect(getWatchedTabIds).not.toHaveBeenCalled();
   });
 
-  it("ignores records other than capture records", async () => {
-    const started = record("CaptureStarted");
-    mockRecords(started, record("WatchStarted"));
+  it("ignores events other than capture events", async () => {
+    const started = event("TracingStarted");
+    mockEvents(started, event("TabTracingStarted"));
 
     expect(await getOngoingCaptureSessionId()).toBe(started.id);
   });
 
   it("returns undefined when the latest capture has stopped", async () => {
-    mockRecords(...captureRecords("CaptureStarted", "CaptureStopped"));
+    mockEvents(...tracingEvents("TracingStarted", "TracingStopped"));
 
     expect(await getOngoingCaptureSessionId()).toBeUndefined();
   });
@@ -213,9 +218,9 @@ describe("getOngoingCaptureSessionId", () => {
     expect(await getOngoingCaptureSessionId()).toBeUndefined();
   });
 
-  it("returns the error when the records cannot be retrieved", async () => {
+  it("returns the error when the events cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await getOngoingCaptureSessionId()).toBe(error);
   });
@@ -223,14 +228,14 @@ describe("getOngoingCaptureSessionId", () => {
 
 describe("isCapturing", () => {
   it("returns true when a capture has started and a tab is still watched", async () => {
-    mockRecords(...captureRecords("CaptureStarted"));
+    mockEvents(...tracingEvents("TracingStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
     expect(await isCapturing()).toBe(true);
   });
 
   it("returns false when the latest capture has stopped", async () => {
-    mockRecords(...captureRecords("CaptureStarted", "CaptureStopped"));
+    mockEvents(...tracingEvents("TracingStarted", "TracingStopped"));
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
     expect(await isCapturing()).toBe(false);
@@ -238,7 +243,7 @@ describe("isCapturing", () => {
   });
 
   it("returns true when a capture has started again after stopping", async () => {
-    mockRecords(...captureRecords("CaptureStarted", "CaptureStopped", "CaptureStarted"));
+    mockEvents(...tracingEvents("TracingStarted", "TracingStopped", "TracingStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
     expect(await isCapturing()).toBe(true);
@@ -251,21 +256,21 @@ describe("isCapturing", () => {
   });
 
   it("returns false when no tab is watched even though the capture is left open", async () => {
-    mockRecords(...captureRecords("CaptureStarted"));
+    mockEvents(...tracingEvents("TracingStarted"));
 
     expect(await isCapturing()).toBe(false);
   });
 
-  it("returns the error when the records cannot be retrieved", async () => {
+  it("returns the error when the events cannot be retrieved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(findAllEventRecords).mockResolvedValue(error);
+    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await isCapturing()).toBe(error);
   });
 
   it("returns the error when the watched tabs cannot be determined", async () => {
     const error = new Error("targets failed");
-    mockRecords(...captureRecords("CaptureStarted"));
+    mockEvents(...tracingEvents("TracingStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue(error);
 
     expect(await isCapturing()).toBe(error);

@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { saveEventRecord } from "@/common/services/event-store.ts";
+import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { tabExists } from "@/common/utils/chrome-tabs.ts";
 import {
   registerDebuggerDetachHandler,
@@ -14,7 +14,7 @@ import {
 import { registerWatchStopHandler, startWatching, stopWatching } from "./tab-watcher.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  saveEventRecord: vi.fn(),
+  saveTracingLifecycleEvent: vi.fn(),
 }));
 
 vi.mock("@/common/utils/chrome-tabs.ts", () => ({
@@ -38,7 +38,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
-  vi.mocked(saveEventRecord).mockResolvedValue(undefined);
+  vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(undefined);
   vi.mocked(startDebugging).mockResolvedValue(undefined);
   vi.mocked(stopDebugging).mockResolvedValue(undefined);
 });
@@ -52,9 +52,9 @@ function registerAndGetHandler(onWatchStopped: WatchStopHandler): DebuggerDetach
   return handler as DebuggerDetachHandler;
 }
 
-// Types of the event records stored so far, in order
-function storedRecordTypes(): string[] {
-  return vi.mocked(saveEventRecord).mock.calls.map(([record]) => record.type);
+// Types of the events stored so far, in order
+function storedEventTypes(): string[] {
+  return vi.mocked(saveTracingLifecycleEvent).mock.calls.map(([event]) => event.type);
 }
 
 //
@@ -62,15 +62,15 @@ function storedRecordTypes(): string[] {
 //
 
 describe("startWatching", () => {
-  it("stores a WatchStarted record before starting debugging", async () => {
+  it("stores a TabTracingStarted event before starting debugging", async () => {
     const result = await startWatching(1);
 
     expect(result).toBeUndefined();
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ type: "WatchStarted", tabId: 1 }),
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "TabTracingStarted", tabId: 1 }),
     );
     expect(startDebugging).toHaveBeenCalledExactlyOnceWith(1);
-    expect(vi.mocked(saveEventRecord).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(vi.mocked(saveTracingLifecycleEvent).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(startDebugging).mock.invocationCallOrder[0] ?? 0,
     );
   });
@@ -82,15 +82,15 @@ describe("startWatching", () => {
     const result = await startWatching(1);
 
     expect(result).toBe(error);
-    expect(storedRecordTypes()).toEqual(["WatchStarted", "WatchStopped"]);
-    expect(saveEventRecord).toHaveBeenLastCalledWith(
-      expect.objectContaining({ type: "WatchStopped", tabId: 1 }),
+    expect(storedEventTypes()).toEqual(["TabTracingStarted", "TabTracingStopped"]);
+    expect(saveTracingLifecycleEvent).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "TabTracingStopped", tabId: 1 }),
     );
   });
 
-  it("does not start debugging when the record cannot be stored", async () => {
+  it("does not start debugging when the event cannot be stored", async () => {
     const error = new Error("storage failed");
-    vi.mocked(saveEventRecord).mockResolvedValue(error);
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await startWatching(1);
 
@@ -100,16 +100,16 @@ describe("startWatching", () => {
 });
 
 describe("stopWatching", () => {
-  it("stores a WatchStopped record after stopping debugging", async () => {
+  it("stores a TabTracingStopped event after stopping debugging", async () => {
     const result = await stopWatching(1);
 
     expect(result).toBeUndefined();
     expect(stopDebugging).toHaveBeenCalledExactlyOnceWith(1);
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ type: "WatchStopped", tabId: 1 }),
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "TabTracingStopped", tabId: 1 }),
     );
     expect(vi.mocked(stopDebugging).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(saveEventRecord).mock.invocationCallOrder[0] ?? 0,
+      vi.mocked(saveTracingLifecycleEvent).mock.invocationCallOrder[0] ?? 0,
     );
   });
 
@@ -120,12 +120,12 @@ describe("stopWatching", () => {
     const result = await stopWatching(1);
 
     expect(result).toBe(error);
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
-  it("returns an error when the record cannot be stored", async () => {
+  it("returns an error when the event cannot be stored", async () => {
     const error = new Error("storage failed");
-    vi.mocked(saveEventRecord).mockResolvedValue(error);
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await stopWatching(1);
 
@@ -141,8 +141,8 @@ describe("registerWatchStopHandler", () => {
 
     await handler(1, "canceled_by_user");
 
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ type: "WatchStopped", tabId: 1 }),
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ type: "TabTracingStopped", tabId: 1 }),
     );
     expect(onWatchStopped).toHaveBeenCalledExactlyOnceWith(1);
     expect(startDebugging).not.toHaveBeenCalled();
@@ -156,7 +156,7 @@ describe("registerWatchStopHandler", () => {
     await handler(1, "target_closed");
 
     expect(startDebugging).toHaveBeenCalledExactlyOnceWith(1, true);
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
     expect(onWatchStopped).not.toHaveBeenCalled();
   });
 
@@ -168,7 +168,7 @@ describe("registerWatchStopHandler", () => {
     await handler(1, "target_closed");
 
     expect(startDebugging).not.toHaveBeenCalled();
-    expect(storedRecordTypes()).toEqual(["WatchStopped"]);
+    expect(storedEventTypes()).toEqual(["TabTracingStopped"]);
     expect(onWatchStopped).toHaveBeenCalledExactlyOnceWith(1);
   });
 
@@ -181,13 +181,13 @@ describe("registerWatchStopHandler", () => {
     await handler(1, "target_closed");
 
     expect(startDebugging).toHaveBeenCalledExactlyOnceWith(1, true);
-    expect(storedRecordTypes()).toEqual(["WatchStopped"]);
+    expect(storedEventTypes()).toEqual(["TabTracingStopped"]);
     expect(onWatchStopped).toHaveBeenCalledExactlyOnceWith(1);
     expect(console.warn).toHaveBeenCalled();
   });
 
-  it("reports the stop even when the record cannot be stored", async () => {
-    vi.mocked(saveEventRecord).mockResolvedValue(new Error("storage failed"));
+  it("reports the stop even when the event cannot be stored", async () => {
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("storage failed"));
     const onWatchStopped = vi.fn();
     const handler = registerAndGetHandler(onWatchStopped);
 

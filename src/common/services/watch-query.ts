@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { findAllEventRecords } from "@/common/services/event-store.ts";
+import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
 
 export async function isWatching(tabId: number): Promise<boolean | Error> {
@@ -16,29 +16,29 @@ export async function isWatching(tabId: number): Promise<boolean | Error> {
 }
 
 export async function getWatchedTabIds(): Promise<number[] | Error> {
-  // How the watch record and the debugging state decide the result, per tab:
+  // How the watch event and the debugging state decide the result, per tab:
   //
-  //   record  | debugging | result
+  //   event   | debugging | result
   //   --------+-----------+-------
   //   started | yes       | watched
-  //   started | no        | not watched -- the stop record was lost [1]
-  //   stopped | yes       | not watched -- the record wins [2]
+  //   started | no        | not watched -- the stop event was lost [1]
+  //   stopped | yes       | not watched -- the event wins [2]
   //   stopped | no        | not watched
   //
   // [1] The debugger is already gone, so nothing is being watched on that tab.
   // [2] The debugger is attached without a watch. The user can detach from the banner.
 
-  const records = await findAllEventRecords();
-  if (records instanceof Error) {
-    return records;
+  const tracingLifecycleEvents = await findAllTracingLifecycleEvents();
+  if (tracingLifecycleEvents instanceof Error) {
+    return tracingLifecycleEvents;
   }
 
   const recordedWatchedTabIds = new Set<number>();
-  for (const record of records) {
-    if (record.type === "WatchStarted") {
-      recordedWatchedTabIds.add(record.tabId);
-    } else if (record.type === "WatchStopped") {
-      recordedWatchedTabIds.delete(record.tabId);
+  for (const event of tracingLifecycleEvents) {
+    if (event.type === "TabTracingStarted") {
+      recordedWatchedTabIds.add(event.tabId);
+    } else if (event.type === "TabTracingStopped") {
+      recordedWatchedTabIds.delete(event.tabId);
     }
   }
 
@@ -56,27 +56,27 @@ export async function getWatchedTabIds(): Promise<number[] | Error> {
 }
 
 async function isDebugging(tabId: number): Promise<boolean | Error> {
-  // How the debugger record and the chrome.debugger API decide the result:
+  // How the debugger event and the chrome.debugger API decide the result:
   //
-  //   record   | chrome | result
+  //   event    | chrome | result
   //   ---------+--------+-------
   //   attached | yes    | debugging
-  //   attached | no     | not debugging -- the detach record was lost [1]
-  //   detached | yes    | not debugging -- the record wins [2]
+  //   attached | no     | not debugging -- the detach event was lost [1]
+  //   detached | yes    | not debugging -- the event wins [2]
   //   detached | no     | not debugging
   //
-  // [1] The record write was missed or incomplete, so the record alone cannot be trusted.
-  // [2] The attachment may be DevTools or another extension. The attach record is reliable
+  // [1] The event write was missed or incomplete, so the event alone cannot be trusted.
+  // [2] The attachment may be DevTools or another extension. The attach event is reliable
   //     because a failed write triggers an immediate detach, so trust it here.
 
-  const records = await findAllEventRecords();
-  if (records instanceof Error) {
-    return records;
+  const tracingLifecycleEvents = await findAllTracingLifecycleEvents();
+  if (tracingLifecycleEvents instanceof Error) {
+    return tracingLifecycleEvents;
   }
 
-  const latest = records.findLast(
-    (r) => (r.type === "DebuggerAttached" || r.type === "DebuggerDetached") && r.tabId === tabId,
+  const latest = tracingLifecycleEvents.findLast(
+    (e) => (e.type === "DebuggingStarted" || e.type === "DebuggingStopped") && e.tabId === tabId,
   );
 
-  return latest !== undefined && latest.type === "DebuggerAttached" && (await isAttached(tabId));
+  return latest !== undefined && latest.type === "DebuggingStarted" && (await isAttached(tabId));
 }
