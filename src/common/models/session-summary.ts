@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
+import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 
 export type SessionSummary = {
   protocol: SessionSsoProtocol;
@@ -31,7 +31,7 @@ export const debugSessionSummary =
   import.meta.env.MODE === "development" ? debugSessionSummaryImpl : () => Promise.resolve();
 
 async function debugSessionSummaryImpl(summary: SessionSummary) {
-  const debug = await createLabeledDebugLogger([
+  const debug = await newLabeledDebugLogger([
     "SUMMARY",
     summary.sessionId,
     summary.sp ?? "unknown",

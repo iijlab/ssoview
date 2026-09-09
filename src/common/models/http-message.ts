@@ -6,7 +6,7 @@
 import type Protocol from "devtools-protocol";
 import { Base64 } from "js-base64";
 import { v7 as uuidv7 } from "uuid";
-import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
+import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
 export type HttpMessage = HttpRequest | HttpResponse;
@@ -166,7 +166,7 @@ async function debugHttpRequestImpl(httpRequest: HttpRequest) {
     return;
   }
 
-  const debug = await createLabeledDebugLogger([
+  const debug = await newLabeledDebugLogger([
     "HTTP",
     httpRequest.fetchRequestId ?? "none",
     host,
@@ -187,7 +187,7 @@ async function debugHttpResponseImpl(httpResponse: HttpResponse) {
 
   const location = getHeaderValue(httpResponse, "Location");
 
-  const debug = await createLabeledDebugLogger([
+  const debug = await newLabeledDebugLogger([
     "HTTP",
     httpResponse.fetchRequestId ?? "none",
     host,

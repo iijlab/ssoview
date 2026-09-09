@@ -3,9 +3,9 @@
  * @license BSD-3-Clause
  */
 
-export const createLabeledDebugLogger = createLabeledLogger.bind(null, console.debug);
+export const newLabeledDebugLogger = decorateLoggerWithLabels.bind(null, console.debug);
 
-export async function createLabeledLogger(
+export async function decorateLoggerWithLabels(
   logger: typeof console.log,
   labels: string[],
 ): Promise<typeof console.log> {

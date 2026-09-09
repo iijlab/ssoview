@@ -6,7 +6,7 @@
 import { v7 as uuidv7 } from "uuid";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlDetection } from "@/common/models/saml-detection.ts";
-import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
+import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
 export type SamlTrace =
@@ -164,10 +164,6 @@ export const debugSamlTrace =
   import.meta.env.MODE === "development" ? debugSamlTraceImpl : () => Promise.resolve();
 
 async function debugSamlTraceImpl(samlTrace: SamlTrace) {
-  const debug = await createLabeledDebugLogger([
-    "SAML",
-    samlTrace.flowId,
-    `Step ${samlTrace.step}`,
-  ]);
+  const debug = await newLabeledDebugLogger(["SAML", samlTrace.flowId, `Step ${samlTrace.step}`]);
   debug({ [samlTrace.type]: samlTrace });
 }

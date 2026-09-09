@@ -4,18 +4,18 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { createLabeledLogger } from "./labeled-logger.ts";
+import { decorateLoggerWithLabels } from "./labeled-logger.ts";
 
-describe("createLabeledLogger", () => {
+describe("decorateLoggerWithLabels", () => {
   it("returns original logger when labels is empty", async () => {
     const mockLogger = vi.fn();
-    const result = await createLabeledLogger(mockLogger, []);
+    const result = await decorateLoggerWithLabels(mockLogger, []);
     expect(result).toBe(mockLogger);
   });
 
   it("returns bound logger with format and styles for single label", async () => {
     const mockLogger = vi.fn();
-    const labeledLogger = await createLabeledLogger(mockLogger, ["TEST"]);
+    const labeledLogger = await decorateLoggerWithLabels(mockLogger, ["TEST"]);
 
     labeledLogger("message", { data: 123 });
 
@@ -35,7 +35,7 @@ describe("createLabeledLogger", () => {
 
   it("returns bound logger with format and styles for multiple labels", async () => {
     const mockLogger = vi.fn();
-    const labeledLogger = await createLabeledLogger(mockLogger, ["HTTP", "req-123", "GET"]);
+    const labeledLogger = await decorateLoggerWithLabels(mockLogger, ["HTTP", "req-123", "GET"]);
 
     labeledLogger("https://example.com");
 
@@ -59,8 +59,8 @@ describe("createLabeledLogger", () => {
     const mockLogger1 = vi.fn();
     const mockLogger2 = vi.fn();
 
-    const logger1 = await createLabeledLogger(mockLogger1, ["SAML"]);
-    const logger2 = await createLabeledLogger(mockLogger2, ["SAML"]);
+    const logger1 = await decorateLoggerWithLabels(mockLogger1, ["SAML"]);
+    const logger2 = await decorateLoggerWithLabels(mockLogger2, ["SAML"]);
 
     logger1("test");
     logger2("test");
@@ -73,8 +73,8 @@ describe("createLabeledLogger", () => {
     const mockLogger1 = vi.fn();
     const mockLogger2 = vi.fn();
 
-    const logger1 = await createLabeledLogger(mockLogger1, ["HTTP"]);
-    const logger2 = await createLabeledLogger(mockLogger2, ["SAML"]);
+    const logger1 = await decorateLoggerWithLabels(mockLogger1, ["HTTP"]);
+    const logger2 = await decorateLoggerWithLabels(mockLogger2, ["SAML"]);
 
     logger1("test");
     logger2("test");

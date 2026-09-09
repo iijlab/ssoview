@@ -12,7 +12,7 @@ import {
   getAllSessionStorageItems,
   getSessionStorageBytesInUse,
 } from "@/common/utils/chrome-storage.ts";
-import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
+import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
 import {
   registerCaptureStopHandler,
@@ -124,7 +124,7 @@ if (import.meta.env.MODE === "development") {
   };
 
   async function debugStorage() {
-    const debug = await createLabeledDebugLogger(["STORAGE"]);
+    const debug = await newLabeledDebugLogger(["STORAGE"]);
 
     const allEntries = await getAllSessionStorageItems();
     if (allEntries instanceof Error) {
