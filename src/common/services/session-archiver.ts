@@ -4,7 +4,12 @@
  */
 
 import { newArchiveImportedEvent } from "@/common/models/event-record.ts";
-import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
+import {
+  type HttpArchiveJson,
+  newHttpArchive,
+  parseHttpArchive,
+  toHttpArchiveJson,
+} from "@/common/models/http-archive.ts";
 import {
   type HttpMessage,
   type HttpRequest,
@@ -31,7 +36,7 @@ import { recordSamlLog } from "@/common/services/saml-recorder.ts";
 export async function dumpSessionArchive(
   _tabId: number,
   ssoTraceId: string,
-): Promise<string | Error> {
+): Promise<HttpArchiveJson | Error> {
   const ssoTrace = await findSsoTraceById(ssoTraceId);
   if (ssoTrace instanceof Error) {
     return ssoTrace;
@@ -44,7 +49,7 @@ export async function dumpSessionArchive(
     return httpMessages;
   }
 
-  return newHar(httpMessages);
+  return toHttpArchiveJson(newHttpArchive(httpMessages));
 }
 
 /**
@@ -53,13 +58,16 @@ export async function dumpSessionArchive(
  * A single archive may contain multiple sessions.
  *
  * @param _tabId - Unused. Kept until the side panel stops passing it
- * @param har - The HAR JSON string to import
+ * @param httpArchiveJson - The HAR JSON string to import
  * @returns An array of imported session IDs, or an Error if import fails
  */
-export async function loadSessionArchive(_tabId: number, har: string): Promise<string[] | Error> {
-  const archivedHttpMessages = toHttpMessages(har);
-  if (archivedHttpMessages instanceof Error) {
-    return archivedHttpMessages;
+export async function loadSessionArchive(
+  _tabId: number,
+  httpArchiveJson: HttpArchiveJson,
+): Promise<string[] | Error> {
+  const httpArchive = parseHttpArchive(httpArchiveJson);
+  if (httpArchive instanceof Error) {
+    return httpArchive;
   }
 
   const archiveImportedEvent = newArchiveImportedEvent();
@@ -70,7 +78,7 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
     return saveError;
   }
 
-  const httpMessages = archivedHttpMessages.map(({ tabId, fetchRequestId, ...m }) => ({
+  const httpMessages = httpArchive.httpMessages.map(({ tabId, fetchRequestId, ...m }) => ({
     ...m,
     tracingSessionId,
   }));
