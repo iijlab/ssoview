@@ -7,11 +7,11 @@ import { Base64 } from "js-base64";
 import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
-import { type SamlDetection } from "@/common/models/saml-detection.ts";
+import { type SamlSignal } from "@/common/models/saml-detection.ts";
 import { type SamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
 import {
-  detectSamlStepFromHttpRequest,
-  detectSamlStepFromHttpResponse,
+  detectSamlSignalFromHttpRequest,
+  detectSamlSignalFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
 import { type FlowData } from "@/report-page/common/types.ts";
 import sampleAuthnRequestXmlRaw from "./authn-request.xml?raw";
@@ -221,32 +221,32 @@ function selectSampleHttpMessages(
 async function buildSampleSamlTraces(
   httpMessages: HttpMessage[],
 ): Promise<{ samlTraces: SamlTrace[]; correlationKey: string }> {
-  const detections = await detectSampleSamlSteps(httpMessages);
-  const correlationKey = detections[0]?.detection.correlationKey ?? "";
+  const samlSignals = await detectSampleSamlSignals(httpMessages);
+  const correlationKey = samlSignals[0]?.samlSignal.correlationKey ?? "";
 
   const samlTraces: SamlTrace[] = [];
-  for (const { detection, httpMessage, pairedHttpRequest } of detections) {
-    if (detection.step === 2 && pairedHttpRequest !== undefined) {
+  for (const { samlSignal, httpMessage, pairedHttpRequest } of samlSignals) {
+    if (samlSignal.step === 2 && pairedHttpRequest !== undefined) {
       pushSamlTrace(
         samlTraces,
-        { step: 1, correlationKey: detection.correlationKey },
+        { step: 1, correlationKey: samlSignal.correlationKey },
         pairedHttpRequest,
       );
     }
-    pushSamlTrace(samlTraces, detection, httpMessage);
+    pushSamlTrace(samlTraces, samlSignal, httpMessage);
   }
 
   return { samlTraces, correlationKey };
 }
 
-type SampleSamlDetection = {
-  detection: SamlDetection;
+type SampleSamlSignal = {
+  samlSignal: SamlSignal;
   httpMessage: HttpMessage;
   pairedHttpRequest?: HttpRequest;
 };
 
-async function detectSampleSamlSteps(httpMessages: HttpMessage[]): Promise<SampleSamlDetection[]> {
-  const detections: SampleSamlDetection[] = [];
+async function detectSampleSamlSignals(httpMessages: HttpMessage[]): Promise<SampleSamlSignal[]> {
+  const samlSignals: SampleSamlSignal[] = [];
 
   for (const httpMessage of httpMessages) {
     const pairedHttpRequest =
@@ -254,30 +254,30 @@ async function detectSampleSamlSteps(httpMessages: HttpMessage[]): Promise<Sampl
         ? findPairedHttpRequest(httpMessage.pairedHttpRequestId, httpMessages)
         : undefined;
 
-    const detection = await detectSamlStep(httpMessage, pairedHttpRequest);
-    if (detection instanceof Error) {
-      console.error("Failed to detect SAML step from sample message:", detection);
+    const samlSignal = await detectSamlSignal(httpMessage, pairedHttpRequest);
+    if (samlSignal instanceof Error) {
+      console.error("Failed to detect SAML signal from sample message:", samlSignal);
       continue;
-    } else if (!detection) {
+    } else if (!samlSignal) {
       continue;
     }
 
-    detections.push({ detection, httpMessage, pairedHttpRequest });
+    samlSignals.push({ samlSignal, httpMessage, pairedHttpRequest });
   }
 
-  return detections;
+  return samlSignals;
 }
 
-async function detectSamlStep(
+async function detectSamlSignal(
   httpMessage: HttpMessage,
   pairedHttpRequest: HttpRequest | undefined,
-): Promise<SamlDetection | undefined | Error> {
+): Promise<SamlSignal | undefined | Error> {
   if (httpMessage.type === "Request") {
-    return detectSamlStepFromHttpRequest(httpMessage);
+    return detectSamlSignalFromHttpRequest(httpMessage);
   } else if (pairedHttpRequest === undefined) {
     return new Error(`No paired HTTP request for HTTP response: ${httpMessage.id}`);
   } else {
-    return detectSamlStepFromHttpResponse(httpMessage, pairedHttpRequest);
+    return detectSamlSignalFromHttpResponse(httpMessage, pairedHttpRequest);
   }
 }
 
@@ -291,10 +291,10 @@ function findPairedHttpRequest(
 
 function pushSamlTrace(
   samlTraces: SamlTrace[],
-  detection: SamlDetection,
+  samlSignal: SamlSignal,
   httpMessage: HttpMessage,
 ): void {
-  const samlTrace = newSamlTrace(sampleFlowId, detection, httpMessage);
+  const samlTrace = newSamlTrace(sampleFlowId, samlSignal, httpMessage);
   if (samlTrace instanceof Error) {
     console.error("Failed to build SAML trace from sample message:", samlTrace);
     return;

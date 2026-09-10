@@ -7,15 +7,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
 import { deleteHttpMessages, saveHttpMessage } from "@/common/services/http-store.ts";
 import {
-  detectSamlStepFromHttpRequest,
-  detectSamlStepFromHttpResponse,
+  detectSamlSignalFromHttpRequest,
+  detectSamlSignalFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
 import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
 import { processHttpRequest, processHttpResponse } from "./saml-tracer.ts";
 
 vi.mock("@/common/services/saml-detector.ts", () => ({
-  detectSamlStepFromHttpRequest: vi.fn(),
-  detectSamlStepFromHttpResponse: vi.fn(),
+  detectSamlSignalFromHttpRequest: vi.fn(),
+  detectSamlSignalFromHttpResponse: vi.fn(),
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -74,7 +74,7 @@ describe("processHttpRequest", () => {
   it("saves the request and returns undefined when no SAML step is detected", async () => {
     const request = makeRequest();
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(undefined);
 
     const result = await processHttpRequest(request);
 
@@ -86,7 +86,7 @@ describe("processHttpRequest", () => {
   it("saves the request and returns Error when detection fails", async () => {
     const request = makeRequest();
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(new Error("detection error"));
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(new Error("detection error"));
 
     const result = await processHttpRequest(request);
 
@@ -99,7 +99,7 @@ describe("processHttpRequest", () => {
   it("records the trace and returns the correlation key when a step is detected", async () => {
     const request = makeRequest();
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
     });
@@ -124,14 +124,14 @@ describe("processHttpRequest", () => {
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("store error");
-    expect(detectSamlStepFromHttpRequest).not.toHaveBeenCalled();
+    expect(detectSamlSignalFromHttpRequest).not.toHaveBeenCalled();
     expect(recordSamlTrace).not.toHaveBeenCalled();
   });
 
   it("returns Error when recording the SAML trace fails", async () => {
     const request = makeRequest();
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
     });
@@ -148,7 +148,7 @@ describe("processHttpResponse", () => {
   it("saves the response and records the trace with the paired request", async () => {
     const pairedRequest = makeRequest({ id: "stored-1" });
     const response = makeResponse({ id: "msg-2", pairedHttpRequestId: "stored-1" });
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
+    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
       step: 2,
       correlationKey: "session-1",
     });
@@ -158,7 +158,7 @@ describe("processHttpResponse", () => {
     const result = await processHttpResponse(response, pairedRequest);
 
     expect(result).toBe("session-1");
-    expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(response, pairedRequest);
+    expect(detectSamlSignalFromHttpResponse).toHaveBeenCalledWith(response, pairedRequest);
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(response);
     expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
       "tracing-session-1",
@@ -172,8 +172,8 @@ describe("processHttpResponse", () => {
   it("deletes the paired request when neither the response nor the request is a step", async () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue(undefined);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
+    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue(undefined);
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(undefined);
     vi.mocked(deleteHttpMessages).mockResolvedValue(undefined);
 
     const result = await processHttpResponse(response, pairedRequest);
@@ -181,15 +181,15 @@ describe("processHttpResponse", () => {
     expect(result).toBeUndefined();
     expect(saveHttpMessage).not.toHaveBeenCalled();
     expect(recordSamlTrace).not.toHaveBeenCalled();
-    expect(detectSamlStepFromHttpRequest).toHaveBeenCalledExactlyOnceWith(pairedRequest);
+    expect(detectSamlSignalFromHttpRequest).toHaveBeenCalledExactlyOnceWith(pairedRequest);
     expect(deleteHttpMessages).toHaveBeenCalledExactlyOnceWith([pairedRequest]);
   });
 
   it("keeps the paired request when the request itself is a step", async () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue(undefined);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue(undefined);
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
     });
@@ -203,8 +203,8 @@ describe("processHttpResponse", () => {
   it("returns Error when deleting the unreferenced request fails", async () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue(undefined);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
+    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue(undefined);
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(undefined);
     vi.mocked(deleteHttpMessages).mockResolvedValue(new Error("delete error"));
 
     const result = await processHttpResponse(response, pairedRequest);
@@ -216,7 +216,7 @@ describe("processHttpResponse", () => {
   it("returns Error when detection fails", async () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue(new Error("detection error"));
+    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue(new Error("detection error"));
 
     const result = await processHttpResponse(response, pairedRequest);
 
@@ -229,7 +229,7 @@ describe("processHttpResponse", () => {
   it("returns Error when saving the response fails", async () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
+    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
       step: 2,
       correlationKey: "session-1",
     });
@@ -245,7 +245,7 @@ describe("processHttpResponse", () => {
   it("returns Error when recording the SAML trace fails", async () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
+    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
       step: 6,
       correlationKey: "session-1",
     });

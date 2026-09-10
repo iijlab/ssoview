@@ -10,14 +10,14 @@ import {
   type HttpRequest,
   type HttpResponse,
 } from "@/common/models/http-message.ts";
-import { type SamlDetection } from "@/common/models/saml-detection.ts";
+import { type SamlSignal } from "@/common/models/saml-detection.ts";
 import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
 import { findFlowEntryById } from "@/common/services/flow-store.ts";
 import { saveHttpMessage } from "@/common/services/http-store.ts";
 import {
-  detectSamlStepFromHttpRequest,
-  detectSamlStepFromHttpResponse,
+  detectSamlSignalFromHttpRequest,
+  detectSamlSignalFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
 import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
 
@@ -85,11 +85,11 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
         ? findPairedHttpRequest(httpMessage, httpMessages)
         : undefined;
 
-    const detection = await detectSamlStep(httpMessage, pairedHttpRequest);
-    if (detection instanceof Error) {
-      console.error("Failed to detect SAML flow from HTTP message:", detection);
+    const samlSignal = await detectSamlSignal(httpMessage, pairedHttpRequest);
+    if (samlSignal instanceof Error) {
+      console.error("Failed to detect SAML signal from HTTP message:", samlSignal);
       continue;
-    } else if (!detection) {
+    } else if (!samlSignal) {
       continue;
     }
 
@@ -107,7 +107,7 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
 
     const recordError = await recordSamlTrace(
       tracingSessionId,
-      detection,
+      samlSignal,
       httpMessage,
       pairedHttpRequest,
     );
@@ -115,24 +115,24 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
       return recordError;
     }
 
-    sessionIds.add(detection.correlationKey);
+    sessionIds.add(samlSignal.correlationKey);
   }
 
   return [...sessionIds];
 }
 
-async function detectSamlStep(
+async function detectSamlSignal(
   httpMessage: HttpMessage,
   pairedHttpRequest: HttpRequest | undefined,
-): Promise<SamlDetection | undefined | Error> {
+): Promise<SamlSignal | undefined | Error> {
   if (httpMessage.type === "Request") {
-    return detectSamlStepFromHttpRequest(httpMessage);
+    return detectSamlSignalFromHttpRequest(httpMessage);
   } else {
     if (pairedHttpRequest === undefined) {
       return new Error(`No paired HTTP request for HTTP response: ${httpMessage.id}`);
     }
 
-    return detectSamlStepFromHttpResponse(httpMessage, pairedHttpRequest);
+    return detectSamlSignalFromHttpResponse(httpMessage, pairedHttpRequest);
   }
 }
 

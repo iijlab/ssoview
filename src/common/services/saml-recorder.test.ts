@@ -150,17 +150,17 @@ describe("recordSamlTrace", () => {
   });
 
   it("reuses the flow of the same correlation key", async () => {
-    const detection = { step: 2, correlationKey: "authn-req-1" } as const;
-    await recordSamlTrace("cs-1", detection, makeResponse(), makeRequest());
+    const samlSignal = { step: 2, correlationKey: "authn-req-1" } as const;
+    await recordSamlTrace("cs-1", samlSignal, makeResponse(), makeRequest());
     await recordSamlTrace("cs-1", { step: 6, correlationKey: "authn-req-1" }, makeResponse());
 
     expect(storedFlowEntries()).toHaveLength(1);
   });
 
   it("issues a flow per tracing session", async () => {
-    const detection = { step: 2, correlationKey: "authn-req-1" } as const;
-    await recordSamlTrace("cs-1", detection, makeResponse(), makeRequest());
-    await recordSamlTrace("cs-2", detection, makeResponse(), makeRequest());
+    const samlSignal = { step: 2, correlationKey: "authn-req-1" } as const;
+    await recordSamlTrace("cs-1", samlSignal, makeResponse(), makeRequest());
+    await recordSamlTrace("cs-2", samlSignal, makeResponse(), makeRequest());
 
     expect(storedFlowEntries().map((f) => f.tracingSessionId)).toEqual(["cs-1", "cs-2"]);
   });

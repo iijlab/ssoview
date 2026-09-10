@@ -5,7 +5,7 @@
 
 import { v7 as uuidv7 } from "uuid";
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SamlDetection } from "@/common/models/saml-detection.ts";
+import { type SamlSignal } from "@/common/models/saml-detection.ts";
 import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
@@ -78,7 +78,7 @@ export function isSamlTrace(u: unknown): u is SamlTrace {
 
 export function newSamlTrace(
   flowId: string,
-  detection: SamlDetection,
+  samlSignal: SamlSignal,
   httpMessage: HttpMessage,
 ): SamlTrace | Error {
   const hostname = getHostname(httpMessage.url);
@@ -94,7 +94,7 @@ export function newSamlTrace(
     serverHostname: hostname,
   };
 
-  switch (detection.step) {
+  switch (samlSignal.step) {
     case 1:
       return {
         ...base,
@@ -125,7 +125,7 @@ export function newSamlTrace(
         step: 4,
         type: "IncomingResponse",
         action: "Identity Provider issues SAML Response",
-        samlStatusCode: detection.samlStatusCode,
+        samlStatusCode: samlSignal.samlStatusCode,
       };
     case 5:
       return {
@@ -136,7 +136,7 @@ export function newSamlTrace(
           httpMessage.method === "POST"
             ? "User Agent submits SAML Response to Service Provider"
             : "User Agent redirects SAML Response to Service Provider",
-        samlStatusCode: detection.samlStatusCode,
+        samlStatusCode: samlSignal.samlStatusCode,
       };
     case 6:
       return {

@@ -11,14 +11,14 @@ import {
   getHeaderValue,
 } from "@/common/models/http-message.ts";
 import {
-  type SamlDetectionFromHttpRequest,
-  type SamlDetectionFromHttpResponse,
+  type SamlSignalFromHttpRequest,
+  type SamlSignalFromHttpResponse,
 } from "@/common/models/saml-detection.ts";
 import { parseSamlpAuthnRequest, parseSamlpResponse } from "./saml-parser.ts";
 
-export async function detectSamlStepFromHttpRequest(
+export async function detectSamlSignalFromHttpRequest(
   httpRequest: HttpRequest,
-): Promise<SamlDetectionFromHttpRequest | undefined | Error> {
+): Promise<SamlSignalFromHttpRequest | undefined | Error> {
   return (
     (await detectUnauthenticatedResourceRequest(httpRequest)) ??
     (await detectOutgoingSamlAuthnRequest(httpRequest)) ??
@@ -26,10 +26,10 @@ export async function detectSamlStepFromHttpRequest(
   );
 }
 
-export async function detectSamlStepFromHttpResponse(
+export async function detectSamlSignalFromHttpResponse(
   httpResponse: HttpResponse,
   pairedHttpRequest: HttpRequest,
-): Promise<SamlDetectionFromHttpResponse | undefined | Error> {
+): Promise<SamlSignalFromHttpResponse | undefined | Error> {
   return (
     (await detectIncomingSamlAuthnRequest(httpResponse)) ??
     (await detectIncomingSamlResponse(httpResponse)) ??
@@ -65,7 +65,7 @@ async function detectUnauthenticatedResourceRequest(_: HttpRequest): Promise<und
 // Step 2: UA <--(AuthnRequest)--- SP
 async function detectIncomingSamlAuthnRequest(
   httpResponse: HttpResponse,
-): Promise<(SamlDetectionFromHttpResponse & { step: 2 }) | undefined | Error> {
+): Promise<(SamlSignalFromHttpResponse & { step: 2 }) | undefined | Error> {
   const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpResponse(httpResponse);
   if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
     return authnRequestXml;
@@ -254,7 +254,7 @@ function extractUrlFromMetaRefresh(responseBody: string): string | undefined {
 // Step 3: UA ---(AuthnRequest)--> IdP
 async function detectOutgoingSamlAuthnRequest(
   httpRequest: HttpRequest,
-): Promise<(SamlDetectionFromHttpRequest & { step: 3 }) | undefined | Error> {
+): Promise<(SamlSignalFromHttpRequest & { step: 3 }) | undefined | Error> {
   const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpRequest(httpRequest);
   if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
     return authnRequestXml;
@@ -341,7 +341,7 @@ function extractSamlRequestFromRequestBody(requestBody: string): string | undefi
 // Step 4: UA <--(Response)--- IdP
 async function detectIncomingSamlResponse(
   httpResponse: HttpResponse,
-): Promise<(SamlDetectionFromHttpResponse & { step: 4 }) | undefined | Error> {
+): Promise<(SamlSignalFromHttpResponse & { step: 4 }) | undefined | Error> {
   const responseXml = await extractSamlResponseXmlFromHttpResponse(httpResponse);
   if (responseXml === undefined || responseXml instanceof Error) {
     return responseXml;
@@ -444,7 +444,7 @@ function extractSamlResponseFromResponseBody(responseBody: string): string | und
 // Step 5: UA ---(Response)--> SP
 async function detectOutgoingSamlResponse(
   httpRequest: HttpRequest,
-): Promise<(SamlDetectionFromHttpRequest & { step: 5 }) | undefined | Error> {
+): Promise<(SamlSignalFromHttpRequest & { step: 5 }) | undefined | Error> {
   const responseXml = await extractSamlResponseXmlFromHttpRequest(httpRequest);
   if (responseXml === undefined || responseXml instanceof Error) {
     return responseXml;
@@ -540,7 +540,7 @@ function extractSamlResponseFromRequestBody(requestBody: string): string | undef
 // - It is the response to Step 5
 async function detectAuthenticatedResourceResponse(
   pairedHttpRequest: HttpRequest,
-): Promise<(SamlDetectionFromHttpResponse & { step: 6 }) | undefined | Error> {
+): Promise<(SamlSignalFromHttpResponse & { step: 6 }) | undefined | Error> {
   const samlOutgoingResponse = await detectOutgoingSamlResponse(pairedHttpRequest);
   if (samlOutgoingResponse instanceof Error || samlOutgoingResponse === undefined) {
     return samlOutgoingResponse;

@@ -5,28 +5,28 @@
 
 import { type FlowEntry, newFlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
-import { type SamlDetection } from "@/common/models/saml-detection.ts";
+import { type SamlSignal } from "@/common/models/saml-detection.ts";
 import { debugSamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
 import { findFlowEntryByCorrelationKey, saveFlowEntry } from "@/common/services/flow-store.ts";
 import { saveSamlTrace } from "@/common/services/saml-store.ts";
 
 export async function recordSamlTrace(
   tracingSessionId: string,
-  detection: SamlDetection,
+  samlSignal: SamlSignal,
   httpMessage: HttpMessage,
   pairedHttpRequest?: HttpRequest,
 ): Promise<void | Error> {
-  if (detection.step === 2) {
+  if (samlSignal.step === 2) {
     if (pairedHttpRequest === undefined) {
       console.warn("No paired HTTP request for the AuthnRequest, skipping step 1:", {
-        correlationKey: detection.correlationKey,
+        correlationKey: samlSignal.correlationKey,
       });
     } else {
       const recordError = await recordSamlTrace(
         tracingSessionId,
         {
           step: 1,
-          correlationKey: detection.correlationKey,
+          correlationKey: samlSignal.correlationKey,
         },
         pairedHttpRequest,
       );
@@ -36,12 +36,12 @@ export async function recordSamlTrace(
     }
   }
 
-  const flowEntry = await findOrIssueFlowEntry(tracingSessionId, detection.correlationKey);
+  const flowEntry = await findOrIssueFlowEntry(tracingSessionId, samlSignal.correlationKey);
   if (flowEntry instanceof Error) {
     return flowEntry;
   }
 
-  const samlTrace = newSamlTrace(flowEntry.id, detection, httpMessage);
+  const samlTrace = newSamlTrace(flowEntry.id, samlSignal, httpMessage);
   if (samlTrace instanceof Error) {
     return samlTrace;
   }

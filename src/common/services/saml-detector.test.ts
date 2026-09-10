@@ -7,8 +7,8 @@ import { Base64 } from "js-base64";
 import { describe, expect, it, vi } from "vitest";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
 import {
-  detectSamlStepFromHttpRequest,
-  detectSamlStepFromHttpResponse,
+  detectSamlSignalFromHttpRequest,
+  detectSamlSignalFromHttpResponse,
   extractSamlAuthnRequestXml,
   extractSamlResponseXml,
 } from "./saml-detector.ts";
@@ -162,21 +162,21 @@ function buildUnsolicitedSamlResponsePostBody(): string {
 // Tests
 //
 
-describe("detectSamlStep", () => {
+describe("detectSamlSignal", () => {
   describe("non-SAML messages", () => {
     it("returns undefined for a plain GET request", async () => {
-      const result = await detectSamlStepFromHttpRequest(makeRequest());
+      const result = await detectSamlSignalFromHttpRequest(makeRequest());
       expect(result).toBeUndefined();
     });
 
     it("returns undefined for a plain 200 response", async () => {
-      const result = await detectSamlStepFromHttpResponse(makeResponse(), makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(makeResponse(), makeRequest());
       expect(result).toBeUndefined();
     });
 
     it("returns undefined for a POST request without SAMLResponse", async () => {
       const request = makeRequest({ method: "POST", body: "username=user&password=pass" });
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
       expect(result).toBeUndefined();
     });
 
@@ -189,7 +189,7 @@ describe("detectSamlStep", () => {
         body: undefined,
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -207,7 +207,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
@@ -224,7 +224,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
@@ -241,7 +241,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
@@ -257,7 +257,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -269,7 +269,7 @@ describe("detectSamlStep", () => {
         headers: [{ name: "Date", value: DATE_HEADER_VALUE }],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
       vi.restoreAllMocks();
@@ -284,7 +284,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -298,7 +298,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -315,7 +315,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeInstanceOf(Error);
       expect((result as Error).message).toBe("ID not found in AuthnRequest");
@@ -333,7 +333,7 @@ describe("detectSamlStep", () => {
         body: buildSamlRequestFormBody(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
@@ -349,7 +349,7 @@ describe("detectSamlStep", () => {
         body: buildSamlRequestFormBody(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -364,7 +364,7 @@ describe("detectSamlStep", () => {
         body: '<html><body><form><input name="foo" value="bar"/></form></body></html>',
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -379,7 +379,7 @@ describe("detectSamlStep", () => {
         body: buildSamlRequestFormBodyWithUpperCaseAttributes(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
@@ -397,7 +397,7 @@ describe("detectSamlStep", () => {
         body: await buildSamlRequestOnclickBody(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
@@ -415,7 +415,7 @@ describe("detectSamlStep", () => {
         body,
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -430,7 +430,7 @@ describe("detectSamlStep", () => {
         body: await buildSamlRequestOnclickBody(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -447,7 +447,7 @@ describe("detectSamlStep", () => {
         body: await buildSamlRequestMetaRefreshBody(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
@@ -463,7 +463,7 @@ describe("detectSamlStep", () => {
         body: await buildSamlRequestMetaRefreshBodyWithEscapedQuotes(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
@@ -479,7 +479,7 @@ describe("detectSamlStep", () => {
         body: await buildSamlRequestMetaRefreshBody(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -496,7 +496,7 @@ describe("detectSamlStep", () => {
         body,
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -511,7 +511,7 @@ describe("detectSamlStep", () => {
         body: "<html><head></head><body>No meta refresh</body></html>",
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -522,7 +522,7 @@ describe("detectSamlStep", () => {
       const url = await buildIdpLocationUrl();
       const request = makeRequest({ url, method: "GET" });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 3, correlationKey: AUTHN_REQUEST_ID });
@@ -532,7 +532,7 @@ describe("detectSamlStep", () => {
       const url = await buildIdpLocationUrl();
       const request = makeRequest({ url, method: "POST", body: "" });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       // POST without SAMLResponse in body => undefined
       expect(result).toBeUndefined();
@@ -541,7 +541,7 @@ describe("detectSamlStep", () => {
     it("returns undefined for GET without SAMLRequest", async () => {
       const request = makeRequest({ url: "https://idp.example.org/sso?foo=bar" });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).toBeUndefined();
     });
@@ -555,7 +555,7 @@ describe("detectSamlStep", () => {
         body: buildSamlRequestPostBody(),
       });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 3, correlationKey: AUTHN_REQUEST_ID });
@@ -568,7 +568,7 @@ describe("detectSamlStep", () => {
         body: "username=user&password=pass",
       });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).toBeUndefined();
     });
@@ -586,7 +586,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
@@ -607,7 +607,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
@@ -627,7 +627,7 @@ describe("detectSamlStep", () => {
         ],
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });
@@ -646,7 +646,7 @@ describe("detectSamlStep", () => {
         body: buildSamlResponseFormBody(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, request);
+      const result = await detectSamlSignalFromHttpResponse(response, request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
@@ -670,7 +670,7 @@ describe("detectSamlStep", () => {
         body,
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, request);
+      const result = await detectSamlSignalFromHttpResponse(response, request);
 
       expect(result).toEqual({
         step: 4,
@@ -690,7 +690,7 @@ describe("detectSamlStep", () => {
         body: "{}",
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, request);
+      const result = await detectSamlSignalFromHttpResponse(response, request);
 
       expect(result).toBeUndefined();
     });
@@ -707,7 +707,7 @@ describe("detectSamlStep", () => {
         body: "<html><body>No SAML here</body></html>",
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, request);
+      const result = await detectSamlSignalFromHttpResponse(response, request);
 
       expect(result).toBeUndefined();
     });
@@ -724,7 +724,7 @@ describe("detectSamlStep", () => {
         body: buildSamlResponseFormBodyWithUpperCaseAttributes(),
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, request);
+      const result = await detectSamlSignalFromHttpResponse(response, request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
@@ -740,7 +740,7 @@ describe("detectSamlStep", () => {
       const url = await buildSpLocationUrlWithResponse();
       const request = makeRequest({ url, method: "GET" });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
@@ -753,7 +753,7 @@ describe("detectSamlStep", () => {
     it("returns undefined for GET without SAMLResponse", async () => {
       const request = makeRequest({ url: "https://sp.example.com/acs?foo=bar", method: "GET" });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).toBeUndefined();
     });
@@ -767,7 +767,7 @@ describe("detectSamlStep", () => {
         body: buildSamlResponsePostBody(),
       });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
@@ -780,7 +780,7 @@ describe("detectSamlStep", () => {
     it("returns undefined for non-POST request", async () => {
       const request = makeRequest({ method: "GET" });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).toBeUndefined();
     });
@@ -788,7 +788,7 @@ describe("detectSamlStep", () => {
     it("returns undefined when POST body has no SAMLResponse", async () => {
       const request = makeRequest({ method: "POST", body: "foo=bar" });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).toBeUndefined();
     });
@@ -800,7 +800,7 @@ describe("detectSamlStep", () => {
         body: buildUnsolicitedSamlResponsePostBody(),
       });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
@@ -820,7 +820,7 @@ describe("detectSamlStep", () => {
         body,
       });
 
-      const result = await detectSamlStepFromHttpRequest(request);
+      const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).toBeInstanceOf(Error);
       expect((result as Error).message).toBe("ID not found in Response");
@@ -840,7 +840,7 @@ describe("detectSamlStep", () => {
         body: "<html><body>Welcome</body></html>",
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, request);
+      const result = await detectSamlSignalFromHttpResponse(response, request);
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({ step: 6, correlationKey: AUTHN_REQUEST_ID });
@@ -851,7 +851,7 @@ describe("detectSamlStep", () => {
         body: "<html><body>Welcome</body></html>",
       });
 
-      const result = await detectSamlStepFromHttpResponse(response, makeRequest());
+      const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).toBeUndefined();
     });

@@ -11,8 +11,8 @@ import {
 } from "@/common/models/http-message.ts";
 import { deleteHttpMessages, saveHttpMessage } from "@/common/services/http-store.ts";
 import {
-  detectSamlStepFromHttpRequest,
-  detectSamlStepFromHttpResponse,
+  detectSamlSignalFromHttpRequest,
+  detectSamlSignalFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
 import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
 
@@ -26,19 +26,19 @@ export async function processHttpRequest(
     return saveError;
   }
 
-  const detection = await detectSamlStepFromHttpRequest(httpRequest);
-  if (detection instanceof Error) {
-    return detection;
-  } else if (!detection) {
+  const samlSignal = await detectSamlSignalFromHttpRequest(httpRequest);
+  if (samlSignal instanceof Error) {
+    return samlSignal;
+  } else if (!samlSignal) {
     return undefined;
   }
 
-  const recordError = await recordSamlTrace(httpRequest.tracingSessionId, detection, httpRequest);
+  const recordError = await recordSamlTrace(httpRequest.tracingSessionId, samlSignal, httpRequest);
   if (recordError) {
     return recordError;
   }
 
-  return detection.correlationKey;
+  return samlSignal.correlationKey;
 }
 
 export async function processHttpResponse(
@@ -47,12 +47,12 @@ export async function processHttpResponse(
 ): Promise<string | undefined | Error> {
   await debugHttpResponse(httpResponse);
 
-  const detection = await detectSamlStepFromHttpResponse(httpResponse, pairedHttpRequest);
-  if (detection instanceof Error) {
-    return detection;
-  } else if (!detection) {
+  const samlSignal = await detectSamlSignalFromHttpResponse(httpResponse, pairedHttpRequest);
+  if (samlSignal instanceof Error) {
+    return samlSignal;
+  } else if (!samlSignal) {
     // The response is not saved, so keep the request only if it is a step itself
-    const shouldKeep = await detectSamlStepFromHttpRequest(pairedHttpRequest);
+    const shouldKeep = await detectSamlSignalFromHttpRequest(pairedHttpRequest);
     if (shouldKeep instanceof Error) {
       return shouldKeep;
     } else if (!shouldKeep) {
@@ -72,7 +72,7 @@ export async function processHttpResponse(
 
   const recordError = await recordSamlTrace(
     httpResponse.tracingSessionId,
-    detection,
+    samlSignal,
     httpResponse,
     pairedHttpRequest,
   );
@@ -80,5 +80,5 @@ export async function processHttpResponse(
     return recordError;
   }
 
-  return detection.correlationKey;
+  return samlSignal.correlationKey;
 }

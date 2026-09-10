@@ -3,17 +3,12 @@
  * @license BSD-3-Clause
  */
 
-export type SamlDetection =
-  | InferredSamlDetection
-  | SamlDetectionFromHttpRequest
-  | SamlDetectionFromHttpResponse;
+export type SamlSignal =
+  | SamlSignalFromHttpRequest
+  | SamlSignalFromHttpResponse
+  | InferredSamlSignal;
 
-export type InferredSamlDetection = {
-  step: 1;
-  correlationKey: string;
-};
-
-export type SamlDetectionFromHttpRequest =
+export type SamlSignalFromHttpRequest =
   | {
       step: 3;
       correlationKey: string;
@@ -24,7 +19,7 @@ export type SamlDetectionFromHttpRequest =
       samlStatusCode: string;
     };
 
-export type SamlDetectionFromHttpResponse =
+export type SamlSignalFromHttpResponse =
   | {
       step: 2;
       correlationKey: string;
@@ -38,3 +33,8 @@ export type SamlDetectionFromHttpResponse =
       step: 6;
       correlationKey: string;
     };
+
+export type InferredSamlSignal = {
+  step: 1;
+  correlationKey: string;
+};
