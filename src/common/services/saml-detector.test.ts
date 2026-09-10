@@ -195,7 +195,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 2: IncomingAuthnRequest (SP issues AuthnRequest via redirect)", () => {
+  describe("Step 2: IncomingSamlAuthnRequest (SP issues AuthnRequest via redirect)", () => {
     it("detects AuthnRequest in a 302 redirect", async () => {
       const location = await buildIdpLocationUrl();
       const response = makeResponse({
@@ -322,7 +322,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 2: IncomingAuthnRequest (SP issues AuthnRequest via POST Binding)", () => {
+  describe("Step 2: IncomingSamlAuthnRequest (SP issues AuthnRequest via POST Binding)", () => {
     it("detects AuthnRequest in an HTML form body", async () => {
       const response = makeResponse({
         url: "https://sp.example.com/login",
@@ -386,7 +386,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 2: IncomingAuthnRequest (SP issues AuthnRequest via Script Redirect Binding)", () => {
+  describe("Step 2: IncomingSamlAuthnRequest (SP issues AuthnRequest via Script Redirect Binding)", () => {
     it("detects AuthnRequest in an onclick location.href", async () => {
       const response = makeResponse({
         url: "https://sp.example.com/login",
@@ -436,7 +436,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 2: IncomingAuthnRequest (SP issues AuthnRequest via Meta Refresh Binding)", () => {
+  describe("Step 2: IncomingSamlAuthnRequest (SP issues AuthnRequest via Meta Refresh Binding)", () => {
     it("detects AuthnRequest in a meta refresh tag", async () => {
       const response = makeResponse({
         url: "https://sp.example.com/login",
@@ -517,7 +517,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 3: OutgoingAuthnRequest (UA redirects AuthnRequest to IdP)", () => {
+  describe("Step 3: OutgoingSamlAuthnRequest (UA redirects AuthnRequest to IdP)", () => {
     it("detects AuthnRequest in a GET request URL", async () => {
       const url = await buildIdpLocationUrl();
       const request = makeRequest({ url, method: "GET" });
@@ -547,7 +547,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 3: OutgoingAuthnRequest (UA posts AuthnRequest to IdP via POST Binding)", () => {
+  describe("Step 3: OutgoingSamlAuthnRequest (UA posts AuthnRequest to IdP via POST Binding)", () => {
     it("detects AuthnRequest in a POST request body", async () => {
       const request = makeRequest({
         url: "https://idp.example.org/sso",
@@ -574,7 +574,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 4: IncomingResponse (IdP issues SAML Response via Redirect Binding)", () => {
+  describe("Step 4: IncomingSamlResponse (IdP issues SAML Response via Redirect Binding)", () => {
     it("detects SAMLResponse in a 302 redirect", async () => {
       const location = await buildSpLocationUrlWithResponse();
       const response = makeResponse({
@@ -633,7 +633,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 4: IncomingResponse (IdP issues SAML Response via POST Binding)", () => {
+  describe("Step 4: IncomingSamlResponse (IdP issues SAML Response via POST Binding)", () => {
     it("detects SAMLResponse in HTML response body", async () => {
       const requestUrl = await buildIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
@@ -735,7 +735,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 5: OutgoingResponse (UA redirects SAML Response to SP via Redirect Binding)", () => {
+  describe("Step 5: OutgoingSamlResponse (UA redirects SAML Response to SP via Redirect Binding)", () => {
     it("detects SAMLResponse in a GET request URL", async () => {
       const url = await buildSpLocationUrlWithResponse();
       const request = makeRequest({ url, method: "GET" });
@@ -759,7 +759,7 @@ describe("detectSamlSignal", () => {
     });
   });
 
-  describe("Step 5: OutgoingResponse (UA redirects SAML Response to SP via POST Binding)", () => {
+  describe("Step 5: OutgoingSamlResponse (UA redirects SAML Response to SP via POST Binding)", () => {
     it("detects SAMLResponse in POST request body", async () => {
       const request = makeRequest({
         url: "https://sp.example.com/acs",
@@ -828,7 +828,7 @@ describe("detectSamlSignal", () => {
   });
 
   describe("Step 6: AuthenticatedResourceResponse (SP returns resource)", () => {
-    it("detects response to an OutgoingResponse request", async () => {
+    it("detects response to an OutgoingSamlResponse request", async () => {
       const request = makeRequest({
         url: "https://sp.example.com/acs",
         method: "POST",
@@ -846,7 +846,7 @@ describe("detectSamlSignal", () => {
       expect(result).toEqual({ step: 6, correlationKey: AUTHN_REQUEST_ID });
     });
 
-    it("returns undefined when request is not an OutgoingResponse", async () => {
+    it("returns undefined when request is not an OutgoingSamlResponse", async () => {
       const response = makeResponse({
         body: "<html><body>Welcome</body></html>",
       });

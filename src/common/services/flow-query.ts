@@ -5,15 +5,15 @@
 
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { findHttpMessagesByIds } from "@/common/services/http-store.ts";
-import { findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
+import { findSamlLogsByFlowId } from "@/common/services/saml-store.ts";
 
 export async function findHttpMessagesOfFlow(flowId: string): Promise<HttpMessage[] | Error> {
-  const samlTraces = await findSamlTracesByFlowId(flowId);
-  if (samlTraces instanceof Error) {
-    return samlTraces;
+  const samlLogs = await findSamlLogsByFlowId(flowId);
+  if (samlLogs instanceof Error) {
+    return samlLogs;
   }
 
-  const httpMessages = await findHttpMessagesByIds(samlTraces.map((t) => t.httpMessageId));
+  const httpMessages = await findHttpMessagesByIds(samlLogs.map((l) => l.httpMessageId));
   if (httpMessages instanceof Error) {
     return httpMessages;
   }

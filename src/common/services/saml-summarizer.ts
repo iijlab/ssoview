@@ -5,15 +5,15 @@
 
 import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
-import { type SamlTrace } from "@/common/models/saml-trace.ts";
+import { type SamlLog } from "@/common/models/saml-trace.ts";
 import { type SessionSummary } from "@/common/models/session-summary.ts";
 
 export function summarizeSamlFlow(
   flowEntry: FlowEntry,
   tracingSession: TracingSession,
-  samlTraces: SamlTrace[],
+  samlLogs: SamlLog[],
 ): SessionSummary {
-  return samlTraces.reduce(updateSamlSessionSummary, {
+  return samlLogs.reduce(updateSamlSessionSummary, {
     protocol: "saml",
     imported: tracingSession.imported,
     capturing: false,
@@ -22,15 +22,15 @@ export function summarizeSamlFlow(
   });
 }
 
-function updateSamlSessionSummary(summary: SessionSummary, samlTrace: SamlTrace): SessionSummary {
+function updateSamlSessionSummary(summary: SessionSummary, samlLog: SamlLog): SessionSummary {
   const status = (() => {
     if (summary.status === "failed") {
       return "failed";
     } else {
-      switch (samlTrace.step) {
+      switch (samlLog.step) {
         case 4:
         case 5:
-          if (!samlTrace.samlStatusCode.endsWith(":Success")) {
+          if (!samlLog.samlStatusCode.endsWith(":Success")) {
             return "failed";
           }
           break;
@@ -41,18 +41,18 @@ function updateSamlSessionSummary(summary: SessionSummary, samlTrace: SamlTrace)
     }
   })();
 
-  const role = samlTrace.step === 3 || samlTrace.step === 4 ? "idp" : "sp";
+  const role = samlLog.step === 3 || samlLog.step === 4 ? "idp" : "sp";
 
   const warning: string[] = [];
 
   return {
     ...summary,
-    start: summary.start ?? samlTrace.observedAt,
-    end: summary.end ?? (status !== "in_progress" ? samlTrace.observedAt : undefined),
-    sp: summary.sp ?? (role === "sp" ? samlTrace.serverHostname : undefined),
-    idp: summary.idp ?? (role === "idp" ? samlTrace.serverHostname : undefined),
+    start: summary.start ?? samlLog.observedAt,
+    end: summary.end ?? (status !== "in_progress" ? samlLog.observedAt : undefined),
+    sp: summary.sp ?? (role === "sp" ? samlLog.serverHostname : undefined),
+    idp: summary.idp ?? (role === "idp" ? samlLog.serverHostname : undefined),
     status,
-    action: samlTrace.action,
+    action: samlLog.action,
     warning: [...summary.warning, ...warning],
   };
 }

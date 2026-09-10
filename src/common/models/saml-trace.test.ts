@@ -5,10 +5,10 @@
 
 import { describe, expect, it } from "vitest";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
-import { isSamlTrace, newSamlTrace } from "./saml-trace.ts";
+import { isSamlLog, newSamlLog } from "./saml-trace.ts";
 
-describe("isSamlTrace", () => {
-  function makeTraceFields(): Record<string, unknown> {
+describe("isSamlLog", () => {
+  function makeSamlLogFields(): Record<string, unknown> {
     return {
       id: "trace-1",
       flowId: "flow-1",
@@ -17,59 +17,59 @@ describe("isSamlTrace", () => {
       serverHostname: "sp.example.com",
       action: "test action",
       step: 2,
-      type: "IncomingAuthnRequest",
+      type: "IncomingSamlAuthnRequest",
     };
   }
 
-  it("returns true for valid SamlTrace with required fields only", () => {
-    expect(isSamlTrace(makeTraceFields())).toBe(true);
+  it("returns true for valid SamlLog with required fields only", () => {
+    expect(isSamlLog(makeSamlLogFields())).toBe(true);
   });
 
-  it("returns true for valid SamlTrace with optional fields", () => {
-    const msg = { ...makeTraceFields(), samlStatusCode: "urn:...:Success" };
-    expect(isSamlTrace(msg)).toBe(true);
+  it("returns true for valid SamlLog with optional fields", () => {
+    const msg = { ...makeSamlLogFields(), samlStatusCode: "urn:...:Success" };
+    expect(isSamlLog(msg)).toBe(true);
   });
 
   it("returns false for null", () => {
-    expect(isSamlTrace(null)).toBe(false);
+    expect(isSamlLog(null)).toBe(false);
   });
 
   it("returns false for undefined", () => {
-    expect(isSamlTrace(undefined)).toBe(false);
+    expect(isSamlLog(undefined)).toBe(false);
   });
 
   it("returns false when id is missing", () => {
-    const msg = makeTraceFields();
+    const msg = makeSamlLogFields();
     delete msg.id;
-    expect(isSamlTrace(msg)).toBe(false);
+    expect(isSamlLog(msg)).toBe(false);
   });
 
   it("returns false when flowId is missing", () => {
-    const msg = makeTraceFields();
+    const msg = makeSamlLogFields();
     delete msg.flowId;
-    expect(isSamlTrace(msg)).toBe(false);
+    expect(isSamlLog(msg)).toBe(false);
   });
 
   it("returns false when httpMessageId is not a string", () => {
-    expect(isSamlTrace({ ...makeTraceFields(), httpMessageId: 123 })).toBe(false);
+    expect(isSamlLog({ ...makeSamlLogFields(), httpMessageId: 123 })).toBe(false);
   });
 
   it("returns false when observedAt is missing", () => {
-    const msg = makeTraceFields();
+    const msg = makeSamlLogFields();
     delete msg.observedAt;
-    expect(isSamlTrace(msg)).toBe(false);
+    expect(isSamlLog(msg)).toBe(false);
   });
 
   it("returns false when serverHostname is not a string", () => {
-    expect(isSamlTrace({ ...makeTraceFields(), serverHostname: null })).toBe(false);
+    expect(isSamlLog({ ...makeSamlLogFields(), serverHostname: null })).toBe(false);
   });
 
   it("returns false when optional samlStatusCode is not a string", () => {
-    expect(isSamlTrace({ ...makeTraceFields(), samlStatusCode: 200 })).toBe(false);
+    expect(isSamlLog({ ...makeSamlLogFields(), samlStatusCode: 200 })).toBe(false);
   });
 });
 
-describe("newSamlTrace", () => {
+describe("newSamlLog", () => {
   const DATE_HEADER_VALUE = "Thu, 01 Jan 2026 00:00:00 GMT";
   const STATUS_SUCCESS = "urn:oasis:names:tc:SAML:2.0:status:Success";
 
@@ -102,10 +102,10 @@ describe("newSamlTrace", () => {
     } as unknown as HttpResponse;
   }
 
-  it("builds a step 1 trace from a request", () => {
+  it("builds a step 1 log from a request", () => {
     const request = makeRequest({ url: "https://sp.example.com/resource" });
 
-    const result = newSamlTrace("flow-1", { step: 1, correlationKey: "authn-req-1" }, request);
+    const result = newSamlLog("flow-1", { step: 1, correlationKey: "authn-req-1" }, request);
 
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toMatchObject({
@@ -119,10 +119,10 @@ describe("newSamlTrace", () => {
     });
   });
 
-  it("builds a step 2 trace from a response", () => {
+  it("builds a step 2 log from a response", () => {
     const response = makeResponse({ url: "https://sp.example.com/login" });
 
-    const result = newSamlTrace("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
+    const result = newSamlLog("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
 
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toMatchObject({
@@ -131,29 +131,29 @@ describe("newSamlTrace", () => {
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
       step: 2,
-      type: "IncomingAuthnRequest",
+      type: "IncomingSamlAuthnRequest",
       action: "Service Provider issues SAML AuthnRequest",
     });
     expect((result as { id: string }).id).toEqual(expect.any(String));
   });
 
-  it("builds a step 3 trace with the redirect action for a GET request", () => {
+  it("builds a step 3 log with the redirect action for a GET request", () => {
     const request = makeRequest({ url: "https://idp.example.org/sso", method: "GET" });
 
-    const result = newSamlTrace("flow-1", { step: 3, correlationKey: "authn-req-1" }, request);
+    const result = newSamlLog("flow-1", { step: 3, correlationKey: "authn-req-1" }, request);
 
     expect(result).toMatchObject({
       step: 3,
-      type: "OutgoingAuthnRequest",
+      type: "OutgoingSamlAuthnRequest",
       serverHostname: "idp.example.org",
       action: "User Agent redirects SAML AuthnRequest to Identity Provider",
     });
   });
 
-  it("builds a step 3 trace with the submit action for a POST request", () => {
+  it("builds a step 3 log with the submit action for a POST request", () => {
     const request = makeRequest({ url: "https://idp.example.org/sso", method: "POST" });
 
-    const result = newSamlTrace("flow-1", { step: 3, correlationKey: "authn-req-1" }, request);
+    const result = newSamlLog("flow-1", { step: 3, correlationKey: "authn-req-1" }, request);
 
     expect(result).toMatchObject({
       step: 3,
@@ -161,10 +161,10 @@ describe("newSamlTrace", () => {
     });
   });
 
-  it("builds a step 4 trace with the samlStatusCode", () => {
+  it("builds a step 4 log with the samlStatusCode", () => {
     const response = makeResponse({ url: "https://idp.example.org/sso" });
 
-    const result = newSamlTrace(
+    const result = newSamlLog(
       "flow-1",
       { step: 4, correlationKey: "authn-req-1", samlStatusCode: STATUS_SUCCESS },
       response,
@@ -172,16 +172,16 @@ describe("newSamlTrace", () => {
 
     expect(result).toMatchObject({
       step: 4,
-      type: "IncomingResponse",
+      type: "IncomingSamlResponse",
       action: "Identity Provider issues SAML Response",
       samlStatusCode: STATUS_SUCCESS,
     });
   });
 
-  it("builds a step 5 trace with the samlStatusCode", () => {
+  it("builds a step 5 log with the samlStatusCode", () => {
     const request = makeRequest({ url: "https://sp.example.com/acs", method: "POST" });
 
-    const result = newSamlTrace(
+    const result = newSamlLog(
       "flow-1",
       { step: 5, correlationKey: "authn-req-1", samlStatusCode: STATUS_SUCCESS },
       request,
@@ -189,16 +189,16 @@ describe("newSamlTrace", () => {
 
     expect(result).toMatchObject({
       step: 5,
-      type: "OutgoingResponse",
+      type: "OutgoingSamlResponse",
       action: "User Agent submits SAML Response to Service Provider",
       samlStatusCode: STATUS_SUCCESS,
     });
   });
 
-  it("builds a step 6 trace from a response", () => {
+  it("builds a step 6 log from a response", () => {
     const response = makeResponse({ url: "https://sp.example.com/resource" });
 
-    const result = newSamlTrace("flow-1", { step: 6, correlationKey: "authn-req-1" }, response);
+    const result = newSamlLog("flow-1", { step: 6, correlationKey: "authn-req-1" }, response);
 
     expect(result).toMatchObject({
       step: 6,
@@ -210,7 +210,7 @@ describe("newSamlTrace", () => {
   it("returns Error when the message URL is invalid", () => {
     const response = makeResponse({ url: "not-a-url" });
 
-    const result = newSamlTrace("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
+    const result = newSamlLog("flow-1", { step: 2, correlationKey: "authn-req-1" }, response);
 
     expect(result).toBeInstanceOf(Error);
   });

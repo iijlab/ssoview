@@ -8,7 +8,7 @@ import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
 import { type SamlSignal } from "@/common/models/saml-detection.ts";
-import { type SamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
+import { type SamlLog, newSamlLog } from "@/common/models/saml-trace.ts";
 import {
   detectSamlSignalFromHttpRequest,
   detectSamlSignalFromHttpResponse,
@@ -35,12 +35,11 @@ export async function buildSampleFlowData(): Promise<FlowData> {
   const sample = new URLSearchParams(window.location.search).get("sample");
 
   const allHttpMessages = await buildSampleHttpMessages(sample);
-  const { samlTraces: allSamlTraces, correlationKey } =
-    await buildSampleSamlTraces(allHttpMessages);
+  const { samlLogs: allSamlLogs, correlationKey } = await buildSampleSamlLogs(allHttpMessages);
 
   const httpMessages = selectSampleHttpMessages(sample, allHttpMessages);
   const httpMessageIds = new Set(httpMessages.map((m) => m.id));
-  const samlTraces = allSamlTraces.filter((t) => httpMessageIds.has(t.httpMessageId));
+  const samlLogs = allSamlLogs.filter((l) => httpMessageIds.has(l.httpMessageId));
 
   const flowEntry: FlowEntry = {
     id: sampleFlowId,
@@ -56,7 +55,7 @@ export async function buildSampleFlowData(): Promise<FlowData> {
     endedAt: "2004-12-05T09:22:06.000Z",
   };
 
-  return { flowEntry, tracingSession, samlTraces, httpMessages };
+  return { flowEntry, tracingSession, samlLogs, httpMessages };
 }
 
 async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessage[]> {
@@ -218,25 +217,25 @@ function selectSampleHttpMessages(
   return allHttpMessages;
 }
 
-async function buildSampleSamlTraces(
+async function buildSampleSamlLogs(
   httpMessages: HttpMessage[],
-): Promise<{ samlTraces: SamlTrace[]; correlationKey: string }> {
+): Promise<{ samlLogs: SamlLog[]; correlationKey: string }> {
   const samlSignals = await detectSampleSamlSignals(httpMessages);
   const correlationKey = samlSignals[0]?.samlSignal.correlationKey ?? "";
 
-  const samlTraces: SamlTrace[] = [];
+  const samlLogs: SamlLog[] = [];
   for (const { samlSignal, httpMessage, pairedHttpRequest } of samlSignals) {
     if (samlSignal.step === 2 && pairedHttpRequest !== undefined) {
-      pushSamlTrace(
-        samlTraces,
+      pushSamlLog(
+        samlLogs,
         { step: 1, correlationKey: samlSignal.correlationKey },
         pairedHttpRequest,
       );
     }
-    pushSamlTrace(samlTraces, samlSignal, httpMessage);
+    pushSamlLog(samlLogs, samlSignal, httpMessage);
   }
 
-  return { samlTraces, correlationKey };
+  return { samlLogs, correlationKey };
 }
 
 type SampleSamlSignal = {
@@ -289,17 +288,13 @@ function findPairedHttpRequest(
   return pairedHttpRequest?.type === "Request" ? pairedHttpRequest : undefined;
 }
 
-function pushSamlTrace(
-  samlTraces: SamlTrace[],
-  samlSignal: SamlSignal,
-  httpMessage: HttpMessage,
-): void {
-  const samlTrace = newSamlTrace(sampleFlowId, samlSignal, httpMessage);
-  if (samlTrace instanceof Error) {
-    console.error("Failed to build SAML trace from sample message:", samlTrace);
+function pushSamlLog(samlLogs: SamlLog[], samlSignal: SamlSignal, httpMessage: HttpMessage): void {
+  const samlLog = newSamlLog(sampleFlowId, samlSignal, httpMessage);
+  if (samlLog instanceof Error) {
+    console.error("Failed to build SAML log from sample message:", samlLog);
     return;
   }
-  samlTraces.push(samlTrace);
+  samlLogs.push(samlLog);
 }
 
 //

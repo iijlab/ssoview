@@ -6,13 +6,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type FlowEntry, isFlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
-import { type SamlTrace, isSamlTrace } from "@/common/models/saml-trace.ts";
+import { type SamlLog, isSamlLog } from "@/common/models/saml-trace.ts";
 import {
   getAllSessionStorageKeys,
   getSessionStorageItems,
   setSessionStorageItem,
 } from "@/common/utils/chrome-storage.ts";
-import { recordSamlTrace } from "./saml-recorder.ts";
+import { recordSamlLog } from "./saml-recorder.ts";
 
 vi.mock("@/common/utils/chrome-storage.ts", () => ({
   getAllSessionStorageKeys: vi.fn(),
@@ -39,9 +39,9 @@ function storedFlowEntries(): FlowEntry[] {
   return Object.values(storage).filter((v): v is FlowEntry => isFlowEntry(v));
 }
 
-function storedSamlTraces(): SamlTrace[] {
+function savedSamlLogs(): SamlLog[] {
   return Object.values(storage)
-    .filter((v): v is SamlTrace => isSamlTrace(v))
+    .filter((v): v is SamlLog => isSamlLog(v))
     .toSorted((a, b) => (a.id < b.id ? -1 : 1));
 }
 
@@ -72,9 +72,9 @@ function makeResponse(): HttpResponse {
   } as unknown as HttpResponse;
 }
 
-describe("recordSamlTrace", () => {
-  it("issues a flow for an unknown correlation key and stores the trace", async () => {
-    const result = await recordSamlTrace(
+describe("recordSamlLog", () => {
+  it("issues a flow for an unknown correlation key and saves the log", async () => {
+    const result = await recordSamlLog(
       "cs-1",
       { step: 6, correlationKey: "authn-req-1" },
       makeResponse(),
@@ -88,15 +88,15 @@ describe("recordSamlTrace", () => {
         correlationKey: "authn-req-1",
       }),
     ]);
-    const samlTraces = storedSamlTraces();
-    expect(samlTraces).toHaveLength(1);
-    expect(samlTraces[0]).toMatchObject({ flowId: storedFlowEntries()[0]!.id });
+    const samlLogs = savedSamlLogs();
+    expect(samlLogs).toHaveLength(1);
+    expect(samlLogs[0]).toMatchObject({ flowId: storedFlowEntries()[0]!.id });
   });
 
-  it("stores the step 1 trace before the step 2 trace", async () => {
+  it("saves the step 1 log before the step 2 log", async () => {
     const pairedHttpRequest = makeRequest();
 
-    const result = await recordSamlTrace(
+    const result = await recordSamlLog(
       "cs-1",
       { step: 2, correlationKey: "authn-req-1" },
       makeResponse(),
@@ -104,9 +104,9 @@ describe("recordSamlTrace", () => {
     );
 
     expect(result).toBeUndefined();
-    const samlTraces = storedSamlTraces();
-    expect(samlTraces.map((t) => t.step)).toEqual([1, 2]);
-    expect(samlTraces[0]).toMatchObject({
+    const samlLogs = savedSamlLogs();
+    expect(samlLogs.map((l) => l.step)).toEqual([1, 2]);
+    expect(samlLogs[0]).toMatchObject({
       flowId: storedFlowEntries()[0]!.id,
       httpMessageId: pairedHttpRequest.id,
       observedAt: pairedHttpRequest.observedAt,
@@ -115,30 +115,30 @@ describe("recordSamlTrace", () => {
     });
   });
 
-  it("skips the step 1 trace when the paired request is missing", async () => {
+  it("skips the step 1 log when the paired request is missing", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await recordSamlTrace("cs-1", { step: 2, correlationKey: "authn-req-1" }, makeResponse());
+    await recordSamlLog("cs-1", { step: 2, correlationKey: "authn-req-1" }, makeResponse());
 
-    expect(storedSamlTraces().map((t) => t.step)).toEqual([2]);
+    expect(savedSamlLogs().map((l) => l.step)).toEqual([2]);
     expect(consoleWarn).toHaveBeenCalledOnce();
   });
 
-  it("does not issue a step 1 trace for steps other than 2", async () => {
-    await recordSamlTrace(
+  it("does not issue a step 1 log for steps other than 2", async () => {
+    await recordSamlLog(
       "cs-1",
       { step: 6, correlationKey: "authn-req-1" },
       makeResponse(),
       makeRequest(),
     );
 
-    expect(storedSamlTraces().map((t) => t.step)).toEqual([6]);
+    expect(savedSamlLogs().map((l) => l.step)).toEqual([6]);
   });
 
-  it("returns an error when the step 1 trace cannot be built", async () => {
+  it("returns an error when the step 1 log cannot be built", async () => {
     const pairedHttpRequest = { ...makeRequest(), url: "not a url" } as HttpRequest;
 
-    const result = await recordSamlTrace(
+    const result = await recordSamlLog(
       "cs-1",
       { step: 2, correlationKey: "authn-req-1" },
       makeResponse(),
@@ -146,29 +146,29 @@ describe("recordSamlTrace", () => {
     );
 
     expect(result).toBeInstanceOf(Error);
-    expect(storedSamlTraces()).toEqual([]);
+    expect(savedSamlLogs()).toEqual([]);
   });
 
   it("reuses the flow of the same correlation key", async () => {
     const samlSignal = { step: 2, correlationKey: "authn-req-1" } as const;
-    await recordSamlTrace("cs-1", samlSignal, makeResponse(), makeRequest());
-    await recordSamlTrace("cs-1", { step: 6, correlationKey: "authn-req-1" }, makeResponse());
+    await recordSamlLog("cs-1", samlSignal, makeResponse(), makeRequest());
+    await recordSamlLog("cs-1", { step: 6, correlationKey: "authn-req-1" }, makeResponse());
 
     expect(storedFlowEntries()).toHaveLength(1);
   });
 
   it("issues a flow per tracing session", async () => {
     const samlSignal = { step: 2, correlationKey: "authn-req-1" } as const;
-    await recordSamlTrace("cs-1", samlSignal, makeResponse(), makeRequest());
-    await recordSamlTrace("cs-2", samlSignal, makeResponse(), makeRequest());
+    await recordSamlLog("cs-1", samlSignal, makeResponse(), makeRequest());
+    await recordSamlLog("cs-2", samlSignal, makeResponse(), makeRequest());
 
     expect(storedFlowEntries().map((f) => f.tracingSessionId)).toEqual(["cs-1", "cs-2"]);
   });
 
-  it("returns an error when the trace cannot be built", async () => {
+  it("returns an error when the log cannot be built", async () => {
     const httpResponse = { ...makeResponse(), url: "not a url" } as HttpResponse;
 
-    const result = await recordSamlTrace(
+    const result = await recordSamlLog(
       "cs-1",
       { step: 2, correlationKey: "authn-req-1" },
       httpResponse,
@@ -182,7 +182,7 @@ describe("recordSamlTrace", () => {
     const error = new Error("storage failed");
     vi.mocked(setSessionStorageItem).mockResolvedValue(error);
 
-    const result = await recordSamlTrace(
+    const result = await recordSamlLog(
       "cs-1",
       { step: 6, correlationKey: "authn-req-1" },
       makeResponse(),

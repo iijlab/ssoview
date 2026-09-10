@@ -14,7 +14,7 @@ import {
   detectSamlSignalFromHttpRequest,
   detectSamlSignalFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
-import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
+import { recordSamlLog } from "@/common/services/saml-recorder.ts";
 
 export async function processHttpRequest(
   httpRequest: HttpRequest,
@@ -33,7 +33,7 @@ export async function processHttpRequest(
     return undefined;
   }
 
-  const recordError = await recordSamlTrace(httpRequest.tracingSessionId, samlSignal, httpRequest);
+  const recordError = await recordSamlLog(httpRequest.tracingSessionId, samlSignal, httpRequest);
   if (recordError) {
     return recordError;
   }
@@ -70,7 +70,7 @@ export async function processHttpResponse(
     return saveError;
   }
 
-  const recordError = await recordSamlTrace(
+  const recordError = await recordSamlLog(
     httpResponse.tracingSessionId,
     samlSignal,
     httpResponse,

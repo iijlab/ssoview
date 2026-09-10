@@ -5,9 +5,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SamlTrace } from "@/common/models/saml-trace.ts";
+import { type SamlLog } from "@/common/models/saml-trace.ts";
 import { findHttpMessagesByIds } from "@/common/services/http-store.ts";
-import { findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
+import { findSamlLogsByFlowId } from "@/common/services/saml-store.ts";
 import { findHttpMessagesOfFlow } from "./flow-query.ts";
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -15,7 +15,7 @@ vi.mock("@/common/services/http-store.ts", () => ({
 }));
 
 vi.mock("@/common/services/saml-store.ts", () => ({
-  findSamlTracesByFlowId: vi.fn(),
+  findSamlLogsByFlowId: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -26,8 +26,8 @@ beforeEach(() => {
 // Helpers
 //
 
-function makeSamlTrace(httpMessageId: string, flowId = "flow-1"): SamlTrace {
-  return { httpMessageId, flowId } as SamlTrace;
+function makeSamlLog(httpMessageId: string, flowId = "flow-1"): SamlLog {
+  return { httpMessageId, flowId } as SamlLog;
 }
 
 function makeRequest(id: string): HttpMessage {
@@ -50,14 +50,14 @@ function mockHttpStore(...httpMessages: HttpMessage[]): void {
 //
 
 describe("findHttpMessagesOfFlow", () => {
-  it("returns the HTTP messages referenced by the traces of the flow", async () => {
+  it("returns the HTTP messages referenced by the logs of the flow", async () => {
     const referenced = makeRequest("msg-1");
-    vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace("msg-1")]);
+    vi.mocked(findSamlLogsByFlowId).mockResolvedValue([makeSamlLog("msg-1")]);
     mockHttpStore(referenced, makeRequest("msg-2"));
 
     const result = await findHttpMessagesOfFlow("flow-1");
 
-    expect(findSamlTracesByFlowId).toHaveBeenCalledWith("flow-1");
+    expect(findSamlLogsByFlowId).toHaveBeenCalledWith("flow-1");
     expect(findHttpMessagesByIds).toHaveBeenNthCalledWith(1, ["msg-1"]);
     expect(result).toEqual([referenced]);
   });
@@ -65,7 +65,7 @@ describe("findHttpMessagesOfFlow", () => {
   it("includes the paired request of a referenced response", async () => {
     const pairedRequest = makeRequest("msg-1");
     const response = makeResponse("msg-2", "msg-1");
-    vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace("msg-2")]);
+    vi.mocked(findSamlLogsByFlowId).mockResolvedValue([makeSamlLog("msg-2")]);
     mockHttpStore(pairedRequest, response);
 
     const result = await findHttpMessagesOfFlow("flow-1");
@@ -74,13 +74,10 @@ describe("findHttpMessagesOfFlow", () => {
     expect(result).toEqual([pairedRequest, response]);
   });
 
-  it("does not look up a paired request that a trace references itself", async () => {
+  it("does not look up a paired request that a log references itself", async () => {
     const pairedRequest = makeRequest("msg-1");
     const response = makeResponse("msg-2", "msg-1");
-    vi.mocked(findSamlTracesByFlowId).mockResolvedValue([
-      makeSamlTrace("msg-1"),
-      makeSamlTrace("msg-2"),
-    ]);
+    vi.mocked(findSamlLogsByFlowId).mockResolvedValue([makeSamlLog("msg-1"), makeSamlLog("msg-2")]);
     mockHttpStore(pairedRequest, response);
 
     const result = await findHttpMessagesOfFlow("flow-1");
@@ -89,9 +86,9 @@ describe("findHttpMessagesOfFlow", () => {
     expect(result).toEqual([pairedRequest, response]);
   });
 
-  it("returns an error when the traces cannot be found", async () => {
+  it("returns an error when the logs cannot be found", async () => {
     const error = new Error("saml store error");
-    vi.mocked(findSamlTracesByFlowId).mockResolvedValue(error);
+    vi.mocked(findSamlLogsByFlowId).mockResolvedValue(error);
 
     expect(await findHttpMessagesOfFlow("flow-1")).toBe(error);
     expect(findHttpMessagesByIds).not.toHaveBeenCalled();
@@ -99,7 +96,7 @@ describe("findHttpMessagesOfFlow", () => {
 
   it("returns an error when the HTTP messages cannot be found", async () => {
     const error = new Error("http store error");
-    vi.mocked(findSamlTracesByFlowId).mockResolvedValue([]);
+    vi.mocked(findSamlLogsByFlowId).mockResolvedValue([]);
     vi.mocked(findHttpMessagesByIds).mockResolvedValue(error);
 
     expect(await findHttpMessagesOfFlow("flow-1")).toBe(error);
@@ -107,7 +104,7 @@ describe("findHttpMessagesOfFlow", () => {
 
   it("returns an error when the paired requests cannot be found", async () => {
     const error = new Error("http store error");
-    vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace("msg-2")]);
+    vi.mocked(findSamlLogsByFlowId).mockResolvedValue([makeSamlLog("msg-2")]);
     vi.mocked(findHttpMessagesByIds)
       .mockResolvedValueOnce([makeResponse("msg-2", "msg-1")])
       .mockResolvedValueOnce(error);

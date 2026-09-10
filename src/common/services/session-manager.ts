@@ -12,7 +12,7 @@ import {
   findFlowEntryById,
 } from "@/common/services/flow-store.ts";
 import { deleteHttpMessages } from "@/common/services/http-store.ts";
-import { deleteSamlTracesByFlowId, findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
+import { deleteSamlLogsByFlowId, findSamlLogsByFlowId } from "@/common/services/saml-store.ts";
 import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
 
 // NOTE: getSessionSummaries has known inefficiencies (e.g., repeated data
@@ -55,13 +55,13 @@ export async function getSessionSummaries(_tabId: number): Promise<SessionSummar
       continue;
     }
 
-    const samlTraces = await findSamlTracesByFlowId(flowEntry.id);
-    if (samlTraces instanceof Error) {
-      return samlTraces;
+    const samlLogs = await findSamlLogsByFlowId(flowEntry.id);
+    if (samlLogs instanceof Error) {
+      return samlLogs;
     }
 
     const summary = {
-      ...summarizeSamlFlow(flowEntry, tracingSession, samlTraces),
+      ...summarizeSamlFlow(flowEntry, tracingSession, samlLogs),
       capturing: flowEntry.id === ongoingFlowId && tracing,
     };
 
@@ -93,7 +93,7 @@ export async function deleteSession(_tabId: number, flowId: string): Promise<voi
     return httpMessages;
   }
 
-  const samlDeleteError = await deleteSamlTracesByFlowId(flowEntry.id);
+  const samlDeleteError = await deleteSamlLogsByFlowId(flowEntry.id);
   if (samlDeleteError) {
     return samlDeleteError;
   }

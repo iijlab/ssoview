@@ -19,7 +19,7 @@ import {
   detectSamlSignalFromHttpRequest,
   detectSamlSignalFromHttpResponse,
 } from "@/common/services/saml-detector.ts";
-import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
+import { recordSamlLog } from "@/common/services/saml-recorder.ts";
 
 /**
  * Export SSO flow data as an HTTP Archive (HAR) JSON string.
@@ -105,7 +105,7 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
       return httpStoreError;
     }
 
-    const recordError = await recordSamlTrace(
+    const recordError = await recordSamlLog(
       tracingSessionId,
       samlSignal,
       httpMessage,

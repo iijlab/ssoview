@@ -9,7 +9,7 @@ import { type SamlSignal } from "@/common/models/saml-detection.ts";
 import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
-export type SamlTrace =
+export type SamlLog =
   | UnauthenticatedResourceRequest
   | IncomingSamlAuthnRequest
   | OutgoingSamlAuthnRequest
@@ -17,7 +17,7 @@ export type SamlTrace =
   | OutgoingSamlResponse
   | AuthenticatedResourceResponse;
 
-type SamlTraceBase = {
+type SamlLogBase = {
   id: string;
   flowId: string;
   httpMessageId: string;
@@ -27,44 +27,44 @@ type SamlTraceBase = {
 };
 
 // Step 1: An unauthenticated UA requests a resource from the SP
-export type UnauthenticatedResourceRequest = SamlTraceBase & {
+export type UnauthenticatedResourceRequest = SamlLogBase & {
   step: 1;
   type: "UnauthenticatedResourceRequest";
 };
 
 // Step 2: The SP issues an AuthnRequest
-export type IncomingSamlAuthnRequest = SamlTraceBase & {
+export type IncomingSamlAuthnRequest = SamlLogBase & {
   step: 2;
-  type: "IncomingAuthnRequest";
+  type: "IncomingSamlAuthnRequest";
 };
 
 // Step 3: The UA redirects the AuthnRequest to the IdP
-export type OutgoingSamlAuthnRequest = SamlTraceBase & {
+export type OutgoingSamlAuthnRequest = SamlLogBase & {
   step: 3;
-  type: "OutgoingAuthnRequest";
+  type: "OutgoingSamlAuthnRequest";
 };
 
 // Step 4: The IdP issues a Response
-export type IncomingSamlResponse = SamlTraceBase & {
+export type IncomingSamlResponse = SamlLogBase & {
   step: 4;
-  type: "IncomingResponse";
+  type: "IncomingSamlResponse";
   samlStatusCode: string;
 };
 
 // Step 5: The UA redirects the Response to the SP
-export type OutgoingSamlResponse = SamlTraceBase & {
+export type OutgoingSamlResponse = SamlLogBase & {
   step: 5;
-  type: "OutgoingResponse";
+  type: "OutgoingSamlResponse";
   samlStatusCode: string;
 };
 
 // Step 6: The SP returns the resource
-export type AuthenticatedResourceResponse = SamlTraceBase & {
+export type AuthenticatedResourceResponse = SamlLogBase & {
   step: 6;
   type: "AuthenticatedResourceResponse";
 };
 
-export function isSamlTrace(u: unknown): u is SamlTrace {
+export function isSamlLog(u: unknown): u is SamlLog {
   return (
     isObject(u) &&
     typeof u.id === "string" &&
@@ -76,11 +76,11 @@ export function isSamlTrace(u: unknown): u is SamlTrace {
   );
 }
 
-export function newSamlTrace(
+export function newSamlLog(
   flowId: string,
   samlSignal: SamlSignal,
   httpMessage: HttpMessage,
-): SamlTrace | Error {
+): SamlLog | Error {
   const hostname = getHostname(httpMessage.url);
   if (hostname instanceof Error) {
     return hostname;
@@ -106,14 +106,14 @@ export function newSamlTrace(
       return {
         ...base,
         step: 2,
-        type: "IncomingAuthnRequest",
+        type: "IncomingSamlAuthnRequest",
         action: "Service Provider issues SAML AuthnRequest",
       };
     case 3:
       return {
         ...base,
         step: 3,
-        type: "OutgoingAuthnRequest",
+        type: "OutgoingSamlAuthnRequest",
         action:
           httpMessage.method === "POST"
             ? "User Agent submits SAML AuthnRequest to Identity Provider"
@@ -123,7 +123,7 @@ export function newSamlTrace(
       return {
         ...base,
         step: 4,
-        type: "IncomingResponse",
+        type: "IncomingSamlResponse",
         action: "Identity Provider issues SAML Response",
         samlStatusCode: samlSignal.samlStatusCode,
       };
@@ -131,7 +131,7 @@ export function newSamlTrace(
       return {
         ...base,
         step: 5,
-        type: "OutgoingResponse",
+        type: "OutgoingSamlResponse",
         action:
           httpMessage.method === "POST"
             ? "User Agent submits SAML Response to Service Provider"
@@ -160,10 +160,10 @@ function getHostname(url: string): string | Error {
 // Debug utilities
 //
 
-export const debugSamlTrace =
-  import.meta.env.MODE === "development" ? debugSamlTraceImpl : () => Promise.resolve();
+export const debugSamlLog =
+  import.meta.env.MODE === "development" ? debugSamlLogImpl : () => Promise.resolve();
 
-async function debugSamlTraceImpl(samlTrace: SamlTrace) {
-  const debug = await newLabeledDebugLogger(["SAML", samlTrace.flowId, `Step ${samlTrace.step}`]);
-  debug({ [samlTrace.type]: samlTrace });
+async function debugSamlLogImpl(samlLog: SamlLog) {
+  const debug = await newLabeledDebugLogger(["SAML", samlLog.flowId, `Step ${samlLog.step}`]);
+  debug({ [samlLog.type]: samlLog });
 }

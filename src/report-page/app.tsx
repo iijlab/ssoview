@@ -38,15 +38,15 @@ export function App() {
         console.warn("Failed to load flow data:", { error: flowData });
         return;
       }
-      const { flowEntry, tracingSession, samlTraces, httpMessages } = flowData;
+      const { flowEntry, tracingSession, samlLogs, httpMessages } = flowData;
 
-      const httpMessageRecord = buildHttpMessageRecord(samlTraces, httpMessages);
+      const httpMessageRecord = buildHttpMessageRecord(samlLogs, httpMessages);
       if (Object.keys(httpMessageRecord).length === 0) {
-        console.warn("No HTTP messages for the SAML traces");
+        console.warn("No HTTP messages for the SAML logs");
         return;
       }
 
-      const sessionSummary = summarizeSamlFlow(flowEntry, tracingSession, samlTraces);
+      const sessionSummary = summarizeSamlFlow(flowEntry, tracingSession, samlLogs);
       const authnRequestXml = await getSamlAuthnRequestXml(httpMessageRecord);
       const responseXml = await getSamlResponseXml(httpMessageRecord);
 

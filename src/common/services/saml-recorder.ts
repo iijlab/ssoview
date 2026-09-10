@@ -6,11 +6,11 @@
 import { type FlowEntry, newFlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
 import { type SamlSignal } from "@/common/models/saml-detection.ts";
-import { debugSamlTrace, newSamlTrace } from "@/common/models/saml-trace.ts";
+import { debugSamlLog, newSamlLog } from "@/common/models/saml-trace.ts";
 import { findFlowEntryByCorrelationKey, saveFlowEntry } from "@/common/services/flow-store.ts";
-import { saveSamlTrace } from "@/common/services/saml-store.ts";
+import { saveSamlLog } from "@/common/services/saml-store.ts";
 
-export async function recordSamlTrace(
+export async function recordSamlLog(
   tracingSessionId: string,
   samlSignal: SamlSignal,
   httpMessage: HttpMessage,
@@ -22,7 +22,7 @@ export async function recordSamlTrace(
         correlationKey: samlSignal.correlationKey,
       });
     } else {
-      const recordError = await recordSamlTrace(
+      const recordError = await recordSamlLog(
         tracingSessionId,
         {
           step: 1,
@@ -41,17 +41,17 @@ export async function recordSamlTrace(
     return flowEntry;
   }
 
-  const samlTrace = newSamlTrace(flowEntry.id, samlSignal, httpMessage);
-  if (samlTrace instanceof Error) {
-    return samlTrace;
+  const samlLog = newSamlLog(flowEntry.id, samlSignal, httpMessage);
+  if (samlLog instanceof Error) {
+    return samlLog;
   }
 
-  const saveError = await saveSamlTrace(samlTrace);
+  const saveError = await saveSamlLog(samlLog);
   if (saveError) {
     return saveError;
   }
 
-  await debugSamlTrace(samlTrace);
+  await debugSamlLog(samlLog);
 }
 
 async function findOrIssueFlowEntry(
