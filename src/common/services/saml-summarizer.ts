@@ -6,25 +6,25 @@
 import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import { type SamlLog } from "@/common/models/saml-trace.ts";
-import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { type SsoFlow } from "@/common/models/session-summary.ts";
 
-export function summarizeSamlFlow(
+export function deriveSsoFlowFromSamlLogs(
   ssoTrace: SsoTrace,
   tracingSession: TracingSession,
   samlLogs: SamlLog[],
-): SessionSummary {
-  return samlLogs.reduce(updateSamlSessionSummary, {
+): SsoFlow {
+  return samlLogs.reduce(updateSsoFlow, {
+    id: ssoTrace.id,
     protocol: "saml",
     imported: tracingSession.imported,
-    capturing: false,
-    sessionId: ssoTrace.id,
+    live: false,
     warning: [],
   });
 }
 
-function updateSamlSessionSummary(summary: SessionSummary, samlLog: SamlLog): SessionSummary {
+function updateSsoFlow(ssoFlow: SsoFlow, samlLog: SamlLog): SsoFlow {
   const status = (() => {
-    if (summary.status === "failed") {
+    if (ssoFlow.status === "failed") {
       return "failed";
     } else {
       switch (samlLog.step) {
@@ -46,13 +46,13 @@ function updateSamlSessionSummary(summary: SessionSummary, samlLog: SamlLog): Se
   const warning: string[] = [];
 
   return {
-    ...summary,
-    start: summary.start ?? samlLog.observedAt,
-    end: summary.end ?? (status !== "in_progress" ? samlLog.observedAt : undefined),
-    sp: summary.sp ?? (role === "sp" ? samlLog.serverHostname : undefined),
-    idp: summary.idp ?? (role === "idp" ? samlLog.serverHostname : undefined),
+    ...ssoFlow,
+    startedAt: ssoFlow.startedAt ?? samlLog.observedAt,
+    endedAt: ssoFlow.endedAt ?? (status !== "in_progress" ? samlLog.observedAt : undefined),
+    sp: ssoFlow.sp ?? (role === "sp" ? samlLog.serverHostname : undefined),
+    idp: ssoFlow.idp ?? (role === "idp" ? samlLog.serverHostname : undefined),
     status,
     action: samlLog.action,
-    warning: [...summary.warning, ...warning],
+    warning: [...ssoFlow.warning, ...warning],
   };
 }

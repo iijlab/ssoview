@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { type SsoFlow } from "@/common/models/session-summary.ts";
 import {
   buildAuthnRequestDetails,
   buildHttpMessageDetails,
@@ -18,12 +18,12 @@ import {
 // Helpers
 //
 
-function makeSessionSummary(overrides: Partial<SessionSummary> = {}): SessionSummary {
+function makeSsoFlow(overrides: Partial<SsoFlow> = {}): SsoFlow {
   return {
+    id: "session-1",
     protocol: "saml",
     imported: false,
-    capturing: false,
-    sessionId: "session-1",
+    live: false,
     warning: [],
     ...overrides,
   };
@@ -131,15 +131,15 @@ const sampleResponseXml = `
 //
 
 describe("buildSessionData", () => {
-  it("maps sessionSummary fields", () => {
-    const summary = makeSessionSummary({
-      start: "2026-01-01T00:00:00Z",
-      end: "2026-01-01T00:01:00Z",
+  it("maps SSO flow fields", () => {
+    const ssoFlow = makeSsoFlow({
+      startedAt: "2026-01-01T00:00:00Z",
+      endedAt: "2026-01-01T00:01:00Z",
       sp: "sp.example.com",
       idp: "idp.example.org",
     });
 
-    const result = buildSessionData(summary);
+    const result = buildSessionData(ssoFlow);
 
     expect(result.sessionStartTime).toBe("2026-01-01T00:00:00Z");
     expect(result.sessionEndTime).toBe("2026-01-01T00:01:00Z");
@@ -147,10 +147,10 @@ describe("buildSessionData", () => {
     expect(result.identityProvider).toBe("idp.example.org");
   });
 
-  it("falls back to N/A when sessionSummary optional fields are missing", () => {
-    const summary = makeSessionSummary();
+  it("falls back to N/A when SSO flow optional fields are missing", () => {
+    const ssoFlow = makeSsoFlow();
 
-    const result = buildSessionData(summary);
+    const result = buildSessionData(ssoFlow);
 
     expect(result.sessionStartTime).toBe("N/A");
     expect(result.sessionEndTime).toBe("N/A");
@@ -159,7 +159,7 @@ describe("buildSessionData", () => {
   });
 
   it("falls back to N/A for XML-derived fields when no XML is provided", () => {
-    const result = buildSessionData(makeSessionSummary());
+    const result = buildSessionData(makeSsoFlow());
 
     expect(result.samlVersion).toBe("N/A");
     expect(result.protocolBinding).toBe("N/A");
@@ -168,20 +168,20 @@ describe("buildSessionData", () => {
   });
 
   it("extracts samlVersion and protocolBinding from authnRequestXml", () => {
-    const result = buildSessionData(makeSessionSummary(), sampleAuthnRequestXml);
+    const result = buildSessionData(makeSsoFlow(), sampleAuthnRequestXml);
 
     expect(result.samlVersion).toBe("2.0");
     expect(result.protocolBinding).toBe("urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST");
   });
 
   it("extracts userId from responseXml", () => {
-    const result = buildSessionData(makeSessionSummary(), undefined, sampleResponseXml);
+    const result = buildSessionData(makeSsoFlow(), undefined, sampleResponseXml);
 
     expect(result.userId).toBe("3f7b3dcf-1674-4ecd-92c8-1544f346baf8");
   });
 
   it("extracts authenticationMethod from responseXml", () => {
-    const result = buildSessionData(makeSessionSummary(), undefined, sampleResponseXml);
+    const result = buildSessionData(makeSsoFlow(), undefined, sampleResponseXml);
 
     expect(result.authenticationMethod).toBe(
       "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport",
@@ -189,13 +189,13 @@ describe("buildSessionData", () => {
   });
 
   it("always sets samlProfile to fixed value", () => {
-    const result = buildSessionData(makeSessionSummary());
+    const result = buildSessionData(makeSsoFlow());
 
     expect(result.samlProfile).toBe("Web Browser SSO Profile");
   });
 
   it("falls back to N/A for invalid XML", () => {
-    const result = buildSessionData(makeSessionSummary(), "<not-valid-xml>", "<not-valid-xml>");
+    const result = buildSessionData(makeSsoFlow(), "<not-valid-xml>", "<not-valid-xml>");
 
     expect(result.samlVersion).toBe("N/A");
     expect(result.protocolBinding).toBe("N/A");
@@ -206,7 +206,7 @@ describe("buildSessionData", () => {
 
 describe("buildSessionResult", () => {
   it("returns Unknown when no responseXml is provided", () => {
-    const result = buildSessionResult(makeSessionSummary());
+    const result = buildSessionResult(makeSsoFlow());
 
     expect(result.status).toBe("Unknown");
     expect(result.description).toBe("SAML Response was not captured.");
@@ -222,7 +222,7 @@ describe("buildSessionResult", () => {
       </samlp:Response>
     `;
 
-    const result = buildSessionResult(makeSessionSummary(), undefined, responseXml);
+    const result = buildSessionResult(makeSsoFlow(), undefined, responseXml);
 
     expect(result.status).toBe("Success");
     expect(result.description).toContain("successfully");
@@ -240,7 +240,7 @@ describe("buildSessionResult", () => {
       </samlp:Response>
     `;
 
-    const result = buildSessionResult(makeSessionSummary(), undefined, responseXml);
+    const result = buildSessionResult(makeSsoFlow(), undefined, responseXml);
 
     expect(result.status).toBe("Responder:AuthnFailed");
     expect(result.description).toContain("SAML responder");
@@ -248,7 +248,7 @@ describe("buildSessionResult", () => {
   });
 
   it("returns Unknown when responseXml is invalid", () => {
-    const result = buildSessionResult(makeSessionSummary(), undefined, "<not-valid>");
+    const result = buildSessionResult(makeSsoFlow(), undefined, "<not-valid>");
 
     expect(result.status).toBe("Unknown");
   });

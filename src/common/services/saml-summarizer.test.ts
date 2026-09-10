@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import { type SamlLog } from "@/common/models/saml-trace.ts";
-import { summarizeSamlFlow } from "./saml-summarizer.ts";
+import { deriveSsoFlowFromSamlLogs } from "./saml-summarizer.ts";
 
 //
 // Helpers
@@ -54,9 +54,9 @@ const tracingSession: TracingSession = {
 // Tests
 //
 
-describe("summarizeSamlFlow", () => {
-  it("builds summary from a single log", () => {
-    const result = summarizeSamlFlow(ssoTrace, tracingSession, [
+describe("deriveSsoFlowFromSamlLogs", () => {
+  it("derives SSO flow from a single log", () => {
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, [
       makeSamlLog({
         step: 2,
         type: "IncomingSamlAuthnRequest",
@@ -65,11 +65,11 @@ describe("summarizeSamlFlow", () => {
     ]);
 
     expect(result).toMatchObject({
+      id: "flow-1",
       protocol: "saml",
-      sessionId: "flow-1",
       imported: false,
-      capturing: false,
-      start: "2026-01-01T00:00:00.000Z",
+      live: false,
+      startedAt: "2026-01-01T00:00:00.000Z",
       sp: "sp.example.com",
       status: "in_progress",
       action: "Service Provider issues SAML AuthnRequest",
@@ -79,7 +79,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("sets status to in_progress before step 6", () => {
-    const result = summarizeSamlFlow(ssoTrace, tracingSession, [
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, [
       makeSamlLog({ step: 2, type: "IncomingSamlAuthnRequest" }),
       makeSamlLog({ step: 3, type: "OutgoingSamlAuthnRequest" }),
       makeSamlLog({ step: 4, type: "IncomingSamlResponse" }),
@@ -89,7 +89,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("sets status to succeeded when a step 6 log is present", () => {
-    const result = summarizeSamlFlow(ssoTrace, tracingSession, [
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, [
       makeSamlLog({ step: 2, type: "IncomingSamlAuthnRequest" }),
       makeSamlLog({ step: 6, type: "AuthenticatedResourceResponse" }),
     ]);
@@ -98,7 +98,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("sets status to failed when the samlStatusCode is not Success", () => {
-    const result = summarizeSamlFlow(ssoTrace, tracingSession, [
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, [
       makeSamlLog({ step: 2, type: "IncomingSamlAuthnRequest" }),
       makeSamlLog({
         step: 4,
@@ -111,8 +111,8 @@ describe("summarizeSamlFlow", () => {
     expect(result).toMatchObject({ status: "failed" });
   });
 
-  it("sets start and end from the observedAt", () => {
-    const result = summarizeSamlFlow(ssoTrace, tracingSession, [
+  it("sets startedAt and endedAt from the observedAt", () => {
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, [
       makeSamlLog({
         step: 2,
         type: "IncomingSamlAuthnRequest",
@@ -126,13 +126,13 @@ describe("summarizeSamlFlow", () => {
     ]);
 
     expect(result).toMatchObject({
-      start: "2026-01-01T00:00:00.000Z",
-      end: "2026-01-01T00:00:05.000Z",
+      startedAt: "2026-01-01T00:00:00.000Z",
+      endedAt: "2026-01-01T00:00:05.000Z",
     });
   });
 
-  it("does not set end when status is in_progress", () => {
-    const result = summarizeSamlFlow(ssoTrace, tracingSession, [
+  it("does not set endedAt when status is in_progress", () => {
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, [
       makeSamlLog({
         step: 2,
         type: "IncomingSamlAuthnRequest",
@@ -140,12 +140,12 @@ describe("summarizeSamlFlow", () => {
       }),
     ]);
 
-    expect(result).toMatchObject({ start: "2026-01-01T00:00:00.000Z" });
-    expect(result.end).toBeUndefined();
+    expect(result).toMatchObject({ startedAt: "2026-01-01T00:00:00.000Z" });
+    expect(result.endedAt).toBeUndefined();
   });
 
   it("assigns the serverHostname to sp or idp by the step", () => {
-    const result = summarizeSamlFlow(ssoTrace, tracingSession, [
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, [
       makeSamlLog({ step: 2, type: "IncomingSamlAuthnRequest", serverHostname: "sp.example.com" }),
       makeSamlLog({ step: 3, type: "OutgoingSamlAuthnRequest", serverHostname: "idp.example.org" }),
       makeSamlLog({ step: 5, type: "OutgoingSamlResponse", serverHostname: "second-sp.com" }),
@@ -155,7 +155,7 @@ describe("summarizeSamlFlow", () => {
   });
 
   it("sets action to the last log's action", () => {
-    const result = summarizeSamlFlow(ssoTrace, tracingSession, [
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, [
       makeSamlLog({ step: 2, type: "IncomingSamlAuthnRequest", action: "first action" }),
       makeSamlLog({ step: 3, type: "OutgoingSamlAuthnRequest", action: "second action" }),
       makeSamlLog({ step: 4, type: "IncomingSamlResponse", action: "third action" }),
@@ -164,12 +164,12 @@ describe("summarizeSamlFlow", () => {
     expect(result).toMatchObject({ action: "third action" });
   });
 
-  it("uses the SSO trace ID as the session ID", () => {
-    const result = summarizeSamlFlow(ssoTrace, tracingSession, [
+  it("uses the SSO trace ID as the SSO flow ID", () => {
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, [
       makeSamlLog({ step: 2, type: "IncomingSamlAuthnRequest" }),
     ]);
 
-    expect(result).toMatchObject({ sessionId: "flow-1", imported: false });
+    expect(result).toMatchObject({ id: "flow-1", imported: false });
   });
 
   it("derives imported from the tracing session", () => {
@@ -179,7 +179,7 @@ describe("summarizeSamlFlow", () => {
       importedAt: "2026-01-01T00:00:00Z",
     };
 
-    const result = summarizeSamlFlow(ssoTrace, importedSession, [
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, importedSession, [
       makeSamlLog({ step: 2, type: "IncomingSamlAuthnRequest" }),
     ]);
 

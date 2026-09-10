@@ -3,7 +3,12 @@
  * @license BSD-3-Clause
  */
 
-import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
+import {
+  type SessionSummary,
+  type SsoFlow,
+  debugSsoFlow,
+  toSessionSummary,
+} from "@/common/models/session-summary.ts";
 import { getTracingSessions, isTracing } from "@/common/services/capture-query.ts";
 import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
 import {
@@ -16,19 +21,18 @@ import {
   deleteSamlLogsBySsoTraceId,
   findSamlLogsBySsoTraceId,
 } from "@/common/services/saml-store.ts";
-import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
+import { deriveSsoFlowFromSamlLogs } from "@/common/services/saml-summarizer.ts";
 
-// NOTE: getSessionSummaries has known inefficiencies (e.g., repeated data
-// fetches), but we prioritize simplicity as performance is not a concern at
-// current scale.
+// NOTE: getSsoFlows has known inefficiencies (e.g., repeated data fetches),
+// but we prioritize simplicity as performance is not a concern at current
+// scale.
 
 /**
- * Retrieve a summary of every flow in every tracing session.
+ * Retrieve every SSO flow in every tracing session.
  *
- * @param _tabId - Unused. Kept until the side panel stops passing it
- * @returns Flow summaries, newest first, or an Error
+ * @returns SSO flows, newest first, or an Error
  */
-export async function getSessionSummaries(_tabId: number): Promise<SessionSummary[] | Error> {
+export async function getSsoFlows(): Promise<SsoFlow[] | Error> {
   const tracing = await isTracing();
   if (tracing instanceof Error) {
     return tracing;
@@ -50,7 +54,7 @@ export async function getSessionSummaries(_tabId: number): Promise<SessionSummar
       ? ssoTraces.find((t) => t.tracingSessionId === ongoingTracingSession.id)?.id
       : undefined;
 
-  const summaries: SessionSummary[] = [];
+  const ssoFlows: SsoFlow[] = [];
   for (const ssoTrace of ssoTraces) {
     const tracingSession = tracingSessions.find((s) => s.id === ssoTrace.tracingSessionId);
     if (tracingSession === undefined) {
@@ -63,26 +67,25 @@ export async function getSessionSummaries(_tabId: number): Promise<SessionSummar
       return samlLogs;
     }
 
-    const summary = {
-      ...summarizeSamlFlow(ssoTrace, tracingSession, samlLogs),
-      capturing: ssoTrace.id === ongoingSsoTraceId && tracing,
+    const ssoFlow = {
+      ...deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, samlLogs),
+      live: ssoTrace.id === ongoingSsoTraceId && tracing,
     };
 
-    summaries.push(summary);
-    await debugSessionSummary(summary);
+    ssoFlows.push(ssoFlow);
+    await debugSsoFlow(ssoFlow);
   }
 
-  return summaries;
+  return ssoFlows;
 }
 
 /**
  * Delete all data for a specific SSO flow.
  *
- * @param _tabId - Unused. Kept until the side panel stops passing it
  * @param ssoTraceId - The SSO trace ID to delete
  * @returns void on success, or an Error
  */
-export async function deleteSession(_tabId: number, ssoTraceId: string): Promise<void | Error> {
+export async function deleteSsoFlow(ssoTraceId: string): Promise<void | Error> {
   const ssoTrace = await findSsoTraceById(ssoTraceId);
   if (ssoTrace instanceof Error) {
     return ssoTrace;
@@ -96,9 +99,9 @@ export async function deleteSession(_tabId: number, ssoTraceId: string): Promise
     return httpMessages;
   }
 
-  const samlDeleteError = await deleteSamlLogsBySsoTraceId(ssoTrace.id);
-  if (samlDeleteError) {
-    return samlDeleteError;
+  const samlLogDeleteError = await deleteSamlLogsBySsoTraceId(ssoTrace.id);
+  if (samlLogDeleteError) {
+    return samlLogDeleteError;
   }
 
   const ssoTraceDeleteError = await deleteSsoTrace(ssoTrace);
@@ -106,9 +109,18 @@ export async function deleteSession(_tabId: number, ssoTraceId: string): Promise
     return ssoTraceDeleteError;
   }
 
-  const httpDeleteError = await deleteHttpMessages(httpMessages);
-  if (httpDeleteError) {
+  const httpMessageDeleteError = await deleteHttpMessages(httpMessages);
+  if (httpMessageDeleteError) {
     // HTTP messages don't need to be deleted, so we ignore failures
-    console.warn("Failed to delete HTTP messages:", httpDeleteError);
+    console.warn("Failed to delete HTTP messages:", httpMessageDeleteError);
   }
+}
+
+export async function getSessionSummaries(_tabId: number): Promise<SessionSummary[] | Error> {
+  const ssoFlows = await getSsoFlows();
+  return ssoFlows instanceof Error ? ssoFlows : ssoFlows.map(toSessionSummary);
+}
+
+export async function deleteSession(_tabId: number, ssoTraceId: string): Promise<void | Error> {
+  return await deleteSsoFlow(ssoTraceId);
 }

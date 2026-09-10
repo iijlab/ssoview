@@ -20,7 +20,12 @@ import {
   deleteSamlLogsBySsoTraceId,
   findSamlLogsBySsoTraceId,
 } from "@/common/services/saml-store.ts";
-import { deleteSession, getSessionSummaries } from "./session-manager.ts";
+import {
+  deleteSession,
+  deleteSsoFlow,
+  getSessionSummaries,
+  getSsoFlows,
+} from "./session-manager.ts";
 
 vi.mock("@/common/services/capture-query.ts", () => ({
   getTracingSessions: vi.fn(),
@@ -102,12 +107,12 @@ function makeTracingSession(overrides: Partial<TracingSession> = {}): TracingSes
 // Tests
 //
 
-describe("getSessionSummaries", () => {
+describe("getSsoFlows", () => {
   it("returns an empty array when no tracing session exists", async () => {
-    expect(await getSessionSummaries(1)).toEqual([]);
+    expect(await getSsoFlows()).toEqual([]);
   });
 
-  it("builds one summary per SSO trace in the given order", async () => {
+  it("derives one SSO flow per SSO trace in the given order", async () => {
     vi.mocked(getTracingSessions).mockResolvedValue([
       makeTracingSession({ id: "cs-2" }),
       makeTracingSession({ id: "cs-1" }),
@@ -125,12 +130,12 @@ describe("getSessionSummaries", () => {
         : [makeSamlLog({ id: "trace-3", ssoTraceId: "flow-2", step: 2, action: "other action" })],
     );
 
-    const result = await getSessionSummaries(1);
+    const result = await getSsoFlows();
 
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toMatchObject([
-      { sessionId: "flow-2", action: "other action" },
-      { sessionId: "flow-1", action: "second action" },
+      { id: "flow-2", action: "other action" },
+      { id: "flow-1", action: "second action" },
     ]);
   });
 
@@ -141,10 +146,10 @@ describe("getSessionSummaries", () => {
     vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
 
-    expect(await getSessionSummaries(1)).toMatchObject([{ imported: true, capturing: false }]);
+    expect(await getSsoFlows()).toMatchObject([{ imported: true, live: false }]);
   });
 
-  it("sets capturing on the newest SSO trace of the ongoing tracing session", async () => {
+  it("sets live on the newest SSO trace of the ongoing tracing session", async () => {
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ endedAt: undefined })]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([
       makeSsoTrace({ id: "flow-2", correlationKey: "corr-2" }),
@@ -153,13 +158,13 @@ describe("getSessionSummaries", () => {
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
     vi.mocked(isTracing).mockResolvedValue(true);
 
-    expect(await getSessionSummaries(1)).toMatchObject([
-      { sessionId: "flow-2", capturing: true },
-      { sessionId: "flow-1", capturing: false },
+    expect(await getSsoFlows()).toMatchObject([
+      { id: "flow-2", live: true },
+      { id: "flow-1", live: false },
     ]);
   });
 
-  it("sets capturing on the newest SSO trace of the ongoing tracing session, not of an import", async () => {
+  it("sets live on the newest SSO trace of the ongoing tracing session, not of an import", async () => {
     vi.mocked(getTracingSessions).mockResolvedValue([
       makeTracingSession({ id: "cs-2", imported: true, importedAt: "2026-01-01T00:02:00Z" }),
       makeTracingSession({ id: "cs-1", endedAt: undefined }),
@@ -171,28 +176,28 @@ describe("getSessionSummaries", () => {
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
     vi.mocked(isTracing).mockResolvedValue(true);
 
-    expect(await getSessionSummaries(1)).toMatchObject([
-      { sessionId: "flow-2", capturing: false },
-      { sessionId: "flow-1", capturing: true },
+    expect(await getSsoFlows()).toMatchObject([
+      { id: "flow-2", live: false },
+      { id: "flow-1", live: true },
     ]);
   });
 
-  it("does not set capturing when the tracing session has ended", async () => {
+  it("does not set live when the tracing session has ended", async () => {
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession()]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
     vi.mocked(isTracing).mockResolvedValue(true);
 
-    expect(await getSessionSummaries(1)).toMatchObject([{ capturing: false }]);
+    expect(await getSsoFlows()).toMatchObject([{ live: false }]);
   });
 
-  it("does not set capturing when no tracing is running", async () => {
+  it("does not set live when no tracing is running", async () => {
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ endedAt: undefined })]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
     vi.mocked(isTracing).mockResolvedValue(false);
 
-    expect(await getSessionSummaries(1)).toMatchObject([{ capturing: false }]);
+    expect(await getSsoFlows()).toMatchObject([{ live: false }]);
   });
 
   it("skips an SSO trace whose tracing session is missing with a warning", async () => {
@@ -200,7 +205,7 @@ describe("getSessionSummaries", () => {
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ id: "cs-2" })]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
 
-    expect(await getSessionSummaries(1)).toEqual([]);
+    expect(await getSsoFlows()).toEqual([]);
     expect(consoleWarn).toHaveBeenCalledOnce();
     expect(findSamlLogsBySsoTraceId).not.toHaveBeenCalled();
   });
@@ -209,14 +214,14 @@ describe("getSessionSummaries", () => {
     const error = new Error("capture query error");
     vi.mocked(isTracing).mockResolvedValue(error);
 
-    expect(await getSessionSummaries(1)).toBe(error);
+    expect(await getSsoFlows()).toBe(error);
   });
 
   it("propagates an error from the tracing session query", async () => {
     const error = new Error("capture query error");
     vi.mocked(getTracingSessions).mockResolvedValue(error);
 
-    expect(await getSessionSummaries(1)).toBe(error);
+    expect(await getSsoFlows()).toBe(error);
   });
 
   it("propagates an error from the SSO trace store", async () => {
@@ -224,7 +229,7 @@ describe("getSessionSummaries", () => {
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession()]);
     vi.mocked(findAllSsoTraces).mockResolvedValue(error);
 
-    expect(await getSessionSummaries(1)).toBe(error);
+    expect(await getSsoFlows()).toBe(error);
   });
 
   it("propagates an error from the log store", async () => {
@@ -233,17 +238,17 @@ describe("getSessionSummaries", () => {
     vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue(error);
 
-    expect(await getSessionSummaries(1)).toBe(error);
+    expect(await getSsoFlows()).toBe(error);
   });
 });
 
-describe("deleteSession", () => {
+describe("deleteSsoFlow", () => {
   it("deletes the logs, the SSO trace, and then the HTTP messages of the SSO trace", async () => {
     const ssoTrace = makeSsoTrace();
     const httpMessages = [{ id: "msg-1" } as HttpMessage];
     vi.mocked(getHttpMessagesBySsoTraceId).mockResolvedValue(httpMessages);
 
-    expect(await deleteSession(1, "flow-1")).toBeUndefined();
+    expect(await deleteSsoFlow("flow-1")).toBeUndefined();
     expect(findSsoTraceById).toHaveBeenCalledWith("flow-1");
     expect(getHttpMessagesBySsoTraceId).toHaveBeenCalledWith("flow-1");
     expect(deleteSamlLogsBySsoTraceId).toHaveBeenCalledWith("flow-1");
@@ -259,7 +264,7 @@ describe("deleteSession", () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.mocked(findSsoTraceById).mockResolvedValue(undefined);
 
-    expect(await deleteSession(1, "flow-1")).toBeUndefined();
+    expect(await deleteSsoFlow("flow-1")).toBeUndefined();
     expect(consoleWarn).toHaveBeenCalledOnce();
     expect(deleteSamlLogsBySsoTraceId).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
@@ -269,7 +274,7 @@ describe("deleteSession", () => {
     const error = new Error("SSO trace query error");
     vi.mocked(findSsoTraceById).mockResolvedValue(error);
 
-    expect(await deleteSession(1, "flow-1")).toBe(error);
+    expect(await deleteSsoFlow("flow-1")).toBe(error);
     expect(deleteSamlLogsBySsoTraceId).not.toHaveBeenCalled();
   });
 
@@ -277,7 +282,7 @@ describe("deleteSession", () => {
     const error = new Error("query error");
     vi.mocked(getHttpMessagesBySsoTraceId).mockResolvedValue(error);
 
-    expect(await deleteSession(1, "flow-1")).toBe(error);
+    expect(await deleteSsoFlow("flow-1")).toBe(error);
     expect(deleteSamlLogsBySsoTraceId).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
@@ -286,7 +291,7 @@ describe("deleteSession", () => {
     const error = new Error("saml delete error");
     vi.mocked(deleteSamlLogsBySsoTraceId).mockResolvedValue(error);
 
-    expect(await deleteSession(1, "flow-1")).toBe(error);
+    expect(await deleteSsoFlow("flow-1")).toBe(error);
     expect(deleteSsoTrace).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
@@ -295,7 +300,7 @@ describe("deleteSession", () => {
     const error = new Error("SSO trace delete error");
     vi.mocked(deleteSsoTrace).mockResolvedValue(error);
 
-    expect(await deleteSession(1, "flow-1")).toBe(error);
+    expect(await deleteSsoFlow("flow-1")).toBe(error);
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
 
@@ -303,7 +308,49 @@ describe("deleteSession", () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.mocked(deleteHttpMessages).mockResolvedValue(new Error("http delete error"));
 
-    expect(await deleteSession(1, "flow-1")).toBeUndefined();
+    expect(await deleteSsoFlow("flow-1")).toBeUndefined();
     expect(consoleWarn).toHaveBeenCalledOnce();
+  });
+});
+
+//
+// Legacy interface for the side panel
+//
+
+describe("getSessionSummaries", () => {
+  it("maps SSO flows to the legacy shape", async () => {
+    vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ endedAt: undefined })]);
+    vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
+    vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([
+      makeSamlLog({ step: 6, type: "AuthenticatedResourceResponse" }),
+    ]);
+    vi.mocked(isTracing).mockResolvedValue(true);
+
+    const result = await getSessionSummaries(1);
+
+    expect(result).not.toBeInstanceOf(Error);
+    expect(result).toEqual([
+      expect.objectContaining({
+        sessionId: "flow-1",
+        capturing: true,
+        start: "2026-01-01T00:00:00.000Z",
+        end: "2026-01-01T00:00:00.000Z",
+      }),
+    ]);
+    expect(result).not.toEqual([expect.objectContaining({ id: "flow-1" })]);
+  });
+
+  it("propagates an error", async () => {
+    const error = new Error("capture query error");
+    vi.mocked(isTracing).mockResolvedValue(error);
+
+    expect(await getSessionSummaries(1)).toBe(error);
+  });
+});
+
+describe("deleteSession", () => {
+  it("delegates to deleteSsoFlow", async () => {
+    expect(await deleteSession(1, "flow-1")).toBeUndefined();
+    expect(deleteSsoTrace).toHaveBeenCalledWith(makeSsoTrace());
   });
 });

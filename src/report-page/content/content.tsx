@@ -5,7 +5,7 @@
 
 import { type RefObject } from "react";
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { type SsoFlow } from "@/common/models/session-summary.ts";
 import { type ContentSectionId } from "@/report-page/common/types.ts";
 import { HttpDetails } from "./http-details.tsx";
 import { SamlDetails } from "./saml-details.tsx";
@@ -13,7 +13,7 @@ import { SessionOverview } from "./session-overview.tsx";
 
 type ContentProps = {
   httpMessageRecord: Record<number, HttpMessage>;
-  sessionSummary: SessionSummary;
+  ssoFlow: SsoFlow;
   authnRequestXml?: string;
   responseXml?: string;
   sectionRefs: RefObject<Partial<Record<ContentSectionId, HTMLElement | null>>>;
@@ -21,7 +21,7 @@ type ContentProps = {
 
 export function Content({
   httpMessageRecord,
-  sessionSummary,
+  ssoFlow,
   authnRequestXml,
   responseXml,
   sectionRefs,
@@ -38,7 +38,7 @@ export function Content({
     <div className="mx-4 mt-6 mb-4 space-y-8">
       <section ref={setSectionRef("session-summary")}>
         <SessionOverview
-          sessionSummary={sessionSummary}
+          ssoFlow={ssoFlow}
           authnRequestXml={authnRequestXml}
           responseXml={responseXml}
         />

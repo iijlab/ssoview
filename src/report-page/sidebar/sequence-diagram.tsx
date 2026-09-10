@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { type SsoFlow } from "@/common/models/session-summary.ts";
 import { type ArrowClickHandler, type ContentSectionId } from "@/report-page/common/types.ts";
 import { AuthPhase } from "./auth-phase.tsx";
 import { HttpArrow } from "./http-arrow.tsx";
@@ -21,19 +21,19 @@ const OVERLAY_PADDING_BLOCK = 16;
 
 type SequenceDiagramProps = {
   httpMessageRecord: Record<number, HttpMessage>;
-  sessionSummary: SessionSummary;
+  ssoFlow: SsoFlow;
   activeSectionId: ContentSectionId;
   onArrowClick: ArrowClickHandler;
 };
 
 export function SequenceDiagram({
   httpMessageRecord,
-  sessionSummary,
+  ssoFlow,
   activeSectionId,
   onArrowClick,
 }: SequenceDiagramProps) {
-  const spHost = sessionSummary.sp ?? "<unknown>";
-  const idpHost = sessionSummary.idp ?? "<unknown>";
+  const spHost = ssoFlow.sp ?? "<unknown>";
+  const idpHost = ssoFlow.idp ?? "<unknown>";
   const httpMessageDataRecord = buildHttpMessageDataRecord(spHost, idpHost, httpMessageRecord);
 
   //
@@ -263,7 +263,7 @@ export function SequenceDiagram({
           >
             <div className="relative z-10">
               <SamlArrow
-                sessionSummary={sessionSummary}
+                ssoFlow={ssoFlow}
                 sectionId="saml-request"
                 containerWidth={diagramLayout.messageBlockWidth}
                 startX={diagramLayout.laneCenters["sp"]}
@@ -310,7 +310,7 @@ export function SequenceDiagram({
           >
             <div className="relative z-10">
               <SamlArrow
-                sessionSummary={sessionSummary}
+                ssoFlow={ssoFlow}
                 sectionId="saml-response"
                 containerWidth={diagramLayout.messageBlockWidth}
                 startX={diagramLayout.laneCenters["idp"]}

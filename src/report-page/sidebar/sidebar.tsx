@@ -4,14 +4,14 @@
  */
 
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { type SsoFlow } from "@/common/models/session-summary.ts";
 import { type ArrowClickHandler, type ContentSectionId } from "@/report-page/common/types.ts";
 import { LogoHeader } from "./logo-header.tsx";
 import { SequenceDiagram } from "./sequence-diagram.tsx";
 
 type SidebarProps = {
   httpMessageRecord: Record<number, HttpMessage>;
-  sessionSummary: SessionSummary;
+  ssoFlow: SsoFlow;
   activeSectionId: ContentSectionId;
   onLogoClick: () => void;
   onArrowClick: ArrowClickHandler;
@@ -19,7 +19,7 @@ type SidebarProps = {
 
 export function Sidebar({
   httpMessageRecord,
-  sessionSummary,
+  ssoFlow,
   activeSectionId,
   onLogoClick,
   onArrowClick,
@@ -33,7 +33,7 @@ export function Sidebar({
       <div className="flex-1 overflow-y-auto mt-4 px-4 pb-4">
         <SequenceDiagram
           httpMessageRecord={httpMessageRecord}
-          sessionSummary={sessionSummary}
+          ssoFlow={ssoFlow}
           activeSectionId={activeSectionId}
           onArrowClick={onArrowClick}
         />

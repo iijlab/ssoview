@@ -5,7 +5,7 @@
 
 import type Protocol from "devtools-protocol";
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { type SsoFlow } from "@/common/models/session-summary.ts";
 import { parseSamlpAuthnRequest, parseSamlpResponse } from "@/common/services/saml-parser.ts";
 import { getHttpStatusText } from "@/report-page/common/utils.ts";
 
@@ -26,7 +26,7 @@ type SessionData = {
 };
 
 export function buildSessionData(
-  sessionSummary: SessionSummary,
+  ssoFlow: SsoFlow,
   authnRequestXml?: string,
   responseXml?: string,
 ): SessionData {
@@ -80,10 +80,10 @@ export function buildSessionData(
   })();
 
   return {
-    sessionStartTime: sessionSummary.start ?? "N/A",
-    sessionEndTime: sessionSummary.end ?? "N/A",
-    serviceProvider: sessionSummary.sp ?? "N/A",
-    identityProvider: sessionSummary.idp ?? "N/A",
+    sessionStartTime: ssoFlow.startedAt ?? "N/A",
+    sessionEndTime: ssoFlow.endedAt ?? "N/A",
+    serviceProvider: ssoFlow.sp ?? "N/A",
+    identityProvider: ssoFlow.idp ?? "N/A",
     samlVersion,
     samlProfile: "Web Browser SSO Profile",
     protocolBinding,
@@ -98,7 +98,7 @@ type SessionResult = {
 };
 
 export function buildSessionResult(
-  _sessionSummary: SessionSummary,
+  _ssoFlow: SsoFlow,
   _authnRequestXml?: string,
   responseXml?: string,
 ): SessionResult {
