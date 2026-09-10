@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type FlowEntry, isFlowEntry } from "@/common/models/flow-entry.ts";
+import { type SsoTrace, isSsoTrace } from "@/common/models/flow-entry.ts";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
 import { type SamlLog, isSamlLog } from "@/common/models/saml-trace.ts";
 import {
@@ -35,8 +35,8 @@ beforeEach(() => {
   });
 });
 
-function storedFlowEntries(): FlowEntry[] {
-  return Object.values(storage).filter((v): v is FlowEntry => isFlowEntry(v));
+function savedSsoTraces(): SsoTrace[] {
+  return Object.values(storage).filter((v): v is SsoTrace => isSsoTrace(v));
 }
 
 function savedSamlLogs(): SamlLog[] {
@@ -73,7 +73,7 @@ function makeResponse(): HttpResponse {
 }
 
 describe("recordSamlLog", () => {
-  it("issues a flow for an unknown correlation key and saves the log", async () => {
+  it("issues an SSO trace for an unknown correlation key and saves the log", async () => {
     const result = await recordSamlLog(
       "cs-1",
       { step: 6, correlationKey: "authn-req-1" },
@@ -81,7 +81,7 @@ describe("recordSamlLog", () => {
     );
 
     expect(result).toBeUndefined();
-    expect(storedFlowEntries()).toEqual([
+    expect(savedSsoTraces()).toEqual([
       expect.objectContaining({
         tracingSessionId: "cs-1",
         protocol: "saml",
@@ -90,7 +90,7 @@ describe("recordSamlLog", () => {
     ]);
     const samlLogs = savedSamlLogs();
     expect(samlLogs).toHaveLength(1);
-    expect(samlLogs[0]).toMatchObject({ flowId: storedFlowEntries()[0]!.id });
+    expect(samlLogs[0]).toMatchObject({ ssoTraceId: savedSsoTraces()[0]!.id });
   });
 
   it("saves the step 1 log before the step 2 log", async () => {
@@ -107,7 +107,7 @@ describe("recordSamlLog", () => {
     const samlLogs = savedSamlLogs();
     expect(samlLogs.map((l) => l.step)).toEqual([1, 2]);
     expect(samlLogs[0]).toMatchObject({
-      flowId: storedFlowEntries()[0]!.id,
+      ssoTraceId: savedSsoTraces()[0]!.id,
       httpMessageId: pairedHttpRequest.id,
       observedAt: pairedHttpRequest.observedAt,
       serverHostname: "sp.example.com",
@@ -149,20 +149,20 @@ describe("recordSamlLog", () => {
     expect(savedSamlLogs()).toEqual([]);
   });
 
-  it("reuses the flow of the same correlation key", async () => {
+  it("reuses the SSO trace of the same correlation key", async () => {
     const samlSignal = { step: 2, correlationKey: "authn-req-1" } as const;
     await recordSamlLog("cs-1", samlSignal, makeResponse(), makeRequest());
     await recordSamlLog("cs-1", { step: 6, correlationKey: "authn-req-1" }, makeResponse());
 
-    expect(storedFlowEntries()).toHaveLength(1);
+    expect(savedSsoTraces()).toHaveLength(1);
   });
 
-  it("issues a flow per tracing session", async () => {
+  it("issues an SSO trace per tracing session", async () => {
     const samlSignal = { step: 2, correlationKey: "authn-req-1" } as const;
     await recordSamlLog("cs-1", samlSignal, makeResponse(), makeRequest());
     await recordSamlLog("cs-2", samlSignal, makeResponse(), makeRequest());
 
-    expect(storedFlowEntries().map((f) => f.tracingSessionId)).toEqual(["cs-1", "cs-2"]);
+    expect(savedSsoTraces().map((f) => f.tracingSessionId)).toEqual(["cs-1", "cs-2"]);
   });
 
   it("returns an error when the log cannot be built", async () => {

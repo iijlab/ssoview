@@ -3,11 +3,11 @@
  * @license BSD-3-Clause
  */
 
-import { type FlowEntry, newFlowEntry } from "@/common/models/flow-entry.ts";
+import { type SsoTrace, newSsoTrace } from "@/common/models/flow-entry.ts";
 import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
 import { type SamlSignal } from "@/common/models/saml-detection.ts";
 import { debugSamlLog, newSamlLog } from "@/common/models/saml-trace.ts";
-import { findFlowEntryByCorrelationKey, saveFlowEntry } from "@/common/services/flow-store.ts";
+import { findSsoTraceByCorrelationKey, saveSsoTrace } from "@/common/services/flow-store.ts";
 import { saveSamlLog } from "@/common/services/saml-store.ts";
 
 export async function recordSamlLog(
@@ -36,12 +36,12 @@ export async function recordSamlLog(
     }
   }
 
-  const flowEntry = await findOrIssueFlowEntry(tracingSessionId, samlSignal.correlationKey);
-  if (flowEntry instanceof Error) {
-    return flowEntry;
+  const ssoTrace = await getOrCreateSsoTrace(tracingSessionId, samlSignal.correlationKey);
+  if (ssoTrace instanceof Error) {
+    return ssoTrace;
   }
 
-  const samlLog = newSamlLog(flowEntry.id, samlSignal, httpMessage);
+  const samlLog = newSamlLog(ssoTrace.id, samlSignal, httpMessage);
   if (samlLog instanceof Error) {
     return samlLog;
   }
@@ -54,30 +54,28 @@ export async function recordSamlLog(
   await debugSamlLog(samlLog);
 }
 
-async function findOrIssueFlowEntry(
+async function getOrCreateSsoTrace(
   tracingSessionId: string,
   correlationKey: string,
-): Promise<FlowEntry | Error> {
-  const flowEntry = await findFlowEntryByCorrelationKey(tracingSessionId, correlationKey);
-  if (flowEntry instanceof Error) {
-    return flowEntry;
+): Promise<SsoTrace | Error> {
+  const ssoTrace = await findSsoTraceByCorrelationKey(tracingSessionId, correlationKey);
+  if (ssoTrace instanceof Error) {
+    return ssoTrace;
   }
 
-  return flowEntry === undefined
-    ? await issueFlowEntry(tracingSessionId, correlationKey)
-    : flowEntry;
+  return ssoTrace === undefined ? await createSsoTrace(tracingSessionId, correlationKey) : ssoTrace;
 }
 
-async function issueFlowEntry(
+async function createSsoTrace(
   tracingSessionId: string,
   correlationKey: string,
-): Promise<FlowEntry | Error> {
-  const flowEntry = newFlowEntry(tracingSessionId, "saml", correlationKey);
+): Promise<SsoTrace | Error> {
+  const ssoTrace = newSsoTrace(tracingSessionId, "saml", correlationKey);
 
-  const saveError = await saveFlowEntry(flowEntry);
+  const saveError = await saveSsoTrace(ssoTrace);
   if (saveError) {
     return saveError;
   }
 
-  return flowEntry;
+  return ssoTrace;
 }

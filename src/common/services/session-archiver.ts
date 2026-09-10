@@ -12,8 +12,8 @@ import {
 } from "@/common/models/http-message.ts";
 import { type SamlSignal } from "@/common/models/saml-detection.ts";
 import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
-import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
-import { findFlowEntryById } from "@/common/services/flow-store.ts";
+import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
+import { findSsoTraceById } from "@/common/services/flow-store.ts";
 import { saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlSignalFromHttpRequest,
@@ -25,18 +25,21 @@ import { recordSamlLog } from "@/common/services/saml-recorder.ts";
  * Export SSO flow data as an HTTP Archive (HAR) JSON string.
  *
  * @param _tabId - Unused. Kept until the side panel stops passing it
- * @param flowId - The flow ID to export
+ * @param ssoTraceId - The SSO trace ID to export
  * @returns The HAR JSON string, or an Error if retrieval fails
  */
-export async function dumpSessionArchive(_tabId: number, flowId: string): Promise<string | Error> {
-  const flowEntry = await findFlowEntryById(flowId);
-  if (flowEntry instanceof Error) {
-    return flowEntry;
-  } else if (flowEntry === undefined) {
-    return new Error("Flow not found");
+export async function dumpSessionArchive(
+  _tabId: number,
+  ssoTraceId: string,
+): Promise<string | Error> {
+  const ssoTrace = await findSsoTraceById(ssoTraceId);
+  if (ssoTrace instanceof Error) {
+    return ssoTrace;
+  } else if (ssoTrace === undefined) {
+    return new Error("SSO trace not found");
   }
 
-  const httpMessages = await findHttpMessagesOfFlow(flowEntry.id);
+  const httpMessages = await getHttpMessagesBySsoTraceId(ssoTrace.id);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }

@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { type FlowEntry, isFlowEntry } from "@/common/models/flow-entry.ts";
+import { type SsoTrace, isSsoTrace } from "@/common/models/flow-entry.ts";
 import {
   getAllSessionStorageKeys,
   getSessionStorageItems,
@@ -12,56 +12,56 @@ import {
 } from "@/common/utils/chrome-storage.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
-export async function saveFlowEntry(flowEntry: FlowEntry): Promise<void | Error> {
-  return await setSessionStorageItem(makeFlowEntryKey(flowEntry), flowEntry);
+export async function saveSsoTrace(ssoTrace: SsoTrace): Promise<void | Error> {
+  return await setSessionStorageItem(toSsoTraceKey(ssoTrace), ssoTrace);
 }
 
-export async function deleteFlowEntry(flowEntry: FlowEntry): Promise<void | Error> {
-  return await removeSessionStorageItems([makeFlowEntryKey(flowEntry)]);
+export async function deleteSsoTrace(ssoTrace: SsoTrace): Promise<void | Error> {
+  return await removeSessionStorageItems([toSsoTraceKey(ssoTrace)]);
 }
 
-export async function findAllFlowEntries(): Promise<FlowEntry[] | Error> {
-  const entries = await findFlowEntriesBy(() => true);
-  if (entries instanceof Error) {
-    return entries;
+export async function findAllSsoTraces(): Promise<SsoTrace[] | Error> {
+  const ssoTraces = await findSsoTracesBy(() => true);
+  if (ssoTraces instanceof Error) {
+    return ssoTraces;
   }
 
-  return entries.toReversed();
+  return ssoTraces.toReversed();
 }
 
-export async function findFlowEntryById(id: string): Promise<FlowEntry | undefined | Error> {
-  const entries = await findFlowEntriesBy((e) => e.id === id);
-  if (entries instanceof Error) {
-    return entries;
+export async function findSsoTraceById(id: string): Promise<SsoTrace | undefined | Error> {
+  const ssoTraces = await findSsoTracesBy((t) => t.id === id);
+  if (ssoTraces instanceof Error) {
+    return ssoTraces;
   }
 
-  return entries[0];
+  return ssoTraces[0];
 }
 
-export async function findFlowEntryByCorrelationKey(
+export async function findSsoTraceByCorrelationKey(
   tracingSessionId: string,
   correlationKey: string,
-): Promise<FlowEntry | undefined | Error> {
-  const entries = await findFlowEntriesBy(
-    (e) => e.tracingSessionId === tracingSessionId && e.correlationKey === correlationKey,
+): Promise<SsoTrace | undefined | Error> {
+  const ssoTraces = await findSsoTracesBy(
+    (t) => t.tracingSessionId === tracingSessionId && t.correlationKey === correlationKey,
   );
-  if (entries instanceof Error) {
-    return entries;
+  if (ssoTraces instanceof Error) {
+    return ssoTraces;
   }
 
-  return entries[0];
+  return ssoTraces[0];
 }
 
-async function findFlowEntriesBy(
-  predicate: (keyFields: FlowEntryKeyFields) => boolean,
-): Promise<FlowEntry[] | Error> {
+async function findSsoTracesBy(
+  predicate: (keyFields: SsoTraceKeyFields) => boolean,
+): Promise<SsoTrace[] | Error> {
   const allKeys = await getAllSessionStorageKeys();
   if (allKeys instanceof Error) {
     return allKeys;
   }
 
   const keys = allKeys.filter((k) => {
-    const keyFields = parseFlowEntryKey(k);
+    const keyFields = parseSsoTraceKey(k);
     return keyFields !== undefined && predicate(keyFields);
   });
 
@@ -71,37 +71,37 @@ async function findFlowEntriesBy(
   }
 
   return Object.values(items)
-    .filter((e): e is FlowEntry => {
-      const valid = isFlowEntry(e);
+    .filter((t): t is SsoTrace => {
+      const valid = isSsoTrace(t);
       if (!valid) {
-        console.warn("Invalid flow entry:", e);
+        console.warn("Invalid SSO trace:", t);
       }
       return valid;
     })
     .toSorted((a, b) => (a.id < b.id ? -1 : 1));
 }
 
-const flowEntryKind = "flow";
+const ssoTraceKind = "trace";
 
-type FlowEntryKeyFields = {
+type SsoTraceKeyFields = {
   id: string;
-  kind: typeof flowEntryKind;
+  kind: typeof ssoTraceKind;
   tracingSessionId: string;
   correlationKey: string;
 };
 
-function isFlowEntryKeyFields(u: unknown): u is FlowEntryKeyFields {
+function isSsoTraceKeyFields(u: unknown): u is SsoTraceKeyFields {
   return (
     isObject(u) &&
     typeof u.id === "string" &&
-    u.kind === flowEntryKind &&
+    u.kind === ssoTraceKind &&
     typeof u.tracingSessionId === "string" &&
     typeof u.correlationKey === "string"
   );
 }
 
-function makeFlowEntryKey(flow: FlowEntry): string {
-  return JSON.stringify({ ...flow, kind: flowEntryKind }, [
+function toSsoTraceKey(ssoTrace: SsoTrace): string {
+  return JSON.stringify({ ...ssoTrace, kind: ssoTraceKind }, [
     "id",
     "kind",
     "tracingSessionId",
@@ -109,10 +109,10 @@ function makeFlowEntryKey(flow: FlowEntry): string {
   ]);
 }
 
-function parseFlowEntryKey(key: string): FlowEntryKeyFields | undefined {
+function parseSsoTraceKey(key: string): SsoTraceKeyFields | undefined {
   try {
     const parsed: unknown = JSON.parse(key);
-    return isFlowEntryKeyFields(parsed) ? parsed : undefined;
+    return isSsoTraceKeyFields(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }

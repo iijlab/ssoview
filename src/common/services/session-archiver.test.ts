@@ -4,12 +4,12 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type FlowEntry } from "@/common/models/flow-entry.ts";
+import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
-import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
-import { findFlowEntryById } from "@/common/services/flow-store.ts";
+import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
+import { findSsoTraceById } from "@/common/services/flow-store.ts";
 import { saveHttpMessage } from "@/common/services/http-store.ts";
 import {
   detectSamlSignalFromHttpRequest,
@@ -28,11 +28,11 @@ vi.mock("@/common/services/event-store.ts", () => ({
 }));
 
 vi.mock("@/common/services/flow-query.ts", () => ({
-  findHttpMessagesOfFlow: vi.fn(),
+  getHttpMessagesBySsoTraceId: vi.fn(),
 }));
 
 vi.mock("@/common/services/flow-store.ts", () => ({
-  findFlowEntryById: vi.fn(),
+  findSsoTraceById: vi.fn(),
 }));
 
 vi.mock("@/common/services/http-store.ts", () => ({
@@ -54,7 +54,7 @@ beforeEach(() => {
 });
 
 describe("dumpSessionArchive", () => {
-  const flowEntry: FlowEntry = {
+  const ssoTrace: SsoTrace = {
     id: "flow-1",
     tracingSessionId: "cs-1",
     protocol: "saml",
@@ -63,40 +63,40 @@ describe("dumpSessionArchive", () => {
 
   it("returns HAR string on success", async () => {
     const httpMessages = [{} as HttpMessage];
-    vi.mocked(findFlowEntryById).mockResolvedValue(flowEntry);
-    vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(httpMessages);
+    vi.mocked(findSsoTraceById).mockResolvedValue(ssoTrace);
+    vi.mocked(getHttpMessagesBySsoTraceId).mockResolvedValue(httpMessages);
     vi.mocked(newHar).mockReturnValue('{"log":{}}');
 
     const result = await dumpSessionArchive(1, "flow-1");
 
-    expect(findFlowEntryById).toHaveBeenCalledWith("flow-1");
-    expect(findHttpMessagesOfFlow).toHaveBeenCalledWith("flow-1");
+    expect(findSsoTraceById).toHaveBeenCalledWith("flow-1");
+    expect(getHttpMessagesBySsoTraceId).toHaveBeenCalledWith("flow-1");
     expect(newHar).toHaveBeenCalledWith(httpMessages);
     expect(result).toBe('{"log":{}}');
   });
 
-  it("returns Error when the flow cannot be found", async () => {
-    vi.mocked(findFlowEntryById).mockResolvedValue(new Error("storage error"));
+  it("returns Error when the SSO trace cannot be found", async () => {
+    vi.mocked(findSsoTraceById).mockResolvedValue(new Error("storage error"));
 
     const result = await dumpSessionArchive(1, "flow-1");
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("storage error");
-    expect(findHttpMessagesOfFlow).not.toHaveBeenCalled();
+    expect(getHttpMessagesBySsoTraceId).not.toHaveBeenCalled();
   });
 
-  it("returns Error when no flow has the flow ID", async () => {
-    vi.mocked(findFlowEntryById).mockResolvedValue(undefined);
+  it("returns Error when no SSO trace has the ID", async () => {
+    vi.mocked(findSsoTraceById).mockResolvedValue(undefined);
 
     const result = await dumpSessionArchive(1, "flow-1");
 
     expect(result).toBeInstanceOf(Error);
-    expect(findHttpMessagesOfFlow).not.toHaveBeenCalled();
+    expect(getHttpMessagesBySsoTraceId).not.toHaveBeenCalled();
   });
 
-  it("returns Error when findHttpMessagesOfFlow fails", async () => {
-    vi.mocked(findFlowEntryById).mockResolvedValue(flowEntry);
-    vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(new Error("storage error"));
+  it("returns Error when getHttpMessagesBySsoTraceId fails", async () => {
+    vi.mocked(findSsoTraceById).mockResolvedValue(ssoTrace);
+    vi.mocked(getHttpMessagesBySsoTraceId).mockResolvedValue(new Error("storage error"));
 
     const result = await dumpSessionArchive(1, "flow-1");
 

@@ -16,8 +16,8 @@ export async function saveSamlLog(samlLog: SamlLog): Promise<void | Error> {
   return await setSessionStorageItem(toSamlLogKey(samlLog), samlLog);
 }
 
-export async function deleteSamlLogsByFlowId(flowId: string): Promise<void | Error> {
-  const keys = await findSamlLogKeysBy((k) => k.flowId === flowId);
+export async function deleteSamlLogsBySsoTraceId(ssoTraceId: string): Promise<void | Error> {
+  const keys = await findSamlLogKeysBy((k) => k.ssoTraceId === ssoTraceId);
   if (keys instanceof Error) {
     return keys;
   }
@@ -25,8 +25,8 @@ export async function deleteSamlLogsByFlowId(flowId: string): Promise<void | Err
   return await removeSessionStorageItems(keys);
 }
 
-export async function findSamlLogsByFlowId(flowId: string): Promise<SamlLog[] | Error> {
-  return await findSamlLogsBy((k) => k.flowId === flowId);
+export async function findSamlLogsBySsoTraceId(ssoTraceId: string): Promise<SamlLog[] | Error> {
+  return await findSamlLogsBy((k) => k.ssoTraceId === ssoTraceId);
 }
 
 async function findSamlLogsBy(
@@ -72,7 +72,7 @@ const samlLogKind = "saml";
 type SamlLogKeyFields = {
   id: string;
   kind: typeof samlLogKind;
-  flowId: string;
+  ssoTraceId: string;
 };
 
 function isSamlLogKeyFields(u: unknown): u is SamlLogKeyFields {
@@ -80,12 +80,12 @@ function isSamlLogKeyFields(u: unknown): u is SamlLogKeyFields {
     isObject(u) &&
     typeof u.id === "string" &&
     u.kind === samlLogKind &&
-    typeof u.flowId === "string"
+    typeof u.ssoTraceId === "string"
   );
 }
 
 function toSamlLogKey(samlLog: SamlLog): string {
-  return JSON.stringify({ ...samlLog, kind: samlLogKind }, ["id", "kind", "flowId"]);
+  return JSON.stringify({ ...samlLog, kind: samlLogKind }, ["id", "kind", "ssoTraceId"]);
 }
 
 function parseSamlLogKey(key: string): SamlLogKeyFields | undefined {

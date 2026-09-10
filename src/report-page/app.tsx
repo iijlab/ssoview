@@ -31,14 +31,14 @@ export function App() {
   useEffect(() => {
     const fetchSessionData = async () => {
       const params = new URLSearchParams(window.location.search);
-      const flowId = params.get("sessionId");
+      const ssoTraceId = params.get("sessionId");
 
-      const flowData = await loadFlowData(flowId);
+      const flowData = await loadFlowData(ssoTraceId);
       if (flowData instanceof Error) {
         console.warn("Failed to load flow data:", { error: flowData });
         return;
       }
-      const { flowEntry, tracingSession, samlLogs, httpMessages } = flowData;
+      const { ssoTrace, tracingSession, samlLogs, httpMessages } = flowData;
 
       const httpMessageRecord = buildHttpMessageRecord(samlLogs, httpMessages);
       if (Object.keys(httpMessageRecord).length === 0) {
@@ -46,7 +46,7 @@ export function App() {
         return;
       }
 
-      const sessionSummary = summarizeSamlFlow(flowEntry, tracingSession, samlLogs);
+      const sessionSummary = summarizeSamlFlow(ssoTrace, tracingSession, samlLogs);
       const authnRequestXml = await getSamlAuthnRequestXml(httpMessageRecord);
       const responseXml = await getSamlResponseXml(httpMessageRecord);
 

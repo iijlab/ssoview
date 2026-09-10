@@ -5,7 +5,7 @@
 
 import { Base64 } from "js-base64";
 import { type TracingSession } from "@/common/models/capture-session.ts";
-import { type FlowEntry } from "@/common/models/flow-entry.ts";
+import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
 import { type SamlSignal } from "@/common/models/saml-detection.ts";
 import { type SamlLog, newSamlLog } from "@/common/models/saml-trace.ts";
@@ -28,7 +28,7 @@ const samlSuccessResponseXml = samlSuccessResponseXmlRaw.trim();
 const samlFailureResponseXml = samlFailureResponseXmlRaw.trim();
 const samlUnknownResponseXml = samlUnknownResponseXmlRaw.trim();
 
-const sampleFlowId = "flow-sample";
+const sampleSsoTraceId = "trace-sample";
 const sampleTracingSessionId = "cs-sample";
 
 export async function buildSampleFlowData(): Promise<FlowData> {
@@ -41,8 +41,8 @@ export async function buildSampleFlowData(): Promise<FlowData> {
   const httpMessageIds = new Set(httpMessages.map((m) => m.id));
   const samlLogs = allSamlLogs.filter((l) => httpMessageIds.has(l.httpMessageId));
 
-  const flowEntry: FlowEntry = {
-    id: sampleFlowId,
+  const ssoTrace: SsoTrace = {
+    id: sampleSsoTraceId,
     tracingSessionId: sampleTracingSessionId,
     protocol: "saml",
     correlationKey,
@@ -55,7 +55,7 @@ export async function buildSampleFlowData(): Promise<FlowData> {
     endedAt: "2004-12-05T09:22:06.000Z",
   };
 
-  return { flowEntry, tracingSession, samlLogs, httpMessages };
+  return { ssoTrace, tracingSession, samlLogs, httpMessages };
 }
 
 async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessage[]> {
@@ -289,7 +289,7 @@ function findPairedHttpRequest(
 }
 
 function pushSamlLog(samlLogs: SamlLog[], samlSignal: SamlSignal, httpMessage: HttpMessage): void {
-  const samlLog = newSamlLog(sampleFlowId, samlSignal, httpMessage);
+  const samlLog = newSamlLog(sampleSsoTraceId, samlSignal, httpMessage);
   if (samlLog instanceof Error) {
     console.error("Failed to build SAML log from sample message:", samlLog);
     return;

@@ -6,17 +6,17 @@
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlLog } from "@/common/models/saml-trace.ts";
 import { getTracingSession } from "@/common/services/capture-query.ts";
-import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
-import { findFlowEntryById } from "@/common/services/flow-store.ts";
+import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
+import { findSsoTraceById } from "@/common/services/flow-store.ts";
 import {
   extractSamlAuthnRequestXml,
   extractSamlResponseXml,
 } from "@/common/services/saml-detector.ts";
-import { findSamlLogsByFlowId } from "@/common/services/saml-store.ts";
+import { findSamlLogsBySsoTraceId } from "@/common/services/saml-store.ts";
 import { type FlowData } from "@/report-page/common/types.ts";
 
-export async function loadFlowData(flowId: string | null): Promise<FlowData | Error> {
-  if (flowId === null) {
+export async function loadFlowData(ssoTraceId: string | null): Promise<FlowData | Error> {
+  if (ssoTraceId === null) {
     // In development mode, fall back to sample data
     if (import.meta.env.MODE === "development") {
       const { buildSampleFlowData } = await import("@/report-page/dev/sample-flow.ts");
@@ -26,31 +26,31 @@ export async function loadFlowData(flowId: string | null): Promise<FlowData | Er
     }
   }
 
-  const flowEntry = await findFlowEntryById(flowId);
-  if (flowEntry instanceof Error) {
-    return flowEntry;
-  } else if (flowEntry === undefined) {
-    return new Error("Flow not found");
+  const ssoTrace = await findSsoTraceById(ssoTraceId);
+  if (ssoTrace instanceof Error) {
+    return ssoTrace;
+  } else if (ssoTrace === undefined) {
+    return new Error("SSO trace not found");
   }
 
-  const tracingSession = await getTracingSession(flowEntry.tracingSessionId);
+  const tracingSession = await getTracingSession(ssoTrace.tracingSessionId);
   if (tracingSession instanceof Error) {
     return tracingSession;
   } else if (tracingSession === undefined) {
-    return new Error(`No tracing session: ${flowEntry.tracingSessionId}`);
+    return new Error("Tracing session not found");
   }
 
-  const samlLogs = await findSamlLogsByFlowId(flowEntry.id);
+  const samlLogs = await findSamlLogsBySsoTraceId(ssoTrace.id);
   if (samlLogs instanceof Error) {
     return samlLogs;
   }
 
-  const httpMessages = await findHttpMessagesOfFlow(flowEntry.id);
+  const httpMessages = await getHttpMessagesBySsoTraceId(ssoTrace.id);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }
 
-  return { flowEntry, tracingSession, samlLogs, httpMessages };
+  return { ssoTrace, tracingSession, samlLogs, httpMessages };
 }
 
 export function buildHttpMessageRecord(

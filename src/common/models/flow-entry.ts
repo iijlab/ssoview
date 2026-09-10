@@ -12,7 +12,7 @@ export function isSsoProtocol(u: unknown): u is SsoProtocol {
   return u === "saml" || u === "oidc";
 }
 
-export type FlowEntry = {
+export type SsoTrace = {
   id: string;
   tracingSessionId: string;
   protocol: SsoProtocol;
@@ -21,7 +21,7 @@ export type FlowEntry = {
   correlationKey: string;
 };
 
-export function isFlowEntry(u: unknown): u is FlowEntry {
+export function isSsoTrace(u: unknown): u is SsoTrace {
   return (
     isObject(u) &&
     typeof u.id === "string" &&
@@ -31,11 +31,11 @@ export function isFlowEntry(u: unknown): u is FlowEntry {
   );
 }
 
-export function newFlowEntry(
+export function newSsoTrace(
   tracingSessionId: string,
   protocol: SsoProtocol,
   correlationKey: string,
-): FlowEntry {
+): SsoTrace {
   return {
     id: uuidv7(),
     tracingSessionId,

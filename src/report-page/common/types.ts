@@ -4,7 +4,7 @@
  */
 
 import { type TracingSession } from "@/common/models/capture-session.ts";
-import { type FlowEntry } from "@/common/models/flow-entry.ts";
+import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlLog } from "@/common/models/saml-trace.ts";
 
@@ -16,7 +16,7 @@ export type HttpSectionId = `http-${number}`;
 export type ArrowClickHandler = (sectionId: ContentSectionId) => void;
 
 export type FlowData = {
-  flowEntry: FlowEntry;
+  ssoTrace: SsoTrace;
   tracingSession: TracingSession;
   samlLogs: SamlLog[];
   httpMessages: HttpMessage[];

@@ -11,7 +11,7 @@ describe("isSamlLog", () => {
   function makeSamlLogFields(): Record<string, unknown> {
     return {
       id: "trace-1",
-      flowId: "flow-1",
+      ssoTraceId: "flow-1",
       httpMessageId: "msg-1",
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
@@ -44,9 +44,9 @@ describe("isSamlLog", () => {
     expect(isSamlLog(msg)).toBe(false);
   });
 
-  it("returns false when flowId is missing", () => {
+  it("returns false when ssoTraceId is missing", () => {
     const msg = makeSamlLogFields();
-    delete msg.flowId;
+    delete msg.ssoTraceId;
     expect(isSamlLog(msg)).toBe(false);
   });
 
@@ -109,7 +109,7 @@ describe("newSamlLog", () => {
 
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toMatchObject({
-      flowId: "flow-1",
+      ssoTraceId: "flow-1",
       httpMessageId: "msg-1",
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",
@@ -126,7 +126,7 @@ describe("newSamlLog", () => {
 
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toMatchObject({
-      flowId: "flow-1",
+      ssoTraceId: "flow-1",
       httpMessageId: "msg-1",
       observedAt: "2026-01-01T00:00:00Z",
       serverHostname: "sp.example.com",

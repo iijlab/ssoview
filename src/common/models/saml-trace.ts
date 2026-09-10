@@ -19,7 +19,7 @@ export type SamlLog =
 
 type SamlLogBase = {
   id: string;
-  flowId: string;
+  ssoTraceId: string;
   httpMessageId: string;
   observedAt: string;
   serverHostname: string;
@@ -68,7 +68,7 @@ export function isSamlLog(u: unknown): u is SamlLog {
   return (
     isObject(u) &&
     typeof u.id === "string" &&
-    typeof u.flowId === "string" &&
+    typeof u.ssoTraceId === "string" &&
     typeof u.httpMessageId === "string" &&
     typeof u.observedAt === "string" &&
     typeof u.serverHostname === "string" &&
@@ -77,7 +77,7 @@ export function isSamlLog(u: unknown): u is SamlLog {
 }
 
 export function newSamlLog(
-  flowId: string,
+  ssoTraceId: string,
   samlSignal: SamlSignal,
   httpMessage: HttpMessage,
 ): SamlLog | Error {
@@ -88,7 +88,7 @@ export function newSamlLog(
 
   const base = {
     id: uuidv7(),
-    flowId,
+    ssoTraceId,
     httpMessageId: httpMessage.id,
     observedAt: httpMessage.observedAt,
     serverHostname: hostname,
@@ -164,6 +164,6 @@ export const debugSamlLog =
   import.meta.env.MODE === "development" ? debugSamlLogImpl : () => Promise.resolve();
 
 async function debugSamlLogImpl(samlLog: SamlLog) {
-  const debug = await newLabeledDebugLogger(["SAML", samlLog.flowId, `Step ${samlLog.step}`]);
+  const debug = await newLabeledDebugLogger(["SAML", samlLog.ssoTraceId, `Step ${samlLog.step}`]);
   debug({ [samlLog.type]: samlLog });
 }

@@ -4,12 +4,12 @@
  */
 
 import { type TracingSession } from "@/common/models/capture-session.ts";
-import { type FlowEntry } from "@/common/models/flow-entry.ts";
+import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import { type SamlLog } from "@/common/models/saml-trace.ts";
 import { type SessionSummary } from "@/common/models/session-summary.ts";
 
 export function summarizeSamlFlow(
-  flowEntry: FlowEntry,
+  ssoTrace: SsoTrace,
   tracingSession: TracingSession,
   samlLogs: SamlLog[],
 ): SessionSummary {
@@ -17,7 +17,7 @@ export function summarizeSamlFlow(
     protocol: "saml",
     imported: tracingSession.imported,
     capturing: false,
-    sessionId: flowEntry.id,
+    sessionId: ssoTrace.id,
     warning: [],
   });
 }

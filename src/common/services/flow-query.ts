@@ -5,10 +5,12 @@
 
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { findHttpMessagesByIds } from "@/common/services/http-store.ts";
-import { findSamlLogsByFlowId } from "@/common/services/saml-store.ts";
+import { findSamlLogsBySsoTraceId } from "@/common/services/saml-store.ts";
 
-export async function findHttpMessagesOfFlow(flowId: string): Promise<HttpMessage[] | Error> {
-  const samlLogs = await findSamlLogsByFlowId(flowId);
+export async function getHttpMessagesBySsoTraceId(
+  ssoTraceId: string,
+): Promise<HttpMessage[] | Error> {
+  const samlLogs = await findSamlLogsBySsoTraceId(ssoTraceId);
   if (samlLogs instanceof Error) {
     return samlLogs;
   }

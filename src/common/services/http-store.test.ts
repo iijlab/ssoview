@@ -133,7 +133,7 @@ describe("findHttpMessagesByIds", () => {
 
   it("ignores keys of other kinds", async () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([
-      '{"id":"msg-1","kind":"saml","tabId":1,"flowId":"flow-1"}',
+      '{"id":"msg-1","kind":"saml","tabId":1,"ssoTraceId":"flow-1"}',
     ]);
     vi.mocked(getSessionStorageItems).mockResolvedValue({});
 

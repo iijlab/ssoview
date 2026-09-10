@@ -5,14 +5,17 @@
 
 import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
 import { getTracingSessions, isTracing } from "@/common/services/capture-query.ts";
-import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
+import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
 import {
-  deleteFlowEntry,
-  findAllFlowEntries,
-  findFlowEntryById,
+  deleteSsoTrace,
+  findAllSsoTraces,
+  findSsoTraceById,
 } from "@/common/services/flow-store.ts";
 import { deleteHttpMessages } from "@/common/services/http-store.ts";
-import { deleteSamlLogsByFlowId, findSamlLogsByFlowId } from "@/common/services/saml-store.ts";
+import {
+  deleteSamlLogsBySsoTraceId,
+  findSamlLogsBySsoTraceId,
+} from "@/common/services/saml-store.ts";
 import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
 
 // NOTE: getSessionSummaries has known inefficiencies (e.g., repeated data
@@ -36,33 +39,33 @@ export async function getSessionSummaries(_tabId: number): Promise<SessionSummar
     return tracingSessions;
   }
 
-  const flowEntries = await findAllFlowEntries();
-  if (flowEntries instanceof Error) {
-    return flowEntries;
+  const ssoTraces = await findAllSsoTraces();
+  if (ssoTraces instanceof Error) {
+    return ssoTraces;
   }
 
   const ongoingTracingSession = tracingSessions.find((s) => !s.imported && s.endedAt === undefined);
-  const ongoingFlowId =
+  const ongoingSsoTraceId =
     ongoingTracingSession !== undefined
-      ? flowEntries.find((f) => f.tracingSessionId === ongoingTracingSession.id)?.id
+      ? ssoTraces.find((t) => t.tracingSessionId === ongoingTracingSession.id)?.id
       : undefined;
 
   const summaries: SessionSummary[] = [];
-  for (const flowEntry of flowEntries) {
-    const tracingSession = tracingSessions.find((s) => s.id === flowEntry.tracingSessionId);
+  for (const ssoTrace of ssoTraces) {
+    const tracingSession = tracingSessions.find((s) => s.id === ssoTrace.tracingSessionId);
     if (tracingSession === undefined) {
-      console.warn("No tracing session for the flow:", { flowId: flowEntry.id });
+      console.warn("No tracing session for the SSO trace:", { ssoTraceId: ssoTrace.id });
       continue;
     }
 
-    const samlLogs = await findSamlLogsByFlowId(flowEntry.id);
+    const samlLogs = await findSamlLogsBySsoTraceId(ssoTrace.id);
     if (samlLogs instanceof Error) {
       return samlLogs;
     }
 
     const summary = {
-      ...summarizeSamlFlow(flowEntry, tracingSession, samlLogs),
-      capturing: flowEntry.id === ongoingFlowId && tracing,
+      ...summarizeSamlFlow(ssoTrace, tracingSession, samlLogs),
+      capturing: ssoTrace.id === ongoingSsoTraceId && tracing,
     };
 
     summaries.push(summary);
@@ -76,31 +79,31 @@ export async function getSessionSummaries(_tabId: number): Promise<SessionSummar
  * Delete all data for a specific SSO flow.
  *
  * @param _tabId - Unused. Kept until the side panel stops passing it
- * @param flowId - The flow ID to delete
+ * @param ssoTraceId - The SSO trace ID to delete
  * @returns void on success, or an Error
  */
-export async function deleteSession(_tabId: number, flowId: string): Promise<void | Error> {
-  const flowEntry = await findFlowEntryById(flowId);
-  if (flowEntry instanceof Error) {
-    return flowEntry;
-  } else if (flowEntry === undefined) {
-    console.warn("No flow to delete:", { flowId });
+export async function deleteSession(_tabId: number, ssoTraceId: string): Promise<void | Error> {
+  const ssoTrace = await findSsoTraceById(ssoTraceId);
+  if (ssoTrace instanceof Error) {
+    return ssoTrace;
+  } else if (ssoTrace === undefined) {
+    console.warn("No SSO trace to delete:", { ssoTraceId });
     return;
   }
 
-  const httpMessages = await findHttpMessagesOfFlow(flowEntry.id);
+  const httpMessages = await getHttpMessagesBySsoTraceId(ssoTrace.id);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }
 
-  const samlDeleteError = await deleteSamlLogsByFlowId(flowEntry.id);
+  const samlDeleteError = await deleteSamlLogsBySsoTraceId(ssoTrace.id);
   if (samlDeleteError) {
     return samlDeleteError;
   }
 
-  const flowDeleteError = await deleteFlowEntry(flowEntry);
-  if (flowDeleteError) {
-    return flowDeleteError;
+  const ssoTraceDeleteError = await deleteSsoTrace(ssoTrace);
+  if (ssoTraceDeleteError) {
+    return ssoTraceDeleteError;
   }
 
   const httpDeleteError = await deleteHttpMessages(httpMessages);

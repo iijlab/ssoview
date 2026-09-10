@@ -44,7 +44,7 @@ function makePostRequest(id: string, body: string): HttpMessage {
 function makeSamlLog(id: string, step: SamlLog["step"], httpMessageId: string): SamlLog {
   return {
     id,
-    flowId: "flow-1",
+    ssoTraceId: "flow-1",
     httpMessageId,
     observedAt: "2026-01-01T00:00:00Z",
     serverHostname: "sp.example.com",
