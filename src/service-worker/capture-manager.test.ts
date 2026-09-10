@@ -13,11 +13,11 @@ import {
   findAllTracingLifecycleEvents,
   saveTracingLifecycleEvent,
 } from "@/common/services/event-store.ts";
-import { getWatchedTabIds } from "@/common/services/watch-query.ts";
+import { getTracedTabIds } from "@/common/services/watch-query.ts";
 import {
-  registerWatchStopHandler,
-  startWatching,
-  stopWatching,
+  registerTabTracingTerminatedHandler,
+  startTabTracing,
+  stopTabTracing,
 } from "@/service-worker/tab-watcher.ts";
 import { registerTracingTerminatedHandler, startTracing, stopTracing } from "./capture-manager.ts";
 
@@ -27,20 +27,20 @@ vi.mock("@/common/services/event-store.ts", () => ({
 }));
 
 vi.mock("@/common/services/watch-query.ts", () => ({
-  getWatchedTabIds: vi.fn(),
+  getTracedTabIds: vi.fn(),
 }));
 
 vi.mock("@/service-worker/tab-watcher.ts", () => ({
-  registerWatchStopHandler: vi.fn(),
-  startWatching: vi.fn(),
-  stopWatching: vi.fn(),
+  registerTabTracingTerminatedHandler: vi.fn(),
+  startTabTracing: vi.fn(),
+  stopTabTracing: vi.fn(),
 }));
 
 //
 // Helpers
 //
 
-type WatchStopHandler = (tabId: number) => Promise<void>;
+type TabTracingTerminatedHandler = (tabId: number) => Promise<void>;
 type TracingTerminatedHandler = (tabId: number) => Promise<void>;
 
 beforeEach(() => {
@@ -49,18 +49,20 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(undefined);
   vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([]);
-  vi.mocked(getWatchedTabIds).mockResolvedValue([]);
-  vi.mocked(startWatching).mockResolvedValue(undefined);
-  vi.mocked(stopWatching).mockResolvedValue(undefined);
+  vi.mocked(getTracedTabIds).mockResolvedValue([]);
+  vi.mocked(startTabTracing).mockResolvedValue(undefined);
+  vi.mocked(stopTabTracing).mockResolvedValue(undefined);
 });
 
-function registerAndGetHandler(onTracingTerminated: TracingTerminatedHandler): WatchStopHandler {
+function registerAndGetHandler(
+  onTracingTerminated: TracingTerminatedHandler,
+): TabTracingTerminatedHandler {
   registerTracingTerminatedHandler(onTracingTerminated);
-  const handler = vi.mocked(registerWatchStopHandler).mock.calls[0]?.[0];
+  const handler = vi.mocked(registerTabTracingTerminatedHandler).mock.calls[0]?.[0];
   if (handler === undefined) {
-    throw new Error("No watch stop handler is registered");
+    throw new Error("No tab tracing terminated handler is registered");
   }
-  return handler as WatchStopHandler;
+  return handler as TabTracingTerminatedHandler;
 }
 
 function tracingEvents(...types: ("TracingStarted" | "TracingStopped")[]): TracingLifecycleEvent[] {
@@ -79,22 +81,22 @@ function savedEventTypes(): string[] {
 //
 
 describe("startTracing", () => {
-  it("saves a TracingStarted event before starting the watch", async () => {
+  it("saves a TracingStarted event before starting tab tracing", async () => {
     const result = await startTracing(1);
 
     expect(result).toBeUndefined();
     expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "TracingStarted" }),
     );
-    expect(startWatching).toHaveBeenCalledExactlyOnceWith(1);
+    expect(startTabTracing).toHaveBeenCalledExactlyOnceWith(1);
     expect(vi.mocked(saveTracingLifecycleEvent).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(startWatching).mock.invocationCallOrder[0] ?? 0,
+      vi.mocked(startTabTracing).mock.invocationCallOrder[0] ?? 0,
     );
   });
 
-  it("closes the tracing and returns the error when the watch cannot be started", async () => {
-    const error = new Error("watch failed");
-    vi.mocked(startWatching).mockResolvedValue(error);
+  it("closes tracing and returns the error when tab tracing cannot be started", async () => {
+    const error = new Error("tab tracing failed");
+    vi.mocked(startTabTracing).mockResolvedValue(error);
 
     const result = await startTracing(1);
 
@@ -102,14 +104,14 @@ describe("startTracing", () => {
     expect(savedEventTypes()).toEqual(["TracingStarted", "TracingStopped"]);
   });
 
-  it("does not start the watch when the event cannot be saved", async () => {
+  it("does not start tab tracing when the event cannot be saved", async () => {
     const error = new Error("storage failed");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await startTracing(1);
 
     expect(result).toBe(error);
-    expect(startWatching).not.toHaveBeenCalled();
+    expect(startTabTracing).not.toHaveBeenCalled();
   });
 
   it("closes stale tracing before starting anew", async () => {
@@ -119,18 +121,18 @@ describe("startTracing", () => {
 
     expect(result).toBeUndefined();
     expect(savedEventTypes()).toEqual(["TracingStopped", "TracingStarted"]);
-    expect(startWatching).toHaveBeenCalledExactlyOnceWith(1);
+    expect(startTabTracing).toHaveBeenCalledExactlyOnceWith(1);
   });
 
   it("does not start again while tracing is in progress", async () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(tracingEvents("TracingStarted"));
-    vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
+    vi.mocked(getTracedTabIds).mockResolvedValue([1]);
 
     const result = await startTracing(1);
 
     expect(result).toBeUndefined();
     expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
-    expect(startWatching).not.toHaveBeenCalled();
+    expect(startTabTracing).not.toHaveBeenCalled();
     expect(console.info).toHaveBeenCalled();
   });
 
@@ -142,27 +144,27 @@ describe("startTracing", () => {
     const result = await startTracing(1);
 
     expect(result).toBe(error);
-    expect(startWatching).not.toHaveBeenCalled();
+    expect(startTabTracing).not.toHaveBeenCalled();
   });
 });
 
 describe("stopTracing", () => {
-  it("saves a TracingStopped event after stopping the watch", async () => {
+  it("saves a TracingStopped event after stopping tab tracing", async () => {
     const result = await stopTracing(1);
 
     expect(result).toBeUndefined();
-    expect(stopWatching).toHaveBeenCalledExactlyOnceWith(1);
+    expect(stopTabTracing).toHaveBeenCalledExactlyOnceWith(1);
     expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "TracingStopped" }),
     );
-    expect(vi.mocked(stopWatching).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(vi.mocked(stopTabTracing).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(saveTracingLifecycleEvent).mock.invocationCallOrder[0] ?? 0,
     );
   });
 
-  it("saves nothing when the watch cannot be stopped", async () => {
+  it("saves nothing when tab tracing cannot be stopped", async () => {
     const error = new Error("detach failed");
-    vi.mocked(stopWatching).mockResolvedValue(error);
+    vi.mocked(stopTabTracing).mockResolvedValue(error);
 
     const result = await stopTracing(1);
 
@@ -182,7 +184,7 @@ describe("stopTracing", () => {
 });
 
 describe("registerTracingTerminatedHandler", () => {
-  it("stops the tracing and reports it when the watch stops", async () => {
+  it("stops tracing and reports it when tab tracing stops", async () => {
     const onTracingTerminated = vi.fn();
     const handler = registerAndGetHandler(onTracingTerminated);
 

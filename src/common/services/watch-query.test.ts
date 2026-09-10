@@ -11,7 +11,7 @@ import {
   newTabTracingStoppedEvent,
 } from "@/common/models/event-record.ts";
 import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
-import { getWatchedTabIds, isWatching } from "./watch-query.ts";
+import { getTracedTabIds, isTracedTab } from "./watch-query.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
   findAllTracingLifecycleEvents: vi.fn(),
@@ -38,8 +38,8 @@ function attachedTargets(...tabIds: number[]) {
 // Tests
 //
 
-describe("getWatchedTabIds", () => {
-  it("returns the tabs whose watch has started and not stopped", async () => {
+describe("getTracedTabIds", () => {
+  it("returns the tabs whose tracing has started and not stopped", async () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
       newTabTracingStartedEvent(1),
       newDebuggingStartedEvent(1, false),
@@ -49,10 +49,10 @@ describe("getWatchedTabIds", () => {
     ]);
     getTargets.mockResolvedValue(attachedTargets(1, 2));
 
-    expect(await getWatchedTabIds()).toEqual([2]);
+    expect(await getTracedTabIds()).toEqual([2]);
   });
 
-  it("returns the tab when its watch started again after stopping", async () => {
+  it("returns the tab when its tracing started again after stopping", async () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
       newTabTracingStartedEvent(1),
       newTabTracingStoppedEvent(1),
@@ -61,11 +61,11 @@ describe("getWatchedTabIds", () => {
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
-    expect(await getWatchedTabIds()).toEqual([1]);
+    expect(await getTracedTabIds()).toEqual([1]);
   });
 
-  it("returns an empty array when no watch has started", async () => {
-    expect(await getWatchedTabIds()).toEqual([]);
+  it("returns an empty array when no tab tracing has started", async () => {
+    expect(await getTracedTabIds()).toEqual([]);
   });
 
   it("drops the tabs that are no longer attached", async () => {
@@ -77,10 +77,10 @@ describe("getWatchedTabIds", () => {
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
-    expect(await getWatchedTabIds()).toEqual([1]);
+    expect(await getTracedTabIds()).toEqual([1]);
   });
 
-  it("drops the tab whose latest debugger event is a detach", async () => {
+  it("drops the tab whose latest debugging event is a stop", async () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
       newTabTracingStartedEvent(1),
       newDebuggingStartedEvent(1, false),
@@ -88,10 +88,10 @@ describe("getWatchedTabIds", () => {
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
-    expect(await getWatchedTabIds()).toEqual([]);
+    expect(await getTracedTabIds()).toEqual([]);
   });
 
-  it("returns the tab that was attached again after a detach", async () => {
+  it("returns the tab whose debugging started again after a stop", async () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
       newTabTracingStartedEvent(1),
       newDebuggingStartedEvent(1, false),
@@ -100,31 +100,31 @@ describe("getWatchedTabIds", () => {
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
-    expect(await getWatchedTabIds()).toEqual([1]);
+    expect(await getTracedTabIds()).toEqual([1]);
   });
 
-  it("drops the tab that no debugger event says was attached", async () => {
+  it("drops the tab that no debugging event says was started", async () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([newTabTracingStartedEvent(1)]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
-    expect(await getWatchedTabIds()).toEqual([]);
+    expect(await getTracedTabIds()).toEqual([]);
   });
 
-  it("ignores the debugger events of other tabs", async () => {
+  it("ignores the debugging events of other tabs", async () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
       newTabTracingStartedEvent(1),
       newDebuggingStartedEvent(2, false),
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
-    expect(await getWatchedTabIds()).toEqual([]);
+    expect(await getTracedTabIds()).toEqual([]);
   });
 
   it("returns the error when the events cannot be retrieved", async () => {
     const error = new Error("storage failed");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
-    expect(await getWatchedTabIds()).toBe(error);
+    expect(await getTracedTabIds()).toBe(error);
   });
 
   it("returns an error when the debugger targets cannot be retrieved", async () => {
@@ -134,35 +134,35 @@ describe("getWatchedTabIds", () => {
     ]);
     getTargets.mockRejectedValue(new Error("targets failed"));
 
-    expect(await getWatchedTabIds()).toBeInstanceOf(Error);
+    expect(await getTracedTabIds()).toBeInstanceOf(Error);
   });
 });
 
-describe("isWatching", () => {
-  it("returns true when the tab is watched", async () => {
+describe("isTracedTab", () => {
+  it("returns true when the tab is traced", async () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
       newTabTracingStartedEvent(1),
       newDebuggingStartedEvent(1, false),
     ]);
     getTargets.mockResolvedValue(attachedTargets(1));
 
-    expect(await isWatching(1)).toBe(true);
+    expect(await isTracedTab(1)).toBe(true);
   });
 
-  it("returns false when another tab is watched", async () => {
+  it("returns false when another tab is traced", async () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([
       newTabTracingStartedEvent(2),
       newDebuggingStartedEvent(2, false),
     ]);
     getTargets.mockResolvedValue(attachedTargets(2));
 
-    expect(await isWatching(1)).toBe(false);
+    expect(await isTracedTab(1)).toBe(false);
   });
 
-  it("returns the error when the watched tabs cannot be determined", async () => {
+  it("returns the error when the traced tabs cannot be determined", async () => {
     const error = new Error("storage failed");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
-    expect(await isWatching(1)).toBe(error);
+    expect(await isTracedTab(1)).toBe(error);
   });
 });

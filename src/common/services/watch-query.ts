@@ -6,8 +6,8 @@
 import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
 import { isAttached } from "@/common/utils/chrome-debugger.ts";
 
-export async function isWatching(tabId: number): Promise<boolean | Error> {
-  const tabIds = await getWatchedTabIds();
+export async function isTracedTab(tabId: number): Promise<boolean | Error> {
+  const tabIds = await getTracedTabIds();
   if (tabIds instanceof Error) {
     return tabIds;
   }
@@ -15,58 +15,58 @@ export async function isWatching(tabId: number): Promise<boolean | Error> {
   return tabIds.includes(tabId);
 }
 
-export async function getWatchedTabIds(): Promise<number[] | Error> {
-  // How the watch event and the debugging state decide the result, per tab:
+export async function getTracedTabIds(): Promise<number[] | Error> {
+  // How the tab tracing event and the debugging state decide the result, per tab:
   //
   //   event   | debugging | result
   //   --------+-----------+-------
-  //   started | yes       | watched
-  //   started | no        | not watched -- the stop event was lost [1]
-  //   stopped | yes       | not watched -- the event wins [2]
-  //   stopped | no        | not watched
+  //   started | yes       | traced
+  //   started | no        | not traced -- the stop event was lost [1]
+  //   stopped | yes       | not traced -- the event wins [2]
+  //   stopped | no        | not traced
   //
-  // [1] The debugger is already gone, so nothing is being watched on that tab.
-  // [2] The debugger is attached without a watch. The user can detach from the banner.
+  // [1] The debugger is already gone, so the tab is not being traced.
+  // [2] The debugger is attached without tab tracing. The user can detach from the banner.
 
   const tracingLifecycleEvents = await findAllTracingLifecycleEvents();
   if (tracingLifecycleEvents instanceof Error) {
     return tracingLifecycleEvents;
   }
 
-  const recordedWatchedTabIds = new Set<number>();
+  const recordedTracedTabIds = new Set<number>();
   for (const event of tracingLifecycleEvents) {
     if (event.type === "TabTracingStarted") {
-      recordedWatchedTabIds.add(event.tabId);
+      recordedTracedTabIds.add(event.tabId);
     } else if (event.type === "TabTracingStopped") {
-      recordedWatchedTabIds.delete(event.tabId);
+      recordedTracedTabIds.delete(event.tabId);
     }
   }
 
-  const actualWatchedTabIds: number[] = [];
-  for (const tabId of recordedWatchedTabIds) {
+  const actualTracedTabIds: number[] = [];
+  for (const tabId of recordedTracedTabIds) {
     const debugging = await isDebugging(tabId);
     if (debugging instanceof Error) {
       return debugging;
     } else if (debugging) {
-      actualWatchedTabIds.push(tabId);
+      actualTracedTabIds.push(tabId);
     }
   }
 
-  return actualWatchedTabIds;
+  return actualTracedTabIds;
 }
 
 async function isDebugging(tabId: number): Promise<boolean | Error> {
-  // How the debugger event and the chrome.debugger API decide the result:
+  // How the debugging event and the chrome.debugger API decide the result:
   //
-  //   event    | chrome | result
-  //   ---------+--------+-------
-  //   attached | yes    | debugging
-  //   attached | no     | not debugging -- the detach event was lost [1]
-  //   detached | yes    | not debugging -- the event wins [2]
-  //   detached | no     | not debugging
+  //   event   | chrome | result
+  //   --------+--------+-------
+  //   started | yes    | debugging
+  //   started | no     | not debugging -- the stop event was lost [1]
+  //   stopped | yes    | not debugging -- the event wins [2]
+  //   stopped | no     | not debugging
   //
   // [1] The event write was missed or incomplete, so the event alone cannot be trusted.
-  // [2] The attachment may be DevTools or another extension. The attach event is reliable
+  // [2] The attachment may be DevTools or another extension. The start event is reliable
   //     because a failed write triggers an immediate detach, so trust it here.
 
   const tracingLifecycleEvents = await findAllTracingLifecycleEvents();

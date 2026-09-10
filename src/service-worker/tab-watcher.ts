@@ -15,7 +15,9 @@ import {
   stopDebugging,
 } from "@/service-worker/debugger-controller.ts";
 
-export function registerWatchStopHandler(onWatchStopped: (tabId: number) => Promise<void>): void {
+export function registerTabTracingTerminatedHandler(
+  onTabTracingTerminated: (tabId: number) => Promise<void>,
+): void {
   registerDebuggerDetachHandler(async (tabId, reason) => {
     if (reason === "target_closed" && (await tabExists(tabId))) {
       // Possible Chrome bug: sometimes the tab is incorrectly detected as closed when it's still
@@ -31,14 +33,14 @@ export function registerWatchStopHandler(onWatchStopped: (tabId: number) => Prom
 
     const saveError = await saveTracingLifecycleEvent(newTabTracingStoppedEvent(tabId));
     if (saveError) {
-      console.warn("Failed to store the watch stopped event:", { error: saveError });
+      console.warn("Failed to save the tab tracing stopped event:", { error: saveError });
     }
 
-    await onWatchStopped(tabId);
+    await onTabTracingTerminated(tabId);
   });
 }
 
-export async function startWatching(tabId: number): Promise<void | Error> {
+export async function startTabTracing(tabId: number): Promise<void | Error> {
   const saveError = await saveTracingLifecycleEvent(newTabTracingStartedEvent(tabId));
   if (saveError) {
     return saveError;
@@ -48,13 +50,13 @@ export async function startWatching(tabId: number): Promise<void | Error> {
   if (startError) {
     const saveError = await saveTracingLifecycleEvent(newTabTracingStoppedEvent(tabId));
     if (saveError) {
-      console.warn("Failed to store the watch stopped event:", { error: saveError });
+      console.warn("Failed to save the tab tracing stopped event:", { error: saveError });
     }
     return startError;
   }
 }
 
-export async function stopWatching(tabId: number): Promise<void | Error> {
+export async function stopTabTracing(tabId: number): Promise<void | Error> {
   const stopError = await stopDebugging(tabId);
   if (stopError) {
     return stopError;
@@ -62,6 +64,6 @@ export async function stopWatching(tabId: number): Promise<void | Error> {
 
   const saveError = await saveTracingLifecycleEvent(newTabTracingStoppedEvent(tabId));
   if (saveError) {
-    return new Error("Failed to store the watch stopped event", { cause: saveError });
+    return new Error("Failed to save the tab tracing stopped event", { cause: saveError });
   }
 }

@@ -7,7 +7,7 @@ import { publishCaptureTerminatedEvent, publishSessionUpdateEvent } from "@/comm
 import { registerStartMonitoringHandler, registerStopMonitoringHandler } from "@/common/rpc.ts";
 import { dumpSessionArchive, loadSessionArchive } from "@/common/services/session-archiver.ts";
 import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
-import { isWatching } from "@/common/services/watch-query.ts";
+import { isTracedTab } from "@/common/services/watch-query.ts";
 import {
   getAllSessionStorageItems,
   getSessionStorageBytesInUse,
@@ -67,10 +67,10 @@ function init() {
 
   registerSidePanelOpenHandler();
   registerSidePanelCloseHandler(async (tabId) => {
-    const watching = await isWatching(tabId);
-    if (watching instanceof Error) {
-      console.warn("Failed to get watching state:", watching);
-    } else if (watching) {
+    const tabTraced = await isTracedTab(tabId);
+    if (tabTraced instanceof Error) {
+      console.warn("Failed to get tab tracing state:", tabTraced);
+    } else if (tabTraced) {
       const stopError = await onStopMonitoring(tabId);
       if (stopError) {
         console.warn("Failed to stop monitoring:", stopError);

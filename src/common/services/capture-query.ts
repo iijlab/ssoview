@@ -6,7 +6,7 @@
 import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type TracingLifecycleEvent } from "@/common/models/event-record.ts";
 import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
-import { getWatchedTabIds } from "@/common/services/watch-query.ts";
+import { getTracedTabIds } from "@/common/services/watch-query.ts";
 
 export async function getTracingSession(
   tracingSessionId: string,
@@ -74,9 +74,9 @@ function terminateLastOngoingTracingSession(
 }
 
 export async function isTracing(): Promise<boolean | Error> {
-  // How the tracing event and the watched tabs decide the result:
+  // How the tracing event and the traced tabs decide the result:
   //
-  //   event  | watched tab | result
+  //   event  | traced tab  | result
   //   -------+-------------+-------
   //   open   | yes         | tracing
   //   open   | no          | not tracing -- the stop event was lost [1]
@@ -94,7 +94,7 @@ export async function isTracing(): Promise<boolean | Error> {
     return false;
   }
 
-  const tabIds = await getWatchedTabIds();
+  const tabIds = await getTracedTabIds();
   if (tabIds instanceof Error) {
     return tabIds;
   }
