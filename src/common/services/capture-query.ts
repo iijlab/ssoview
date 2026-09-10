@@ -73,17 +73,17 @@ function terminateLastOngoingTracingSession(
       );
 }
 
-export async function isCapturing(): Promise<boolean | Error> {
-  // How the capture event and the watched tabs decide the result:
+export async function isTracing(): Promise<boolean | Error> {
+  // How the tracing event and the watched tabs decide the result:
   //
   //   event  | watched tab | result
   //   -------+-------------+-------
-  //   open   | yes         | capturing
-  //   open   | no          | not capturing -- the stop event was lost [1]
-  //   closed | yes         | not capturing -- the event wins [2]
-  //   closed | no          | not capturing
+  //   open   | yes         | tracing
+  //   open   | no          | not tracing -- the stop event was lost [1]
+  //   closed | yes         | not tracing -- the event wins [2]
+  //   closed | no          | not tracing
   //
-  // [1] The debugger is already detached, so staying "capturing" would show a recording that can
+  // [1] The debugger is already detached, so staying "tracing" would show a recording that can
   //     never be stopped.
   // [2] The user can detach from the banner.
 

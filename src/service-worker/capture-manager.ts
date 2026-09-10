@@ -4,7 +4,7 @@
  */
 
 import { newTracingStartedEvent, newTracingStoppedEvent } from "@/common/models/event-record.ts";
-import { getOngoingTracingSessionId, isCapturing } from "@/common/services/capture-query.ts";
+import { getOngoingTracingSessionId, isTracing } from "@/common/services/capture-query.ts";
 import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { getWatchedTabIds } from "@/common/services/watch-query.ts";
 import {
@@ -13,30 +13,30 @@ import {
   stopWatching,
 } from "@/service-worker/tab-watcher.ts";
 
-export function registerCaptureStopHandler(
-  onCaptureStopped: (tabId: number) => Promise<void>,
+export function registerTracingTerminatedHandler(
+  onTracingTerminated: (tabId: number) => Promise<void>,
 ): void {
   registerWatchStopHandler(async (tabId) => {
     const saveError = await saveTracingLifecycleEvent(newTracingStoppedEvent());
     if (saveError) {
-      console.warn("Failed to store the capture stopped event:", { error: saveError });
+      console.warn("Failed to save the tracing stopped event:", { error: saveError });
     }
 
-    await onCaptureStopped(tabId);
+    await onTracingTerminated(tabId);
   });
 }
 
-export async function startCapturing(tabId: number): Promise<void | Error> {
-  const closeError = await closeInconsistentCapture();
+export async function startTracing(tabId: number): Promise<void | Error> {
+  const closeError = await closeStaleTracing();
   if (closeError) {
     return closeError;
   }
 
-  const capturing = await isCapturing();
-  if (capturing instanceof Error) {
-    return capturing;
-  } else if (capturing) {
-    console.info("Capture already in progress");
+  const tracing = await isTracing();
+  if (tracing instanceof Error) {
+    return tracing;
+  } else if (tracing) {
+    console.info("Tracing already in progress");
     return;
   }
 
@@ -49,13 +49,13 @@ export async function startCapturing(tabId: number): Promise<void | Error> {
   if (startError) {
     const saveError = await saveTracingLifecycleEvent(newTracingStoppedEvent());
     if (saveError) {
-      console.warn("Failed to store the capture stopped event:", { error: saveError });
+      console.warn("Failed to save the tracing stopped event:", { error: saveError });
     }
     return startError;
   }
 }
 
-async function closeInconsistentCapture(): Promise<void | Error> {
+async function closeStaleTracing(): Promise<void | Error> {
   const sessionId = await getOngoingTracingSessionId();
   if (sessionId instanceof Error) {
     return sessionId;
@@ -68,13 +68,13 @@ async function closeInconsistentCapture(): Promise<void | Error> {
     }
 
     if (watchedTabIds.length === 0) {
-      // No tab is being watched, so the capture is stale. Write the stop event that went missing.
+      // No tab is being watched, so the tracing is stale. Write the stop event that went missing.
       return await saveTracingLifecycleEvent(newTracingStoppedEvent());
     }
   }
 }
 
-export async function stopCapturing(tabId: number): Promise<void | Error> {
+export async function stopTracing(tabId: number): Promise<void | Error> {
   const stopError = await stopWatching(tabId);
   if (stopError) {
     return stopError;
@@ -82,6 +82,6 @@ export async function stopCapturing(tabId: number): Promise<void | Error> {
 
   const saveError = await saveTracingLifecycleEvent(newTracingStoppedEvent());
   if (saveError) {
-    return new Error("Failed to store the capture stopped event", { cause: saveError });
+    return new Error("Failed to save the tracing stopped event", { cause: saveError });
   }
 }

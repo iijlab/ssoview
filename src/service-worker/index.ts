@@ -15,9 +15,9 @@ import {
 import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
 import {
-  registerCaptureStopHandler,
-  startCapturing,
-  stopCapturing,
+  registerTracingTerminatedHandler,
+  startTracing,
+  stopTracing,
 } from "@/service-worker/capture-manager.ts";
 import { registerHttpInterceptionHandlers } from "@/service-worker/http-interception.ts";
 import { processHttpRequest, processHttpResponse } from "@/service-worker/saml-tracer.ts";
@@ -55,7 +55,7 @@ function init() {
     },
   );
 
-  registerCaptureStopHandler(async (tabId) => {
+  registerTracingTerminatedHandler(async (tabId) => {
     hideBadge();
 
     // TODO: The detach reason is no longer used. This parameter will be removed.
@@ -80,7 +80,7 @@ function init() {
 }
 
 async function onStartMonitoring(tabId: number): Promise<void | Error> {
-  const startError = await startCapturing(tabId);
+  const startError = await startTracing(tabId);
   if (startError) {
     return startError;
   }
@@ -89,7 +89,7 @@ async function onStartMonitoring(tabId: number): Promise<void | Error> {
 }
 
 async function onStopMonitoring(tabId: number): Promise<void | Error> {
-  const stopError = await stopCapturing(tabId);
+  const stopError = await stopTracing(tabId);
   if (stopError) {
     return stopError;
   }

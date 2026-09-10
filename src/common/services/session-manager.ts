@@ -4,7 +4,7 @@
  */
 
 import { type SessionSummary, debugSessionSummary } from "@/common/models/session-summary.ts";
-import { getTracingSessions, isCapturing } from "@/common/services/capture-query.ts";
+import { getTracingSessions, isTracing } from "@/common/services/capture-query.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
 import {
   deleteFlowEntry,
@@ -26,9 +26,9 @@ import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
  * @returns Flow summaries, newest first, or an Error
  */
 export async function getSessionSummaries(_tabId: number): Promise<SessionSummary[] | Error> {
-  const capturing = await isCapturing();
-  if (capturing instanceof Error) {
-    return capturing;
+  const tracing = await isTracing();
+  if (tracing instanceof Error) {
+    return tracing;
   }
 
   const tracingSessions = await getTracingSessions();
@@ -62,7 +62,7 @@ export async function getSessionSummaries(_tabId: number): Promise<SessionSummar
 
     const summary = {
       ...summarizeSamlFlow(flowEntry, tracingSession, samlTraces),
-      capturing: flowEntry.id === ongoingFlowId && capturing,
+      capturing: flowEntry.id === ongoingFlowId && tracing,
     };
 
     summaries.push(summary);

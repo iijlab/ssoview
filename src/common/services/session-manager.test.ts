@@ -8,7 +8,7 @@ import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type FlowEntry } from "@/common/models/flow-entry.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlTrace } from "@/common/models/saml-trace.ts";
-import { getTracingSessions, isCapturing } from "@/common/services/capture-query.ts";
+import { getTracingSessions, isTracing } from "@/common/services/capture-query.ts";
 import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
 import {
   deleteFlowEntry,
@@ -21,7 +21,7 @@ import { deleteSession, getSessionSummaries } from "./session-manager.ts";
 
 vi.mock("@/common/services/capture-query.ts", () => ({
   getTracingSessions: vi.fn(),
-  isCapturing: vi.fn(),
+  isTracing: vi.fn(),
 }));
 
 vi.mock("@/common/services/flow-query.ts", () => ({
@@ -47,7 +47,7 @@ beforeEach(() => {
   vi.resetAllMocks();
 
   vi.mocked(getTracingSessions).mockResolvedValue([]);
-  vi.mocked(isCapturing).mockResolvedValue(false);
+  vi.mocked(isTracing).mockResolvedValue(false);
   vi.mocked(findAllFlowEntries).mockResolvedValue([]);
   vi.mocked(findSamlTracesByFlowId).mockResolvedValue([]);
   vi.mocked(findFlowEntryById).mockResolvedValue(makeFlowEntry());
@@ -148,7 +148,7 @@ describe("getSessionSummaries", () => {
       makeFlowEntry({ id: "flow-1", correlationKey: "corr-1" }),
     ]);
     vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace({})]);
-    vi.mocked(isCapturing).mockResolvedValue(true);
+    vi.mocked(isTracing).mockResolvedValue(true);
 
     expect(await getSessionSummaries(1)).toMatchObject([
       { sessionId: "flow-2", capturing: true },
@@ -166,7 +166,7 @@ describe("getSessionSummaries", () => {
       makeFlowEntry({ id: "flow-1", correlationKey: "corr-1" }),
     ]);
     vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace({})]);
-    vi.mocked(isCapturing).mockResolvedValue(true);
+    vi.mocked(isTracing).mockResolvedValue(true);
 
     expect(await getSessionSummaries(1)).toMatchObject([
       { sessionId: "flow-2", capturing: false },
@@ -178,16 +178,16 @@ describe("getSessionSummaries", () => {
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession()]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([makeFlowEntry()]);
     vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace({})]);
-    vi.mocked(isCapturing).mockResolvedValue(true);
+    vi.mocked(isTracing).mockResolvedValue(true);
 
     expect(await getSessionSummaries(1)).toMatchObject([{ capturing: false }]);
   });
 
-  it("does not set capturing when no capture is running", async () => {
+  it("does not set capturing when no tracing is running", async () => {
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ endedAt: undefined })]);
     vi.mocked(findAllFlowEntries).mockResolvedValue([makeFlowEntry()]);
     vi.mocked(findSamlTracesByFlowId).mockResolvedValue([makeSamlTrace({})]);
-    vi.mocked(isCapturing).mockResolvedValue(false);
+    vi.mocked(isTracing).mockResolvedValue(false);
 
     expect(await getSessionSummaries(1)).toMatchObject([{ capturing: false }]);
   });
@@ -202,9 +202,9 @@ describe("getSessionSummaries", () => {
     expect(findSamlTracesByFlowId).not.toHaveBeenCalled();
   });
 
-  it("propagates an error from the capturing state", async () => {
+  it("propagates an error from the tracing state", async () => {
     const error = new Error("capture query error");
-    vi.mocked(isCapturing).mockResolvedValue(error);
+    vi.mocked(isTracing).mockResolvedValue(error);
 
     expect(await getSessionSummaries(1)).toBe(error);
   });

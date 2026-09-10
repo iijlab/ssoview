@@ -20,7 +20,7 @@ import {
   getOngoingTracingSessionId,
   getTracingSession,
   getTracingSessions,
-  isCapturing,
+  isTracing,
 } from "./capture-query.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
@@ -68,7 +68,7 @@ function tracingEvents(...types: ("TracingStarted" | "TracingStopped")[]): Traci
 //
 
 describe("getTracingSessions", () => {
-  it("derives a session from a pair of capture events", async () => {
+  it("derives a session from a pair of tracing events", async () => {
     const started = event("TracingStarted");
     const stopped = event("TracingStopped");
     mockEvents(started, stopped);
@@ -83,7 +83,7 @@ describe("getTracingSessions", () => {
     ]);
   });
 
-  it("leaves out the end date while the capture is ongoing", async () => {
+  it("leaves out the end date while the tracing is ongoing", async () => {
     const started = event("TracingStarted");
     mockEvents(started);
 
@@ -113,13 +113,13 @@ describe("getTracingSessions", () => {
     ]);
   });
 
-  it("ignores a stop event without a capture in progress", async () => {
+  it("ignores a stop event while tracing is not in progress", async () => {
     mockEvents(event("TracingStopped"));
 
     expect(await getTracingSessions()).toEqual([]);
   });
 
-  it("closes the previous capture when another one starts", async () => {
+  it("closes the previous tracing session when another one starts", async () => {
     const first = event("TracingStarted");
     const second = event("TracingStarted");
     mockEvents(first, second);
@@ -193,7 +193,7 @@ describe("getTracingSession", () => {
 });
 
 describe("getOngoingTracingSessionId", () => {
-  it("returns the ID of the event that started the ongoing capture", async () => {
+  it("returns the ID of the event that started the ongoing tracing", async () => {
     const events = tracingEvents("TracingStarted", "TracingStopped", "TracingStarted");
     mockEvents(...events);
 
@@ -201,20 +201,20 @@ describe("getOngoingTracingSessionId", () => {
     expect(getWatchedTabIds).not.toHaveBeenCalled();
   });
 
-  it("ignores events other than capture events", async () => {
+  it("ignores events other than tracing events", async () => {
     const started = event("TracingStarted");
     mockEvents(started, event("TabTracingStarted"));
 
     expect(await getOngoingTracingSessionId()).toBe(started.id);
   });
 
-  it("returns undefined when the latest capture has stopped", async () => {
+  it("returns undefined when the latest tracing has stopped", async () => {
     mockEvents(...tracingEvents("TracingStarted", "TracingStopped"));
 
     expect(await getOngoingTracingSessionId()).toBeUndefined();
   });
 
-  it("returns undefined when no capture has started", async () => {
+  it("returns undefined when no tracing has started", async () => {
     expect(await getOngoingTracingSessionId()).toBeUndefined();
   });
 
@@ -226,46 +226,46 @@ describe("getOngoingTracingSessionId", () => {
   });
 });
 
-describe("isCapturing", () => {
-  it("returns true when a capture has started and a tab is still watched", async () => {
+describe("isTracing", () => {
+  it("returns true when tracing has started and a tab is still watched", async () => {
     mockEvents(...tracingEvents("TracingStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
-    expect(await isCapturing()).toBe(true);
+    expect(await isTracing()).toBe(true);
   });
 
-  it("returns false when the latest capture has stopped", async () => {
+  it("returns false when the latest tracing has stopped", async () => {
     mockEvents(...tracingEvents("TracingStarted", "TracingStopped"));
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
-    expect(await isCapturing()).toBe(false);
+    expect(await isTracing()).toBe(false);
     expect(getWatchedTabIds).not.toHaveBeenCalled();
   });
 
-  it("returns true when a capture has started again after stopping", async () => {
+  it("returns true when tracing has started again after stopping", async () => {
     mockEvents(...tracingEvents("TracingStarted", "TracingStopped", "TracingStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
-    expect(await isCapturing()).toBe(true);
+    expect(await isTracing()).toBe(true);
   });
 
-  it("returns false when no capture has started", async () => {
+  it("returns false when no tracing has started", async () => {
     vi.mocked(getWatchedTabIds).mockResolvedValue([1]);
 
-    expect(await isCapturing()).toBe(false);
+    expect(await isTracing()).toBe(false);
   });
 
-  it("returns false when no tab is watched even though the capture is left open", async () => {
+  it("returns false when no tab is watched even though the tracing is left open", async () => {
     mockEvents(...tracingEvents("TracingStarted"));
 
-    expect(await isCapturing()).toBe(false);
+    expect(await isTracing()).toBe(false);
   });
 
   it("returns the error when the events cannot be retrieved", async () => {
     const error = new Error("storage failed");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
-    expect(await isCapturing()).toBe(error);
+    expect(await isTracing()).toBe(error);
   });
 
   it("returns the error when the watched tabs cannot be determined", async () => {
@@ -273,6 +273,6 @@ describe("isCapturing", () => {
     mockEvents(...tracingEvents("TracingStarted"));
     vi.mocked(getWatchedTabIds).mockResolvedValue(error);
 
-    expect(await isCapturing()).toBe(error);
+    expect(await isTracing()).toBe(error);
   });
 });
