@@ -33,12 +33,12 @@ export async function processHttpRequest(
     return undefined;
   }
 
-  const recordError = await recordSamlLog(httpRequest.tracingSessionId, samlSignal, httpRequest);
-  if (recordError) {
-    return recordError;
+  const ssoTrace = await recordSamlLog(httpRequest.tracingSessionId, samlSignal, httpRequest);
+  if (ssoTrace instanceof Error) {
+    return ssoTrace;
   }
 
-  return samlSignal.correlationKey;
+  return ssoTrace.id;
 }
 
 export async function processHttpResponse(
@@ -70,15 +70,15 @@ export async function processHttpResponse(
     return saveError;
   }
 
-  const recordError = await recordSamlLog(
+  const ssoTrace = await recordSamlLog(
     httpResponse.tracingSessionId,
     samlSignal,
     httpResponse,
     pairedHttpRequest,
   );
-  if (recordError) {
-    return recordError;
+  if (ssoTrace instanceof Error) {
+    return ssoTrace;
   }
 
-  return samlSignal.correlationKey;
+  return ssoTrace.id;
 }

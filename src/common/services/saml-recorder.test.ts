@@ -80,7 +80,7 @@ describe("recordSamlLog", () => {
       makeResponse(),
     );
 
-    expect(result).toBeUndefined();
+    expect(result).toEqual(savedSsoTraces()[0]);
     expect(savedSsoTraces()).toEqual([
       expect.objectContaining({
         tracingSessionId: "cs-1",
@@ -103,7 +103,7 @@ describe("recordSamlLog", () => {
       pairedHttpRequest,
     );
 
-    expect(result).toBeUndefined();
+    expect(result).toEqual(savedSsoTraces()[0]);
     const samlLogs = savedSamlLogs();
     expect(samlLogs.map((l) => l.step)).toEqual([1, 2]);
     expect(samlLogs[0]).toMatchObject({
@@ -151,10 +151,15 @@ describe("recordSamlLog", () => {
 
   it("reuses the SSO trace of the same correlation key", async () => {
     const samlSignal = { step: 2, correlationKey: "authn-req-1" } as const;
-    await recordSamlLog("cs-1", samlSignal, makeResponse(), makeRequest());
-    await recordSamlLog("cs-1", { step: 6, correlationKey: "authn-req-1" }, makeResponse());
+    const first = await recordSamlLog("cs-1", samlSignal, makeResponse(), makeRequest());
+    const second = await recordSamlLog(
+      "cs-1",
+      { step: 6, correlationKey: "authn-req-1" },
+      makeResponse(),
+    );
 
     expect(savedSsoTraces()).toHaveLength(1);
+    expect(second).toEqual(first);
   });
 
   it("issues an SSO trace per tracing session", async () => {

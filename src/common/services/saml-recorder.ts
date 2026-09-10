@@ -15,14 +15,14 @@ export async function recordSamlLog(
   samlSignal: SamlSignal,
   httpMessage: HttpMessage,
   pairedHttpRequest?: HttpRequest,
-): Promise<void | Error> {
+): Promise<SsoTrace | Error> {
   if (samlSignal.step === 2) {
     if (pairedHttpRequest === undefined) {
       console.warn("No paired HTTP request for the AuthnRequest, skipping step 1:", {
         correlationKey: samlSignal.correlationKey,
       });
     } else {
-      const recordError = await recordSamlLog(
+      const ssoTrace = await recordSamlLog(
         tracingSessionId,
         {
           step: 1,
@@ -30,8 +30,8 @@ export async function recordSamlLog(
         },
         pairedHttpRequest,
       );
-      if (recordError) {
-        return recordError;
+      if (ssoTrace instanceof Error) {
+        return ssoTrace;
       }
     }
   }
@@ -52,6 +52,8 @@ export async function recordSamlLog(
   }
 
   await debugSamlLog(samlLog);
+
+  return ssoTrace;
 }
 
 async function getOrCreateSsoTrace(

@@ -37,6 +37,16 @@ export async function dumpSessionArchive(
   _tabId: number,
   ssoTraceId: string,
 ): Promise<HttpArchiveJson | Error> {
+  return await exportSsoFlow(ssoTraceId);
+}
+
+/**
+ * Export an SSO flow as an HTTP archive JSON string.
+ *
+ * @param ssoTraceId - The SSO trace ID to export
+ * @returns The HTTP archive JSON string, or an Error if retrieval fails
+ */
+export async function exportSsoFlow(ssoTraceId: string): Promise<HttpArchiveJson | Error> {
   const ssoTrace = await findSsoTraceById(ssoTraceId);
   if (ssoTrace instanceof Error) {
     return ssoTrace;
@@ -65,6 +75,20 @@ export async function loadSessionArchive(
   _tabId: number,
   httpArchiveJson: HttpArchiveJson,
 ): Promise<string[] | Error> {
+  return await importHttpArchive(httpArchiveJson);
+}
+
+/**
+ * Import SSO flows from an HTTP archive JSON string.
+ *
+ * A single archive may contain multiple flows.
+ *
+ * @param httpArchiveJson - The HTTP archive JSON string to import
+ * @returns An array of imported SSO flow IDs, or an Error if import fails
+ */
+export async function importHttpArchive(
+  httpArchiveJson: HttpArchiveJson,
+): Promise<string[] | Error> {
   const httpArchive = parseHttpArchive(httpArchiveJson);
   if (httpArchive instanceof Error) {
     return httpArchive;
@@ -83,18 +107,16 @@ export async function loadSessionArchive(
     tracingSessionId,
   }));
 
-  // Ideally we could just store all imported logs, but because the storage key
+  // Ideally we could just save all imported logs, but because the storage key
   // uses the session ID, we first parse the logs to detect the session ID.
   // As a side effect, just like during traffic capture, we must handle the
   // missed first resource request.
 
-  const sessionIds = new Set<string>();
+  const ssoFlowIds = new Set<string>();
 
   for (const httpMessage of httpMessages) {
     const pairedHttpRequest =
-      httpMessage.type === "Response"
-        ? findPairedHttpRequest(httpMessage, httpMessages)
-        : undefined;
+      httpMessage.type === "Response" ? getPairedHttpRequest(httpMessage, httpMessages) : undefined;
 
     const samlSignal = await detectSamlSignal(httpMessage, pairedHttpRequest);
     if (samlSignal instanceof Error) {
@@ -105,31 +127,31 @@ export async function loadSessionArchive(
     }
 
     if (pairedHttpRequest !== undefined) {
-      const httpStoreError = await saveHttpMessage(pairedHttpRequest);
-      if (httpStoreError) {
-        return httpStoreError;
+      const saveError = await saveHttpMessage(pairedHttpRequest);
+      if (saveError) {
+        return saveError;
       }
     }
 
-    const httpStoreError = await saveHttpMessage(httpMessage);
-    if (httpStoreError) {
-      return httpStoreError;
+    const saveError = await saveHttpMessage(httpMessage);
+    if (saveError) {
+      return saveError;
     }
 
-    const recordError = await recordSamlLog(
+    const ssoTrace = await recordSamlLog(
       tracingSessionId,
       samlSignal,
       httpMessage,
       pairedHttpRequest,
     );
-    if (recordError) {
-      return recordError;
+    if (ssoTrace instanceof Error) {
+      return ssoTrace;
     }
 
-    sessionIds.add(samlSignal.correlationKey);
+    ssoFlowIds.add(ssoTrace.id);
   }
 
-  return [...sessionIds];
+  return [...ssoFlowIds];
 }
 
 async function detectSamlSignal(
@@ -147,7 +169,7 @@ async function detectSamlSignal(
   }
 }
 
-function findPairedHttpRequest(
+function getPairedHttpRequest(
   httpResponse: HttpResponse,
   httpMessages: HttpMessage[],
 ): HttpRequest | undefined {

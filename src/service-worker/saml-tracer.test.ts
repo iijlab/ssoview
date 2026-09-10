@@ -4,6 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import { type HttpRequest, type HttpResponse } from "@/common/models/http-message.ts";
 import { deleteHttpMessages, saveHttpMessage } from "@/common/services/http-store.ts";
 import {
@@ -96,18 +97,18 @@ describe("processHttpRequest", () => {
     expect(recordSamlLog).not.toHaveBeenCalled();
   });
 
-  it("records the log and returns the correlation key when a step is detected", async () => {
+  it("records the log and returns the SSO trace ID when a step is detected", async () => {
     const request = makeRequest();
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
     });
-    vi.mocked(recordSamlLog).mockResolvedValue(undefined);
+    vi.mocked(recordSamlLog).mockResolvedValue({ id: "trace-1" } as SsoTrace);
 
     const result = await processHttpRequest(request);
 
-    expect(result).toBe("session-1");
+    expect(result).toBe("trace-1");
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(request);
     expect(recordSamlLog).toHaveBeenCalledExactlyOnceWith(
       "tracing-session-1",
@@ -153,11 +154,11 @@ describe("processHttpResponse", () => {
       correlationKey: "session-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(recordSamlLog).mockResolvedValue(undefined);
+    vi.mocked(recordSamlLog).mockResolvedValue({ id: "trace-1" } as SsoTrace);
 
     const result = await processHttpResponse(response, pairedRequest);
 
-    expect(result).toBe("session-1");
+    expect(result).toBe("trace-1");
     expect(detectSamlSignalFromHttpResponse).toHaveBeenCalledWith(response, pairedRequest);
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(response);
     expect(recordSamlLog).toHaveBeenCalledExactlyOnceWith(
