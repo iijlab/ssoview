@@ -77,7 +77,7 @@ describe("newSamlTrace", () => {
     return {
       id: "msg-1",
       observedAt: "2026-01-01T00:00:00Z",
-      stage: "Request",
+      type: "Request",
       fetchRequestId: "req-1",
       headers: [],
       url: "https://sp.example.com/",
@@ -91,7 +91,7 @@ describe("newSamlTrace", () => {
     return {
       id: "msg-1",
       observedAt: "2026-01-01T00:00:00Z",
-      stage: "Response",
+      type: "Response",
       fetchRequestId: "req-1",
       headers: [{ name: "Date", value: DATE_HEADER_VALUE }],
       url: "https://sp.example.com/",

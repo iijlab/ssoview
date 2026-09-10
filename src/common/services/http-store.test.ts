@@ -45,14 +45,14 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpMessage {
     method: "GET",
     headers: [],
     body: undefined,
-    stage: "Request",
+    type: "Request",
     ...overrides,
   } as HttpMessage;
 }
 
 function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   return {
-    ...makeRequest({ id: "msg-2", stage: "Response" }),
+    ...makeRequest({ id: "msg-2", type: "Response" }),
     statusCode: 200,
     pairedHttpRequestId: "msg-1",
     ...overrides,
@@ -60,10 +60,10 @@ function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
 }
 
 function keyOf(httpMessage: HttpMessage): string {
-  const { id, tracingSessionId, tabId, fetchRequestId, stage } = httpMessage;
+  const { id, tracingSessionId, tabId, fetchRequestId, type } = httpMessage;
   const observation =
     tabId === undefined ? "" : `"tabId":${tabId},"fetchRequestId":"${fetchRequestId}",`;
-  return `{"id":"${id}","kind":"http","tracingSessionId":"${tracingSessionId}",${observation}"stage":"${stage}"}`;
+  return `{"id":"${id}","kind":"http","tracingSessionId":"${tracingSessionId}",${observation}"type":"${type}"}`;
 }
 
 // Puts the messages into the mocked storage, in the given order of keys
@@ -80,7 +80,7 @@ function mockStorage(...httpMessages: HttpMessage[]): void {
 //
 
 describe("saveHttpMessage", () => {
-  it("stores the message under a JSON key of the ID, kind, tracing session, tab, request ID, and stage", async () => {
+  it("saves the message under a JSON key of the ID, kind, tracing session, tab, request ID, and type", async () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
     const httpMessage = makeRequest();
 
@@ -88,7 +88,7 @@ describe("saveHttpMessage", () => {
 
     expect(result).toBeUndefined();
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
-      '{"id":"msg-1","kind":"http","tracingSessionId":"cs-1","tabId":1,"fetchRequestId":"req-1","stage":"Request"}',
+      '{"id":"msg-1","kind":"http","tracingSessionId":"cs-1","tabId":1,"fetchRequestId":"req-1","type":"Request"}',
       httpMessage,
     );
   });
@@ -100,7 +100,7 @@ describe("saveHttpMessage", () => {
     await saveHttpMessage(httpMessage);
 
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
-      '{"id":"msg-1","kind":"http","tracingSessionId":"cs-1","stage":"Request"}',
+      '{"id":"msg-1","kind":"http","tracingSessionId":"cs-1","type":"Request"}',
       httpMessage,
     );
   });

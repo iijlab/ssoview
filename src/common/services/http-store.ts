@@ -13,7 +13,7 @@ import {
 import { isObject } from "@/common/utils/type-guard.ts";
 
 export async function saveHttpMessage(httpMessage: HttpMessage): Promise<void | Error> {
-  return await setSessionStorageItem(makeHttpMessageKey(httpMessage), httpMessage);
+  return await setSessionStorageItem(toHttpMessageKey(httpMessage), httpMessage);
 }
 
 export async function findHttpMessagesByIds(ids: string[]): Promise<HttpMessage[] | Error> {
@@ -28,7 +28,7 @@ export async function findHttpRequestByFetchRequestId(
 ): Promise<HttpRequest | undefined | Error> {
   const httpMessages = await findHttpMessagesBy(
     (k) =>
-      k.stage === "Request" &&
+      k.type === "Request" &&
       k.tracingSessionId === tracingSessionId &&
       k.tabId === tabId &&
       k.fetchRequestId === fetchRequestId,
@@ -37,11 +37,11 @@ export async function findHttpRequestByFetchRequestId(
     return httpMessages;
   }
 
-  return httpMessages.find((m): m is HttpRequest => m.stage === "Request");
+  return httpMessages.find((m): m is HttpRequest => m.type === "Request");
 }
 
 export async function deleteHttpMessages(httpMessages: HttpMessage[]): Promise<void | Error> {
-  return await removeSessionStorageItems(httpMessages.map(makeHttpMessageKey));
+  return await removeSessionStorageItems(httpMessages.map(toHttpMessageKey));
 }
 
 async function findHttpMessagesBy(
@@ -81,7 +81,7 @@ type HttpMessageKeyFields = {
   tracingSessionId: string;
   tabId?: number;
   fetchRequestId?: string;
-  stage: HttpMessage["stage"];
+  type: HttpMessage["type"];
 };
 
 function isHttpMessageKeyFields(u: unknown): u is HttpMessageKeyFields {
@@ -92,18 +92,18 @@ function isHttpMessageKeyFields(u: unknown): u is HttpMessageKeyFields {
     typeof u.tracingSessionId === "string" &&
     (!("tabId" in u) || typeof u.tabId === "number") &&
     (!("fetchRequestId" in u) || typeof u.fetchRequestId === "string") &&
-    (u.stage === "Request" || u.stage === "Response")
+    (u.type === "Request" || u.type === "Response")
   );
 }
 
-function makeHttpMessageKey(httpMessage: HttpMessage): string {
+function toHttpMessageKey(httpMessage: HttpMessage): string {
   return JSON.stringify({ ...httpMessage, kind: httpMessageKind }, [
     "id",
     "kind",
     "tracingSessionId",
     "tabId",
     "fetchRequestId",
-    "stage",
+    "type",
   ]);
 }
 

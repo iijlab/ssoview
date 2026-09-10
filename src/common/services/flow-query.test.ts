@@ -31,11 +31,11 @@ function makeSamlTrace(httpMessageId: string, flowId = "flow-1"): SamlTrace {
 }
 
 function makeRequest(id: string): HttpMessage {
-  return { id, stage: "Request" } as HttpMessage;
+  return { id, type: "Request" } as HttpMessage;
 }
 
 function makeResponse(id: string, pairedHttpRequestId: string): HttpMessage {
-  return { id, stage: "Response", pairedHttpRequestId } as HttpMessage;
+  return { id, type: "Response", pairedHttpRequestId } as HttpMessage;
 }
 
 // Serves the given messages from the mocked store by their IDs

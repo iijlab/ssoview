@@ -70,7 +70,7 @@ async function deflateAndBase64Encode(text: string): Promise<string> {
 function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     observedAt: "2026-01-01T00:00:00Z",
-    stage: "Request",
+    type: "Request",
     fetchRequestId: "req-1",
     headers: [],
     url: "https://sp.example.com/",
@@ -83,7 +83,7 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
 function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   return {
     observedAt: "2026-01-01T00:00:00Z",
-    stage: "Response",
+    type: "Response",
     fetchRequestId: "req-1",
     headers: [{ name: "Date", value: DATE_HEADER_VALUE }],
     url: "https://sp.example.com/",

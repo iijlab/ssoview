@@ -21,7 +21,7 @@ export async function findHttpMessagesOfFlow(flowId: string): Promise<HttpMessag
   const httpMessageIds = new Set(httpMessages.map((m) => m.id));
 
   const pairedHttpRequestIds = httpMessages.flatMap((m) =>
-    m.stage === "Response" && !httpMessageIds.has(m.pairedHttpRequestId)
+    m.type === "Response" && !httpMessageIds.has(m.pairedHttpRequestId)
       ? [m.pairedHttpRequestId]
       : [],
   );

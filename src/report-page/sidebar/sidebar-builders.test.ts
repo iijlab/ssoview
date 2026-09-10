@@ -24,7 +24,7 @@ const baseFields = {
 function makeRequest(url: string, method = "GET"): HttpMessage {
   return {
     ...baseFields,
-    stage: "Request",
+    type: "Request",
     url,
     method,
   } as HttpMessage;
@@ -33,7 +33,7 @@ function makeRequest(url: string, method = "GET"): HttpMessage {
 function makeResponse(url: string, statusCode: number, method = "GET"): HttpMessage {
   return {
     ...baseFields,
-    stage: "Response",
+    type: "Response",
     url,
     method,
     statusCode,

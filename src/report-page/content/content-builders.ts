@@ -645,7 +645,7 @@ export type HttpResponseDetails = HttpMessageDetailsBase & {
 };
 
 export function buildHttpMessageDetails(httpMessage: HttpMessage): HttpMessageDetails {
-  if (httpMessage.stage === "Request") {
+  if (httpMessage.type === "Request") {
     return {
       kind: "request",
       method: httpMessage.method,

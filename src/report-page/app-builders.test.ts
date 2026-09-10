@@ -21,7 +21,7 @@ function makeHttpMessage(id: string): HttpMessage {
   return {
     id,
     observedAt: "2026-01-01T00:00:00Z",
-    stage: "Request",
+    type: "Request",
     tracingSessionId: "cs-1",
     tabId: 1,
     fetchRequestId: "req-1",

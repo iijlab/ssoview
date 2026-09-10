@@ -81,7 +81,7 @@ export async function loadSessionArchive(_tabId: number, har: string): Promise<s
 
   for (const httpMessage of httpMessages) {
     const pairedHttpRequest =
-      httpMessage.stage === "Response"
+      httpMessage.type === "Response"
         ? findPairedHttpRequest(httpMessage, httpMessages)
         : undefined;
 
@@ -125,7 +125,7 @@ async function detectSamlStep(
   httpMessage: HttpMessage,
   pairedHttpRequest: HttpRequest | undefined,
 ): Promise<SamlDetection | undefined | Error> {
-  if (httpMessage.stage === "Request") {
+  if (httpMessage.type === "Request") {
     return detectSamlStepFromHttpRequest(httpMessage);
   } else {
     if (pairedHttpRequest === undefined) {
@@ -141,5 +141,5 @@ function findPairedHttpRequest(
   httpMessages: HttpMessage[],
 ): HttpRequest | undefined {
   const pairedHttpRequest = httpMessages.find((m) => m.id === httpResponse.pairedHttpRequestId);
-  return pairedHttpRequest?.stage === "Request" ? pairedHttpRequest : undefined;
+  return pairedHttpRequest?.type === "Request" ? pairedHttpRequest : undefined;
 }

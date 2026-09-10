@@ -34,7 +34,7 @@ const sendCommand = vi.fn();
 const storedHttpRequest = {
   id: "stored-1",
   tracingSessionId: "tracing-session-1",
-  stage: "Request",
+  type: "Request",
   tabId: 1,
   fetchRequestId: "req-1",
   url: "https://sp.example.com/SAML2/resource",

@@ -109,7 +109,7 @@ describe("dumpSessionArchive", () => {
 describe("loadSessionArchive", () => {
   it("returns session IDs on success", async () => {
     const httpMessage = {
-      stage: "Request",
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
@@ -140,7 +140,7 @@ describe("loadSessionArchive", () => {
       tracingSessionId: "cs-exported",
       tabId: 7,
       fetchRequestId: "req-7",
-      stage: "Request",
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
@@ -157,7 +157,7 @@ describe("loadSessionArchive", () => {
     const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith({
       tracingSessionId: importedEvent.id,
-      stage: "Request",
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     });
@@ -166,12 +166,12 @@ describe("loadSessionArchive", () => {
   it("stores the paired request of a response ", async () => {
     const pairedRequest = {
       id: "msg-1",
-      stage: "Request",
+      type: "Request",
       url: "https://sp.example.com/resource",
     } as unknown as HttpMessage;
     const httpMessage = {
       id: "msg-2",
-      stage: "Response",
+      type: "Response",
       pairedHttpRequestId: "msg-1",
       url: "https://sp.example.com/acs",
       headers: [],
@@ -209,7 +209,7 @@ describe("loadSessionArchive", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const httpMessage = {
       id: "msg-2",
-      stage: "Response",
+      type: "Response",
       pairedHttpRequestId: "msg-1",
     } as unknown as HttpMessage;
     vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
@@ -224,7 +224,7 @@ describe("loadSessionArchive", () => {
 
   it("records the traces under the imported tracing session", async () => {
     const httpMessage = {
-      stage: "Request",
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
@@ -244,7 +244,7 @@ describe("loadSessionArchive", () => {
 
   it("aborts when a trace cannot be recorded", async () => {
     const httpMessage = {
-      stage: "Request",
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
@@ -290,7 +290,7 @@ describe("loadSessionArchive", () => {
   });
 
   it("returns empty array when no SAML steps are detected", async () => {
-    const httpMessage = { stage: "Request" } as unknown as HttpMessage;
+    const httpMessage = { type: "Request" } as unknown as HttpMessage;
     vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
 
@@ -301,8 +301,8 @@ describe("loadSessionArchive", () => {
 
   it("returns deduplicated session IDs", async () => {
     const httpMessages = [
-      { stage: "Request", url: "https://idp.example.org/sso" },
-      { stage: "Request", url: "https://idp.example.org/sso" },
+      { type: "Request", url: "https://idp.example.org/sso" },
+      { type: "Request", url: "https://idp.example.org/sso" },
     ] as unknown as HttpMessage[];
     vi.mocked(toHttpMessages).mockReturnValue(httpMessages);
     vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({

@@ -36,7 +36,7 @@ function buildHttpMessageData(
   idpHost: string,
   httpMessage: HttpMessage,
 ): HttpMessageData {
-  const isRequest = httpMessage.stage === "Request";
+  const isRequest = httpMessage.type === "Request";
   const url = (() => {
     try {
       return new URL(httpMessage.url);

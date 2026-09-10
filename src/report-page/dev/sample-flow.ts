@@ -74,7 +74,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 1: User -> SP
   const httpRequest1 = {
     id: "msg-001",
-    stage: "Request" as const,
+    type: "Request" as const,
     observedAt: "2004-12-05T09:21:58.000Z",
     tracingSessionId: sampleTracingSessionId,
     tabId: 1,
@@ -88,7 +88,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 2: SP -> User
   const httpResponse2 = {
     id: "msg-002",
-    stage: "Response" as const,
+    type: "Response" as const,
     observedAt: "2004-12-05T09:21:59.000Z",
     tracingSessionId: sampleTracingSessionId,
     tabId: 1,
@@ -108,7 +108,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 3: User -> IdP
   const httpRequest3 = {
     id: "msg-003",
-    stage: "Request" as const,
+    type: "Request" as const,
     observedAt: "2004-12-05T09:21:59.200Z",
     tracingSessionId: sampleTracingSessionId,
     tabId: 1,
@@ -122,7 +122,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 4: IdP -> User
   const httpResponse4 = {
     id: "msg-004",
-    stage: "Response" as const,
+    type: "Response" as const,
     observedAt: "2004-12-05T09:22:05.000Z",
     tracingSessionId: sampleTracingSessionId,
     tabId: 1,
@@ -152,7 +152,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   // Step 5: User -> SP
   const httpRequest5 = {
     id: "msg-005",
-    stage: "Request" as const,
+    type: "Request" as const,
     observedAt: "2004-12-05T09:22:05.100Z",
     tracingSessionId: sampleTracingSessionId,
     tabId: 1,
@@ -170,7 +170,7 @@ async function buildSampleHttpMessages(sample: string | null): Promise<HttpMessa
   const isSuccess = sample !== "failure" && sample !== "unknown";
   const httpResponse6 = {
     id: "msg-006",
-    stage: "Response" as const,
+    type: "Response" as const,
     observedAt: "2004-12-05T09:22:05.500Z",
     tracingSessionId: sampleTracingSessionId,
     tabId: 1,
@@ -250,7 +250,7 @@ async function detectSampleSamlSteps(httpMessages: HttpMessage[]): Promise<Sampl
 
   for (const httpMessage of httpMessages) {
     const pairedHttpRequest =
-      httpMessage.stage === "Response"
+      httpMessage.type === "Response"
         ? findPairedHttpRequest(httpMessage.pairedHttpRequestId, httpMessages)
         : undefined;
 
@@ -272,7 +272,7 @@ async function detectSamlStep(
   httpMessage: HttpMessage,
   pairedHttpRequest: HttpRequest | undefined,
 ): Promise<SamlDetection | undefined | Error> {
-  if (httpMessage.stage === "Request") {
+  if (httpMessage.type === "Request") {
     return detectSamlStepFromHttpRequest(httpMessage);
   } else if (pairedHttpRequest === undefined) {
     return new Error(`No paired HTTP request for HTTP response: ${httpMessage.id}`);
@@ -286,7 +286,7 @@ function findPairedHttpRequest(
   httpMessages: HttpMessage[],
 ): HttpRequest | undefined {
   const pairedHttpRequest = httpMessages.find((m) => m.id === pairedHttpRequestId);
-  return pairedHttpRequest?.stage === "Request" ? pairedHttpRequest : undefined;
+  return pairedHttpRequest?.type === "Request" ? pairedHttpRequest : undefined;
 }
 
 function pushSamlTrace(

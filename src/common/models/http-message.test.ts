@@ -22,7 +22,7 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
   return {
     id: "msg-1",
     observedAt: "2026-01-01T00:00:00Z",
-    stage: "Request",
+    type: "Request",
     tracingSessionId: "cs-1",
     tabId: 1,
     fetchRequestId: "req-1",
@@ -64,7 +64,7 @@ describe("isHttpMessage", () => {
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",
-    stage: "Request",
+    type: "Request",
     body: "",
   };
 
@@ -77,7 +77,7 @@ describe("isHttpMessage", () => {
     headers: [{ name: "Content-Type", value: "text/html" }],
     url: "https://example.com/",
     method: "GET",
-    stage: "Response",
+    type: "Response",
     statusCode: 200,
     body: "<html></html>",
     pairedHttpRequestId: "msg-123",
@@ -136,8 +136,8 @@ describe("isHttpMessage", () => {
     expect(isHttpMessage(msg)).toBe(false);
   });
 
-  it("returns false when stage is invalid", () => {
-    const msg = { ...validHttpRequest, stage: "Invalid" };
+  it("returns false when type is invalid", () => {
+    const msg = { ...validHttpRequest, type: "Invalid" };
     expect(isHttpMessage(msg)).toBe(false);
   });
 
@@ -199,7 +199,7 @@ describe("newHttpRequest", () => {
     const httpRequest = newHttpRequest("cs-1", 1, requestPausedEvent);
 
     expect(httpRequest).toMatchObject({
-      stage: "Request",
+      type: "Request",
       fetchRequestId: "req-1",
       url: "https://sp.example.com/SAML2/ACS",
       method: "POST",
@@ -293,7 +293,7 @@ describe("newHttpResponse", () => {
     );
 
     expect(httpResponse).toMatchObject({
-      stage: "Response",
+      type: "Response",
       fetchRequestId: "req-1",
       statusCode: 200,
       headers: [{ name: "Content-Type", value: "text/html" }],

@@ -37,12 +37,12 @@ function isHttpMessageBase(u: unknown): u is HttpMessageBase {
     (typeof u.fetchRequestId === "string" || u.fetchRequestId === undefined) &&
     typeof u.url === "string" &&
     typeof u.method === "string" &&
-    isHeaderEntries(u.headers) &&
+    isHeaderEntryArray(u.headers) &&
     (typeof u.body === "string" || u.body === undefined)
   );
 }
 
-function isHeaderEntries(u: unknown): u is Protocol.Fetch.HeaderEntry[] {
+function isHeaderEntryArray(u: unknown): u is Protocol.Fetch.HeaderEntry[] {
   return (
     Array.isArray(u) &&
     u.every(
@@ -53,15 +53,15 @@ function isHeaderEntries(u: unknown): u is Protocol.Fetch.HeaderEntry[] {
 }
 
 export type HttpRequest = HttpMessageBase & {
-  stage: "Request";
+  type: "Request";
 };
 
 function isHttpRequest(u: unknown): u is HttpRequest {
-  return isObject(u) && u.stage === "Request" && isHttpMessageBase(u);
+  return isObject(u) && u.type === "Request" && isHttpMessageBase(u);
 }
 
 export type HttpResponse = HttpMessageBase & {
-  stage: "Response";
+  type: "Response";
   statusCode: number;
   pairedHttpRequestId: string;
 };
@@ -69,7 +69,7 @@ export type HttpResponse = HttpMessageBase & {
 function isHttpResponse(u: unknown): u is HttpResponse {
   return (
     isObject(u) &&
-    u.stage === "Response" &&
+    u.type === "Response" &&
     typeof u.statusCode === "number" &&
     typeof u.pairedHttpRequestId === "string" &&
     isHttpMessageBase(u)
@@ -84,7 +84,7 @@ export function newHttpRequest(
   return {
     id: uuidv7(),
     observedAt: new Date().toISOString(),
-    stage: "Request",
+    type: "Request",
     tracingSessionId,
     tabId,
     fetchRequestId: requestPausedEvent.requestId,
@@ -115,7 +115,7 @@ export function newHttpResponse(
   return {
     id: uuidv7(),
     observedAt: new Date().toISOString(),
-    stage: "Response",
+    type: "Response",
     tracingSessionId,
     tabId,
     fetchRequestId: requestPausedEvent.requestId,
@@ -151,7 +151,7 @@ export const debugHttpMessage =
   import.meta.env.MODE === "development" ? debugHttpMessageImpl : () => Promise.resolve();
 
 async function debugHttpMessageImpl(httpMessage: HttpMessage): Promise<void> {
-  return httpMessage.stage === "Request"
+  return httpMessage.type === "Request"
     ? debugHttpRequestImpl(httpMessage)
     : debugHttpResponseImpl(httpMessage);
 }

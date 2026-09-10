@@ -49,7 +49,7 @@ function makeRequest(): HttpRequest {
   return {
     id: "msg-0",
     observedAt: "2025-12-31T23:59:59Z",
-    stage: "Request",
+    type: "Request",
     fetchRequestId: "req-1",
     headers: [],
     url: "https://sp.example.com/resource",
@@ -62,7 +62,7 @@ function makeResponse(): HttpResponse {
   return {
     id: "msg-1",
     observedAt: "2026-01-01T00:00:00Z",
-    stage: "Response",
+    type: "Response",
     fetchRequestId: "req-1",
     headers: [{ name: "Date", value: "Thu, 01 Jan 2026 00:00:00 GMT" }],
     url: "https://sp.example.com/login",

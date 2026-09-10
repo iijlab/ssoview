@@ -40,7 +40,7 @@ export async function detectSamlStepFromHttpResponse(
 export async function extractSamlAuthnRequestXml(
   httpMessage: HttpMessage,
 ): Promise<string | undefined | Error> {
-  return httpMessage.stage === "Request"
+  return httpMessage.type === "Request"
     ? await extractSamlAuthnRequestXmlFromHttpRequest(httpMessage)
     : await extractSamlAuthnRequestXmlFromHttpResponse(httpMessage);
 }
@@ -48,7 +48,7 @@ export async function extractSamlAuthnRequestXml(
 export async function extractSamlResponseXml(
   httpMessage: HttpMessage,
 ): Promise<string | undefined | Error> {
-  return httpMessage.stage === "Request"
+  return httpMessage.type === "Request"
     ? await extractSamlResponseXmlFromHttpRequest(httpMessage)
     : await extractSamlResponseXmlFromHttpResponse(httpMessage);
 }

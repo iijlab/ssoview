@@ -479,7 +479,7 @@ describe("buildHttpMessageDetails", () => {
   it("builds request details from an HTTP request", () => {
     const httpMessage = {
       ...baseFields,
-      stage: "Request",
+      type: "Request",
       body: "request body",
     } as HttpMessage;
 
@@ -496,7 +496,7 @@ describe("buildHttpMessageDetails", () => {
   it("builds response details from an HTTP response", () => {
     const httpMessage = {
       ...baseFields,
-      stage: "Response",
+      type: "Response",
       statusCode: 200,
       body: "response body",
     } as HttpMessage;
@@ -516,7 +516,7 @@ describe("buildHttpMessageDetails", () => {
   it("keeps the body undefined when it was not retrieved", () => {
     const httpMessage = {
       ...baseFields,
-      stage: "Response",
+      type: "Response",
       statusCode: 302,
       body: undefined,
     } as HttpMessage;
@@ -529,7 +529,7 @@ describe("buildHttpMessageDetails", () => {
   it("maps statusCode to statusText", () => {
     const httpMessage = {
       ...baseFields,
-      stage: "Response",
+      type: "Response",
       statusCode: 302,
       body: "",
     } as HttpMessage;
