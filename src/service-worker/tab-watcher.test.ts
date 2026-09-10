@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { tabExists } from "@/common/utils/chrome-tabs.ts";
 import {
-  registerDebuggerDetachHandler,
+  registerDebuggingTerminatedHandler,
   startDebugging,
   stopDebugging,
 } from "@/service-worker/debugger-controller.ts";
@@ -26,7 +26,7 @@ vi.mock("@/common/utils/chrome-tabs.ts", () => ({
 }));
 
 vi.mock("@/service-worker/debugger-controller.ts", () => ({
-  registerDebuggerDetachHandler: vi.fn(),
+  registerDebuggingTerminatedHandler: vi.fn(),
   startDebugging: vi.fn(),
   stopDebugging: vi.fn(),
 }));
@@ -35,7 +35,7 @@ vi.mock("@/service-worker/debugger-controller.ts", () => ({
 // Helpers
 //
 
-type DebuggerDetachHandler = (tabId: number, reason: string) => Promise<void>;
+type DebuggingTerminatedHandler = (tabId: number, reason: string) => Promise<void>;
 type TabTracingTerminatedHandler = (tabId: number) => Promise<void>;
 
 beforeEach(() => {
@@ -49,13 +49,13 @@ beforeEach(() => {
 
 function registerAndGetHandler(
   onTabTracingTerminated: TabTracingTerminatedHandler,
-): DebuggerDetachHandler {
+): DebuggingTerminatedHandler {
   registerTabTracingTerminatedHandler(onTabTracingTerminated);
-  const handler = vi.mocked(registerDebuggerDetachHandler).mock.calls[0]?.[0];
+  const handler = vi.mocked(registerDebuggingTerminatedHandler).mock.calls[0]?.[0];
   if (handler === undefined) {
     throw new Error("No detach handler is registered");
   }
-  return handler as DebuggerDetachHandler;
+  return handler as DebuggingTerminatedHandler;
 }
 
 // Types of the events saved so far, in order

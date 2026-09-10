@@ -15,8 +15,8 @@ import { isAttached } from "@/common/utils/chrome-debugger.ts";
 // values.
 type DebuggerDetachReason = "canceled_by_user" | "target_closed";
 
-export function registerDebuggerDetachHandler(
-  onDebuggerDetached: (tabId: number, reason: DebuggerDetachReason) => Promise<void>,
+export function registerDebuggingTerminatedHandler(
+  onDebuggingTerminated: (tabId: number, reason: DebuggerDetachReason) => Promise<void>,
 ): void {
   // Event fired when debugger is detached by Chrome.
   // Not fired when chrome.debugger.detach() is called.
@@ -30,10 +30,10 @@ export function registerDebuggerDetachHandler(
     (async (tabId: number) => {
       const saveError = await saveTracingLifecycleEvent(newDebuggingStoppedEvent(tabId, reason));
       if (saveError) {
-        console.warn("Failed to store the debugger detached event:", { error: saveError });
+        console.warn("Failed to save the debugging stopped event:", { error: saveError });
       }
 
-      await onDebuggerDetached(tabId, reason);
+      await onDebuggingTerminated(tabId, reason);
     })(source.tabId).catch((err) => {
       console.error("Unexpected error in debugger.onDetach event:", { error: err });
     });
@@ -45,7 +45,7 @@ export async function startDebugging(tabId: number, isRetry = false): Promise<vo
   if (attached instanceof Error) {
     return attached;
   } else if (attached) {
-    return new Error("Monitoring already started");
+    return new Error("Debugging already started");
   }
 
   const attachError = await attachToTab(tabId);
@@ -53,13 +53,13 @@ export async function startDebugging(tabId: number, isRetry = false): Promise<vo
     return attachError;
   }
 
-  const fetchError = await enableFetch(tabId);
-  if (fetchError) {
+  const enableFetchError = await enableFetch(tabId);
+  if (enableFetchError) {
     const detachError = await detachFromTab(tabId);
     if (detachError) {
       console.warn("Failed to detach from tab:", detachError);
     }
-    return fetchError;
+    return enableFetchError;
   }
 
   const saveError = await saveTracingLifecycleEvent(newDebuggingStartedEvent(tabId, isRetry));
@@ -80,7 +80,7 @@ export async function stopDebugging(tabId: number): Promise<void | Error> {
 
   const saveError = await saveTracingLifecycleEvent(newDebuggingStoppedEvent(tabId));
   if (saveError) {
-    return new Error("Failed to store the debugger detached event", { cause: saveError });
+    return new Error("Failed to save the debugging stopped event", { cause: saveError });
   }
 }
 

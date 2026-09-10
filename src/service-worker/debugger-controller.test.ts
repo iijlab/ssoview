@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import {
-  registerDebuggerDetachHandler,
+  registerDebuggingTerminatedHandler,
   startDebugging,
   stopDebugging,
 } from "./debugger-controller.ts";
@@ -63,15 +63,15 @@ function fireDebuggerDetach(source: chrome.debugger.Debuggee, reason: string): v
 // Tests
 //
 
-describe("registerDebuggerDetachHandler", () => {
-  it("stores a DebuggingStopped event with the reason and calls the handler", async () => {
-    const onDebuggerDetached = vi.fn();
-    registerDebuggerDetachHandler(onDebuggerDetached);
+describe("registerDebuggingTerminatedHandler", () => {
+  it("saves a DebuggingStopped event with the reason and calls the handler", async () => {
+    const onDebuggingTerminated = vi.fn();
+    registerDebuggingTerminatedHandler(onDebuggingTerminated);
 
     fireDebuggerDetach({ tabId: 1 }, "canceled_by_user");
 
     await vi.waitFor(() =>
-      expect(onDebuggerDetached).toHaveBeenCalledExactlyOnceWith(1, "canceled_by_user"),
+      expect(onDebuggingTerminated).toHaveBeenCalledExactlyOnceWith(1, "canceled_by_user"),
     );
     expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
@@ -83,33 +83,33 @@ describe("registerDebuggerDetachHandler", () => {
     );
   });
 
-  it("calls the handler even when the event cannot be stored", async () => {
+  it("calls the handler even when the event cannot be saved", async () => {
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("storage failed"));
-    const onDebuggerDetached = vi.fn();
-    registerDebuggerDetachHandler(onDebuggerDetached);
+    const onDebuggingTerminated = vi.fn();
+    registerDebuggingTerminatedHandler(onDebuggingTerminated);
 
     fireDebuggerDetach({ tabId: 1 }, "target_closed");
 
     await vi.waitFor(() =>
-      expect(onDebuggerDetached).toHaveBeenCalledExactlyOnceWith(1, "target_closed"),
+      expect(onDebuggingTerminated).toHaveBeenCalledExactlyOnceWith(1, "target_closed"),
     );
     expect(console.warn).toHaveBeenCalled();
   });
 
   it("ignores a detach without a tab ID", async () => {
-    const onDebuggerDetached = vi.fn();
-    registerDebuggerDetachHandler(onDebuggerDetached);
+    const onDebuggingTerminated = vi.fn();
+    registerDebuggingTerminatedHandler(onDebuggingTerminated);
 
     fireDebuggerDetach({ targetId: "x" }, "target_closed");
 
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(onDebuggerDetached).not.toHaveBeenCalled();
+    expect(onDebuggingTerminated).not.toHaveBeenCalled();
     expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 });
 
 describe("startDebugging", () => {
-  it("stores a DebuggingStarted event after attaching and enabling Fetch", async () => {
+  it("saves a DebuggingStarted event after attaching and enabling Fetch", async () => {
     const result = await startDebugging(1);
 
     expect(result).toBeUndefined();
@@ -124,7 +124,7 @@ describe("startDebugging", () => {
     );
   });
 
-  it("stores nothing when attaching fails", async () => {
+  it("saves nothing when attaching fails", async () => {
     attach.mockRejectedValue(new Error("Cannot attach to this target"));
 
     const result = await startDebugging(1);
@@ -134,7 +134,7 @@ describe("startDebugging", () => {
     expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
-  it("detaches and stores nothing when Fetch cannot be enabled", async () => {
+  it("detaches and saves nothing when Fetch cannot be enabled", async () => {
     sendCommand.mockRejectedValue(new Error("Debugger is not attached to the tab"));
 
     const result = await startDebugging(1);
@@ -144,7 +144,7 @@ describe("startDebugging", () => {
     expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
-  it("detaches and returns the error when the event cannot be stored", async () => {
+  it("detaches and returns the error when the event cannot be saved", async () => {
     const error = new Error("storage failed");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
@@ -156,7 +156,7 @@ describe("startDebugging", () => {
 });
 
 describe("stopDebugging", () => {
-  it("stores a DebuggingStopped event by self after detaching", async () => {
+  it("saves a DebuggingStopped event by self after detaching", async () => {
     const result = await stopDebugging(1);
 
     expect(result).toBeUndefined();
@@ -169,7 +169,7 @@ describe("stopDebugging", () => {
     );
   });
 
-  it("stores nothing when detaching fails", async () => {
+  it("saves nothing when detaching fails", async () => {
     detach.mockRejectedValue(new Error("Debugger is not attached to the tab"));
 
     const result = await stopDebugging(1);
@@ -178,7 +178,7 @@ describe("stopDebugging", () => {
     expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
-  it("returns an error when the event cannot be stored after detaching", async () => {
+  it("returns an error when the event cannot be saved after detaching", async () => {
     const error = new Error("storage failed");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 

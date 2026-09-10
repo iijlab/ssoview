@@ -10,7 +10,7 @@ import {
 import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import { tabExists } from "@/common/utils/chrome-tabs.ts";
 import {
-  registerDebuggerDetachHandler,
+  registerDebuggingTerminatedHandler,
   startDebugging,
   stopDebugging,
 } from "@/service-worker/debugger-controller.ts";
@@ -18,7 +18,7 @@ import {
 export function registerTabTracingTerminatedHandler(
   onTabTracingTerminated: (tabId: number) => Promise<void>,
 ): void {
-  registerDebuggerDetachHandler(async (tabId, reason) => {
+  registerDebuggingTerminatedHandler(async (tabId, reason) => {
     if (reason === "target_closed" && (await tabExists(tabId))) {
       // Possible Chrome bug: sometimes the tab is incorrectly detected as closed when it's still
       // open.
