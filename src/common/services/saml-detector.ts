@@ -14,7 +14,7 @@ import {
   type SamlSignalFromHttpRequest,
   type SamlSignalFromHttpResponse,
 } from "@/common/models/saml-detection.ts";
-import { parseSamlpAuthnRequest, parseSamlpResponse } from "./saml-parser.ts";
+import { parseSamlpAuthnRequestXml, parseSamlpResponseXml } from "./saml-parser.ts";
 
 export async function detectSamlSignalFromHttpRequest(
   httpRequest: HttpRequest,
@@ -561,7 +561,7 @@ function getQueryParameterValue(url: string, key: string): string | undefined | 
 }
 
 function extractCorrelationKeyFromSamlAuthnRequest(samlAuthnRequestStr: string): string | Error {
-  const parsed = parseSamlpAuthnRequest(samlAuthnRequestStr);
+  const parsed = parseSamlpAuthnRequestXml(samlAuthnRequestStr);
   if (parsed instanceof Error) {
     return parsed;
   }
@@ -575,7 +575,7 @@ function extractCorrelationKeyFromSamlAuthnRequest(samlAuthnRequestStr: string):
 }
 
 function extractCorrelationKeyFromSamlResponse(samlResponseStr: string): string | Error {
-  const parsed = parseSamlpResponse(samlResponseStr);
+  const parsed = parseSamlpResponseXml(samlResponseStr);
   if (parsed instanceof Error) {
     return parsed;
   }
@@ -591,7 +591,7 @@ function extractCorrelationKeyFromSamlResponse(samlResponseStr: string): string 
 }
 
 function extractStatusCodeFromSamlResponse(samlResponseStr: string): string | Error {
-  const parsed = parseSamlpResponse(samlResponseStr);
+  const parsed = parseSamlpResponseXml(samlResponseStr);
   if (parsed instanceof Error) {
     return parsed;
   }

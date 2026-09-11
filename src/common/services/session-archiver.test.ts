@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import {
   newHttpArchive,
-  parseHttpArchive,
+  parseHttpArchiveJson,
   toHttpArchiveJson,
 } from "@/common/models/http-archive.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
@@ -29,7 +29,7 @@ import {
 
 vi.mock("@/common/models/http-archive.ts", () => ({
   newHttpArchive: vi.fn(),
-  parseHttpArchive: vi.fn(),
+  parseHttpArchiveJson: vi.fn(),
   toHttpArchiveJson: vi.fn(),
 }));
 
@@ -133,7 +133,7 @@ describe("importHttpArchive", () => {
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
@@ -164,7 +164,7 @@ describe("importHttpArchive", () => {
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
@@ -196,7 +196,7 @@ describe("importHttpArchive", () => {
       url: "https://sp.example.com/acs",
       headers: [],
     } as unknown as HttpMessage;
-    vi.mocked(parseHttpArchive).mockReturnValue({
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({
       version: 1,
       httpMessages: [pairedRequest, httpMessage],
     });
@@ -235,7 +235,7 @@ describe("importHttpArchive", () => {
       type: "Response",
       pairedHttpRequestId: "msg-1",
     } as unknown as HttpMessage;
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
 
     const result = await importHttpArchive("har-string");
 
@@ -251,7 +251,7 @@ describe("importHttpArchive", () => {
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
@@ -271,7 +271,7 @@ describe("importHttpArchive", () => {
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
@@ -284,7 +284,7 @@ describe("importHttpArchive", () => {
   });
 
   it("records the import as an event", async () => {
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages: [] });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [] });
 
     await importHttpArchive("har-string");
 
@@ -293,8 +293,8 @@ describe("importHttpArchive", () => {
     );
   });
 
-  it("returns Error when parseHttpArchive fails", async () => {
-    vi.mocked(parseHttpArchive).mockReturnValue(new Error("parse error"));
+  it("returns Error when parseHttpArchiveJson fails", async () => {
+    vi.mocked(parseHttpArchiveJson).mockReturnValue(new Error("parse error"));
 
     const result = await importHttpArchive("invalid");
 
@@ -305,7 +305,7 @@ describe("importHttpArchive", () => {
 
   it("returns Error when the import event cannot be saved", async () => {
     const error = new Error("storage failed");
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages: [] });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [] });
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     expect(await importHttpArchive("har-string")).toBe(error);
@@ -314,7 +314,7 @@ describe("importHttpArchive", () => {
 
   it("returns empty array when no SAML steps are detected", async () => {
     const httpMessage = { type: "Request" } as unknown as HttpMessage;
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(undefined);
 
     const result = await importHttpArchive("har-string");
@@ -327,7 +327,7 @@ describe("importHttpArchive", () => {
       { type: "Request", url: "https://idp.example.org/sso" },
       { type: "Request", url: "https://idp.example.org/sso" },
     ] as unknown as HttpMessage[];
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
       correlationKey: "session-1",
@@ -355,9 +355,9 @@ describe("dumpSessionArchive", () => {
 
 describe("loadSessionArchive", () => {
   it("imports the HTTP archive", async () => {
-    vi.mocked(parseHttpArchive).mockReturnValue({ version: 1, httpMessages: [] });
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [] });
 
     expect(await loadSessionArchive(1, "har-string")).toEqual([]);
-    expect(parseHttpArchive).toHaveBeenCalledWith("har-string");
+    expect(parseHttpArchiveJson).toHaveBeenCalledWith("har-string");
   });
 });

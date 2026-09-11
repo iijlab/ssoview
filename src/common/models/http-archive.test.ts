@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { type HttpMessage } from "@/common/models/http-message.ts";
-import { newHttpArchive, parseHttpArchive, toHttpArchiveJson } from "./http-archive.ts";
+import { newHttpArchive, parseHttpArchiveJson, toHttpArchiveJson } from "./http-archive.ts";
 
 function makeRequest(): HttpMessage {
   return {
@@ -38,29 +38,29 @@ describe("toHttpArchiveJson", () => {
   });
 });
 
-describe("parseHttpArchive", () => {
+describe("parseHttpArchiveJson", () => {
   it("returns the archive the JSON was made from", () => {
     const httpArchive = newHttpArchive([makeRequest()]);
 
-    expect(parseHttpArchive(toHttpArchiveJson(httpArchive))).toEqual(httpArchive);
+    expect(parseHttpArchiveJson(toHttpArchiveJson(httpArchive))).toEqual(httpArchive);
   });
 
   it("returns Error when the JSON is malformed", () => {
-    const result = parseHttpArchive("{");
+    const result = parseHttpArchiveJson("{");
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("Failed to parse HTTP archive");
   });
 
   it("returns Error when the JSON is not an archive", () => {
-    const result = parseHttpArchive('{"version":1}');
+    const result = parseHttpArchiveJson('{"version":1}');
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("Invalid HTTP archive");
   });
 
   it("returns Error when a message is invalid", () => {
-    const result = parseHttpArchive('{"version":1,"httpMessages":[{"id":"msg-1"}]}');
+    const result = parseHttpArchiveJson('{"version":1,"httpMessages":[{"id":"msg-1"}]}');
 
     expect(result).toBeInstanceOf(Error);
     expect((result as Error).message).toBe("Invalid HTTP archive");

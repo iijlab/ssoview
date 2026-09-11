@@ -32,7 +32,7 @@ export function toHttpArchiveJson(httpArchive: HttpArchive): HttpArchiveJson {
   return JSON.stringify(httpArchive);
 }
 
-export function parseHttpArchive(httpArchiveJson: HttpArchiveJson): HttpArchive | Error {
+export function parseHttpArchiveJson(httpArchiveJson: HttpArchiveJson): HttpArchive | Error {
   try {
     const httpArchive = JSON.parse(httpArchiveJson);
     if (!isHttpArchive(httpArchive)) {

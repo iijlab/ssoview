@@ -7,7 +7,7 @@ import { newArchiveImportedEvent } from "@/common/models/event-record.ts";
 import {
   type HttpArchiveJson,
   newHttpArchive,
-  parseHttpArchive,
+  parseHttpArchiveJson,
   toHttpArchiveJson,
 } from "@/common/models/http-archive.ts";
 import {
@@ -89,7 +89,7 @@ export async function loadSessionArchive(
 export async function importHttpArchive(
   httpArchiveJson: HttpArchiveJson,
 ): Promise<string[] | Error> {
-  const httpArchive = parseHttpArchive(httpArchiveJson);
+  const httpArchive = parseHttpArchiveJson(httpArchiveJson);
   if (httpArchive instanceof Error) {
     return httpArchive;
   }

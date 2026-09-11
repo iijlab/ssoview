@@ -4,9 +4,9 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { parseSamlpAuthnRequest, parseSamlpResponse } from "./saml-parser.ts";
+import { parseSamlpAuthnRequestXml, parseSamlpResponseXml } from "./saml-parser.ts";
 
-describe("parseSamlpAuthnRequest", () => {
+describe("parseSamlpAuthnRequestXml", () => {
   it("parses valid AuthnRequest with namespace prefix", () => {
     const xml = `
       <samlp:AuthnRequest
@@ -26,7 +26,7 @@ describe("parseSamlpAuthnRequest", () => {
       </samlp:AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -70,7 +70,7 @@ describe("parseSamlpAuthnRequest", () => {
       </saml2p:AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -107,7 +107,7 @@ describe("parseSamlpAuthnRequest", () => {
       </samlp:AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -125,7 +125,7 @@ describe("parseSamlpAuthnRequest", () => {
       </samlp:AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -143,7 +143,7 @@ describe("parseSamlpAuthnRequest", () => {
       </AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -159,7 +159,7 @@ describe("parseSamlpAuthnRequest", () => {
   it("returns Error when AuthnRequest element is missing", () => {
     const xml = `<SomeOtherElement/>`;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).toBeInstanceOf(Error);
     if (!(result instanceof Error)) return;
     expect(result.message).toBe("AuthnRequest element not found");
@@ -183,7 +183,7 @@ describe("parseSamlpAuthnRequest", () => {
       </samlp:AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -219,7 +219,7 @@ describe("parseSamlpAuthnRequest", () => {
       </samlp:AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -234,7 +234,7 @@ describe("parseSamlpAuthnRequest", () => {
       </samlp:AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -258,7 +258,7 @@ describe("warnUnhandledKeys #text handling", () => {
       </samlp:AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
 
     expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining("NameIDPolicy"), ["#text"]);
@@ -281,7 +281,7 @@ describe("warnUnhandledKeys #text handling", () => {
       </samlp:AuthnRequest>
     `;
 
-    const result = parseSamlpAuthnRequest(xml);
+    const result = parseSamlpAuthnRequestXml(xml);
     expect(result).not.toBeInstanceOf(Error);
 
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("NameIDPolicy"), ["#text"]);
@@ -290,7 +290,7 @@ describe("warnUnhandledKeys #text handling", () => {
   });
 });
 
-describe("parseSamlpResponse", () => {
+describe("parseSamlpResponseXml", () => {
   it("parses valid Response with namespace prefix", () => {
     const xml = `
       <samlp:Response
@@ -335,7 +335,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -442,7 +442,7 @@ describe("parseSamlpResponse", () => {
       </saml2p:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -489,7 +489,7 @@ describe("parseSamlpResponse", () => {
       </Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -504,7 +504,7 @@ describe("parseSamlpResponse", () => {
   it("returns Error when Response element is missing", () => {
     const xml = `<SomeOtherElement/>`;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).toBeInstanceOf(Error);
     if (!(result instanceof Error)) return;
     expect(result.message).toBe("Response element not found");
@@ -525,7 +525,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -555,7 +555,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -605,7 +605,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -722,7 +722,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -753,7 +753,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -785,7 +785,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -825,7 +825,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -867,7 +867,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -907,7 +907,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 
@@ -962,7 +962,7 @@ describe("parseSamlpResponse", () => {
       </samlp:Response>
     `;
 
-    const result = parseSamlpResponse(xml);
+    const result = parseSamlpResponseXml(xml);
     expect(result).not.toBeInstanceOf(Error);
     if (result instanceof Error) return;
 

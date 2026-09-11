@@ -16,7 +16,7 @@ type XsNcName = string;
 // AuthnRequest
 //
 
-export function parseSamlpAuthnRequest(samlpAuthnRequestXml: string): SamlpAuthnRequest | Error {
+export function parseSamlpAuthnRequestXml(samlpAuthnRequestXml: string): SamlpAuthnRequest | Error {
   const parser = new XMLParser({
     alwaysCreateTextNode: true,
     ignoreAttributes: false,
@@ -195,7 +195,7 @@ function toSamlpNameIdPolicy(elem: Record<string, unknown>): SamlpNameIdPolicy {
 // Response
 //
 
-export function parseSamlpResponse(samlpResponseXml: string): SamlpResponse | Error {
+export function parseSamlpResponseXml(samlpResponseXml: string): SamlpResponse | Error {
   const parser = new XMLParser({
     alwaysCreateTextNode: true,
     ignoreAttributes: false,

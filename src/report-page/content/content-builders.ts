@@ -6,7 +6,7 @@
 import type Protocol from "devtools-protocol";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SsoFlow } from "@/common/models/session-summary.ts";
-import { parseSamlpAuthnRequest, parseSamlpResponse } from "@/common/services/saml-parser.ts";
+import { parseSamlpAuthnRequestXml, parseSamlpResponseXml } from "@/common/services/saml-parser.ts";
 import { getHttpStatusText } from "@/report-page/common/utils.ts";
 
 //
@@ -30,8 +30,8 @@ export function buildSessionData(
   authnRequestXml?: string,
   responseXml?: string,
 ): SessionData {
-  const authnRequest = authnRequestXml ? parseSamlpAuthnRequest(authnRequestXml) : undefined;
-  const response = responseXml ? parseSamlpResponse(responseXml) : undefined;
+  const authnRequest = authnRequestXml ? parseSamlpAuthnRequestXml(authnRequestXml) : undefined;
+  const response = responseXml ? parseSamlpResponseXml(responseXml) : undefined;
 
   // Extract fields (fall back to "N/A" if error or undefined)
   const samlVersion =
@@ -109,7 +109,7 @@ export function buildSessionResult(
     };
   }
 
-  const parsed = parseSamlpResponse(responseXml);
+  const parsed = parseSamlpResponseXml(responseXml);
   if (parsed instanceof Error) {
     return {
       status: "Unknown",
@@ -217,7 +217,7 @@ type SamlMessageField = {
 };
 
 export function buildAuthnRequestDetails(rawXml: string): SamlMessageDetails | undefined {
-  const parsed = parseSamlpAuthnRequest(rawXml);
+  const parsed = parseSamlpAuthnRequestXml(rawXml);
   if (parsed instanceof Error) {
     return undefined;
   }
@@ -328,7 +328,7 @@ export function buildAuthnRequestDetails(rawXml: string): SamlMessageDetails | u
 }
 
 export function buildResponseDetails(rawXml: string): SamlMessageDetails | undefined {
-  const parsed = parseSamlpResponse(rawXml);
+  const parsed = parseSamlpResponseXml(rawXml);
   if (parsed instanceof Error) {
     return undefined;
   }
