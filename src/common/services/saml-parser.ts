@@ -34,7 +34,7 @@ export function parseSamlpAuthnRequest(samlpAuthnRequestXml: string): SamlpAuthn
     return new Error("AuthnRequest element not found");
   }
 
-  return buildSamlpAuthnRequest(authnRequestElem);
+  return toSamlpAuthnRequest(authnRequestElem);
 }
 
 // <complexType name="RequestAbstractType" abstract="true">
@@ -88,9 +88,9 @@ export type SamlpAuthnRequest = SamlpRequestAbstract & {
   $destination?: XsAnyUri | Error;
 };
 
-function buildSamlpAuthnRequest(elem: Record<string, unknown>): SamlpAuthnRequest {
+function toSamlpAuthnRequest(elem: Record<string, unknown>): SamlpAuthnRequest {
   const issuerElem = getChildElement(elem, "Issuer");
-  const issuer = issuerElem && buildSamlNameId(issuerElem);
+  const issuer = issuerElem && toSamlNameId(issuerElem);
 
   const idAttr = getStringAttr(elem, "@_ID");
   const $id = idAttr === undefined ? new Error("ID attribute not found") : idAttr;
@@ -106,10 +106,10 @@ function buildSamlpAuthnRequest(elem: Record<string, unknown>): SamlpAuthnReques
       : issueInstantAttr;
 
   const nameIdPolicyElem = getChildElement(elem, "NameIDPolicy");
-  const nameIdPolicy = nameIdPolicyElem && buildSamlNameIdPolicy(nameIdPolicyElem);
+  const nameIdPolicy = nameIdPolicyElem && toSamlpNameIdPolicy(nameIdPolicyElem);
 
   const conditionsElem = getChildElement(elem, "Conditions");
-  const conditions = conditionsElem && buildSamlConditions(conditionsElem);
+  const conditions = conditionsElem && toSamlConditions(conditionsElem);
 
   warnUnhandledKeys("AuthnRequest", elem, [
     "Issuer",
@@ -159,7 +159,7 @@ export type SamlNameId = {
   $format?: XsAnyUri | Error;
 };
 
-function buildSamlNameId(elem: Record<string, unknown>): SamlNameId {
+function toSamlNameId(elem: Record<string, unknown>): SamlNameId {
   const content = getStringContent(elem);
   const $$content = content === undefined ? new Error("Content not found") : content;
 
@@ -182,7 +182,7 @@ export type SamlpNameIdPolicy = {
   $allowCreate?: string | Error;
 };
 
-function buildSamlNameIdPolicy(elem: Record<string, unknown>): SamlpNameIdPolicy {
+function toSamlpNameIdPolicy(elem: Record<string, unknown>): SamlpNameIdPolicy {
   warnUnhandledKeys("NameIDPolicy", elem, ["@_Format", "@_AllowCreate"]);
 
   return {
@@ -195,7 +195,7 @@ function buildSamlNameIdPolicy(elem: Record<string, unknown>): SamlpNameIdPolicy
 // Response
 //
 
-export function parseSamlpResponse(samlResponseXml: string): SamlpResponse | Error {
+export function parseSamlpResponse(samlpResponseXml: string): SamlpResponse | Error {
   const parser = new XMLParser({
     alwaysCreateTextNode: true,
     ignoreAttributes: false,
@@ -217,14 +217,14 @@ export function parseSamlpResponse(samlResponseXml: string): SamlpResponse | Err
         "Transform",
       ].includes(name),
   });
-  const output = parser.parse(samlResponseXml);
+  const output = parser.parse(samlpResponseXml);
 
   const responseElem = output["Response"];
   if (!responseElem) {
     return new Error("Response element not found");
   }
 
-  return buildSamlpResponse(responseElem);
+  return toSamlpResponse(responseElem);
 }
 
 // <complexType name="StatusResponseType">
@@ -267,16 +267,16 @@ export type SamlpResponse = SamlpStatusResponse & {
   assertions?: SamlAssertion[] | Error;
 };
 
-function buildSamlpResponse(elem: Record<string, unknown>): SamlpResponse {
+function toSamlpResponse(elem: Record<string, unknown>): SamlpResponse {
   const issuerElem = getChildElement(elem, "Issuer");
-  const issuer = issuerElem && buildSamlNameId(issuerElem);
+  const issuer = issuerElem && toSamlNameId(issuerElem);
 
   const signatureElem = getChildElement(elem, "Signature");
-  const signature = signatureElem && buildDsSignature(signatureElem);
+  const signature = signatureElem && toDsSignature(signatureElem);
 
   const statusElem = getChildElement(elem, "Status");
   const status =
-    statusElem === undefined ? new Error("Status element not found") : buildSamlpStatus(statusElem);
+    statusElem === undefined ? new Error("Status element not found") : toSamlpStatus(statusElem);
 
   const idAttr = getStringAttr(elem, "@_ID");
   const $id = idAttr === undefined ? new Error("ID attribute not found") : idAttr;
@@ -292,7 +292,7 @@ function buildSamlpResponse(elem: Record<string, unknown>): SamlpResponse {
       : issueInstantAttr;
 
   const assertionElems = getChildElements(elem, "Assertion");
-  const assertions = assertionElems?.map((e) => buildSamlAssertion(e));
+  const assertions = assertionElems?.map((e) => toSamlAssertion(e));
 
   warnUnhandledKeys("Response", elem, [
     "Issuer",
@@ -331,12 +331,12 @@ export type SamlpStatus = {
   statusCode: SamlpStatusCode | Error;
 };
 
-function buildSamlpStatus(elem: Record<string, unknown>): SamlpStatus {
+function toSamlpStatus(elem: Record<string, unknown>): SamlpStatus {
   const statusCodeElem = getChildElement(elem, "StatusCode");
   const statusCode =
     statusCodeElem === undefined
       ? new Error("StatusCode element not found")
-      : buildSamlpStatusCode(statusCodeElem);
+      : toSamlpStatusCode(statusCodeElem);
 
   warnUnhandledKeys("Status", elem, ["StatusCode"]);
 
@@ -357,9 +357,9 @@ type SamlpStatusCode = {
   $value: XsAnyUri | Error;
 };
 
-function buildSamlpStatusCode(elem: Record<string, unknown>): SamlpStatusCode {
+function toSamlpStatusCode(elem: Record<string, unknown>): SamlpStatusCode {
   const statusCodeElem = getChildElement(elem, "StatusCode");
-  const statusCode = statusCodeElem && buildSamlpStatusCode(statusCodeElem);
+  const statusCode = statusCodeElem && toSamlpStatusCode(statusCodeElem);
 
   const valueAttr = getStringAttr(elem, "@_Value");
   const $value = valueAttr === undefined ? new Error("Value attribute not found") : valueAttr;
@@ -403,25 +403,25 @@ type SamlAssertion = {
   $issueInstant: XsDateTime | Error;
 };
 
-function buildSamlAssertion(elem: Record<string, unknown>): SamlAssertion {
+function toSamlAssertion(elem: Record<string, unknown>): SamlAssertion {
   const issuerElem = getChildElement(elem, "Issuer");
   const issuer =
-    issuerElem === undefined ? new Error("Issuer element not found") : buildSamlNameId(issuerElem);
+    issuerElem === undefined ? new Error("Issuer element not found") : toSamlNameId(issuerElem);
 
   const signatureElem = getChildElement(elem, "Signature");
-  const signature = signatureElem && buildDsSignature(signatureElem);
+  const signature = signatureElem && toDsSignature(signatureElem);
 
   const subjectElem = getChildElement(elem, "Subject");
-  const subject = subjectElem && buildSamlSubject(subjectElem);
+  const subject = subjectElem && toSamlSubject(subjectElem);
 
   const conditionsElem = getChildElement(elem, "Conditions");
-  const conditions = conditionsElem && buildSamlConditions(conditionsElem);
+  const conditions = conditionsElem && toSamlConditions(conditionsElem);
 
   const authnStatementElems = getChildElements(elem, "AuthnStatement");
-  const authnStatements = authnStatementElems?.map((e) => buildSamlAuthnStatement(e));
+  const authnStatements = authnStatementElems?.map((e) => toSamlAuthnStatement(e));
 
   const attributeStatementElems = getChildElements(elem, "AttributeStatement");
-  const attributeStatements = attributeStatementElems?.map((e) => buildSamlAttributeStatement(e));
+  const attributeStatements = attributeStatementElems?.map((e) => toSamlAttributeStatement(e));
 
   const versionAttr = getStringAttr(elem, "@_Version");
   const $version =
@@ -480,9 +480,9 @@ type SamlSubject = {
   subjectConfirmations?: SamlSubjectConfirmation[] | Error;
 };
 
-function buildSamlSubject(elem: Record<string, unknown>): SamlSubject {
+function toSamlSubject(elem: Record<string, unknown>): SamlSubject {
   const nameIdElem = getChildElement(elem, "NameID");
-  const nameId = nameIdElem && buildSamlNameId(nameIdElem);
+  const nameId = nameIdElem && toSamlNameId(nameIdElem);
 
   const subjectConfirmationElems = getChildElements(elem, "SubjectConfirmation");
   const subjectConfirmations =
@@ -491,7 +491,7 @@ function buildSamlSubject(elem: Record<string, unknown>): SamlSubject {
         nameId === undefined
         ? new Error("SubjectConfirmation element not found")
         : undefined
-      : subjectConfirmationElems.map((e) => buildSamlSubjectConfirmation(e));
+      : subjectConfirmationElems.map((e) => toSamlSubjectConfirmation(e));
 
   warnUnhandledKeys("Subject", elem, ["NameID", "SubjectConfirmation"]);
 
@@ -518,10 +518,10 @@ type SamlSubjectConfirmation = {
   $method: XsAnyUri | Error;
 };
 
-function buildSamlSubjectConfirmation(elem: Record<string, unknown>): SamlSubjectConfirmation {
+function toSamlSubjectConfirmation(elem: Record<string, unknown>): SamlSubjectConfirmation {
   const subjectConfirmationDataElem = getChildElement(elem, "SubjectConfirmationData");
   const subjectConfirmationData =
-    subjectConfirmationDataElem && buildSamlSubjectConfirmationData(subjectConfirmationDataElem);
+    subjectConfirmationDataElem && toSamlSubjectConfirmationData(subjectConfirmationDataElem);
 
   const methodAttr = getStringAttr(elem, "@_Method");
   const $method = methodAttr === undefined ? new Error("Method attribute not found") : methodAttr;
@@ -557,9 +557,7 @@ type SamlSubjectConfirmationData = {
   $inResponseTo?: XsNcName | Error;
 };
 
-function buildSamlSubjectConfirmationData(
-  elem: Record<string, unknown>,
-): SamlSubjectConfirmationData {
+function toSamlSubjectConfirmationData(elem: Record<string, unknown>): SamlSubjectConfirmationData {
   warnUnhandledKeys("SubjectConfirmationData", elem, [
     "@_NotOnOrAfter",
     "@_Recipient",
@@ -591,11 +589,9 @@ type SamlConditions = {
   $notOnOrAfter?: XsDateTime | Error;
 };
 
-function buildSamlConditions(elem: Record<string, unknown>): SamlConditions {
+function toSamlConditions(elem: Record<string, unknown>): SamlConditions {
   const audienceRestrictionElems = getChildElements(elem, "AudienceRestriction");
-  const audienceRestrictions = audienceRestrictionElems?.map((e) =>
-    buildSamlAudienceRestriction(e),
-  );
+  const audienceRestrictions = audienceRestrictionElems?.map((e) => toSamlAudienceRestriction(e));
 
   warnUnhandledKeys("Conditions", elem, ["AudienceRestriction", "@_NotBefore", "@_NotOnOrAfter"]);
 
@@ -624,12 +620,12 @@ type SamlAudienceRestriction = {
   audiences: SamlAudience[] | Error;
 };
 
-function buildSamlAudienceRestriction(elem: Record<string, unknown>): SamlAudienceRestriction {
+function toSamlAudienceRestriction(elem: Record<string, unknown>): SamlAudienceRestriction {
   const audienceElems = getChildElements(elem, "Audience");
   const audiences =
     audienceElems === undefined || audienceElems.length === 0
       ? new Error("Audience element not found")
-      : audienceElems.map((e) => buildSamlAudience(e));
+      : audienceElems.map((e) => toSamlAudience(e));
 
   warnUnhandledKeys("AudienceRestriction", elem, ["Audience"]);
 
@@ -644,7 +640,7 @@ type SamlAudience = {
   $$content: XsAnyUri | Error;
 };
 
-function buildSamlAudience(elem: Record<string, unknown>): SamlAudience {
+function toSamlAudience(elem: Record<string, unknown>): SamlAudience {
   const content = getStringContent(elem);
   const $$content = content === undefined ? new Error("Audience element is empty") : content;
 
@@ -680,12 +676,12 @@ type SamlAuthnStatement = {
   $sessionNotOnOrAfter?: XsDateTime | Error;
 };
 
-function buildSamlAuthnStatement(elem: Record<string, unknown>): SamlAuthnStatement {
+function toSamlAuthnStatement(elem: Record<string, unknown>): SamlAuthnStatement {
   const authnContextElem = getChildElement(elem, "AuthnContext");
   const authnContext =
     authnContextElem === undefined
       ? new Error("AuthnContext element not found")
-      : buildSamlAuthnContext(authnContextElem);
+      : toSamlAuthnContext(authnContextElem);
 
   const authnInstantAttr = getStringAttr(elem, "@_AuthnInstant");
   const $authnInstant =
@@ -732,10 +728,10 @@ type SamlAuthnContext = {
   authnContextClassRef?: SamlAuthnContextClassRef | Error;
 };
 
-function buildSamlAuthnContext(elem: Record<string, unknown>): SamlAuthnContext {
+function toSamlAuthnContext(elem: Record<string, unknown>): SamlAuthnContext {
   const authnContextClassRefElem = getChildElement(elem, "AuthnContextClassRef");
   const authnContextClassRef =
-    authnContextClassRefElem && buildSamlAuthnContextClassRef(authnContextClassRefElem);
+    authnContextClassRefElem && toSamlAuthnContextClassRef(authnContextClassRefElem);
 
   warnUnhandledKeys("AuthnContext", elem, ["AuthnContextClassRef"]);
 
@@ -750,7 +746,7 @@ type SamlAuthnContextClassRef = {
   $$content: XsAnyUri | Error;
 };
 
-function buildSamlAuthnContextClassRef(elem: Record<string, unknown>): SamlAuthnContextClassRef {
+function toSamlAuthnContextClassRef(elem: Record<string, unknown>): SamlAuthnContextClassRef {
   const content = getStringContent(elem);
   const $$content =
     content === undefined ? new Error("AuthnContextClassRef element is empty") : content;
@@ -781,12 +777,12 @@ type SamlAttributeStatement = {
   attributes: SamlAttribute[] | Error;
 };
 
-function buildSamlAttributeStatement(elem: Record<string, unknown>): SamlAttributeStatement {
+function toSamlAttributeStatement(elem: Record<string, unknown>): SamlAttributeStatement {
   const attributeElems = getChildElements(elem, "Attribute");
   const attributes =
     attributeElems === undefined || attributeElems.length === 0
       ? new Error("Attribute element not found")
-      : attributeElems.map((e) => buildSamlAttribute(e));
+      : attributeElems.map((e) => toSamlAttribute(e));
 
   warnUnhandledKeys("AttributeStatement", elem, ["Attribute"]);
 
@@ -813,9 +809,9 @@ type SamlAttribute = {
   $friendlyName?: string | Error;
 };
 
-function buildSamlAttribute(elem: Record<string, unknown>): SamlAttribute {
+function toSamlAttribute(elem: Record<string, unknown>): SamlAttribute {
   const attributeValueElems = getChildElements(elem, "AttributeValue");
-  const attributeValues = attributeValueElems?.map((e) => buildSamlAttributeValue(e));
+  const attributeValues = attributeValueElems?.map((e) => toSamlAttributeValue(e));
 
   const nameAttr = getStringAttr(elem, "@_Name");
   const $name = nameAttr === undefined ? new Error("Name attribute not found") : nameAttr;
@@ -844,7 +840,7 @@ type SamlAttributeValue = {
   $xsiType?: string | Error;
 };
 
-function buildSamlAttributeValue(elem: Record<string, unknown>): SamlAttributeValue {
+function toSamlAttributeValue(elem: Record<string, unknown>): SamlAttributeValue {
   // Nillable in schema, but xsi:nil check is skipped; nil values are treated as empty strings
   const content = getStringContent(elem);
   const $$content = content === undefined ? new Error("AttributeValue element is empty") : content;
@@ -867,21 +863,21 @@ type DsSignature = {
   keyInfo?: DsKeyInfo | Error;
 };
 
-function buildDsSignature(elem: Record<string, unknown>): DsSignature {
+function toDsSignature(elem: Record<string, unknown>): DsSignature {
   const signedInfoElem = getChildElement(elem, "SignedInfo");
   const signedInfo =
     signedInfoElem === undefined
       ? new Error("SignedInfo element not found")
-      : buildDsSignedInfo(signedInfoElem);
+      : toDsSignedInfo(signedInfoElem);
 
   const signatureValueElem = getChildElement(elem, "SignatureValue");
   const signatureValue =
     signatureValueElem === undefined
       ? new Error("SignatureValue element not found")
-      : buildDsSignatureValue(signatureValueElem);
+      : toDsSignatureValue(signatureValueElem);
 
   const keyInfoElem = getChildElement(elem, "KeyInfo");
-  const keyInfo = keyInfoElem && buildDsKeyInfo(keyInfoElem);
+  const keyInfo = keyInfoElem && toDsKeyInfo(keyInfoElem);
 
   warnUnhandledKeys("Signature", elem, ["SignedInfo", "SignatureValue", "KeyInfo"]);
 
@@ -898,24 +894,24 @@ type DsSignedInfo = {
   reference: DsReference | Error;
 };
 
-function buildDsSignedInfo(elem: Record<string, unknown>): DsSignedInfo {
+function toDsSignedInfo(elem: Record<string, unknown>): DsSignedInfo {
   const canonicalizationMethodElem = getChildElement(elem, "CanonicalizationMethod");
   const canonicalizationMethod =
     canonicalizationMethodElem === undefined
       ? new Error("CanonicalizationMethod element not found")
-      : buildDsCanonicalizationMethod(canonicalizationMethodElem);
+      : toDsCanonicalizationMethod(canonicalizationMethodElem);
 
   const signatureMethodElem = getChildElement(elem, "SignatureMethod");
   const signatureMethod =
     signatureMethodElem === undefined
       ? new Error("SignatureMethod element not found")
-      : buildDsSignatureMethod(signatureMethodElem);
+      : toDsSignatureMethod(signatureMethodElem);
 
   const referenceElem = getChildElement(elem, "Reference");
   const reference =
     referenceElem === undefined
       ? new Error("Reference element not found")
-      : buildDsReference(referenceElem);
+      : toDsReference(referenceElem);
 
   warnUnhandledKeys("SignedInfo", elem, ["CanonicalizationMethod", "SignatureMethod", "Reference"]);
 
@@ -930,7 +926,7 @@ type DsCanonicalizationMethod = {
   $algorithm: string | Error;
 };
 
-function buildDsCanonicalizationMethod(elem: Record<string, unknown>): DsCanonicalizationMethod {
+function toDsCanonicalizationMethod(elem: Record<string, unknown>): DsCanonicalizationMethod {
   const algorithmAttr = getStringAttr(elem, "@_Algorithm");
   const $algorithm =
     algorithmAttr === undefined ? new Error("Algorithm attribute not found") : algorithmAttr;
@@ -944,7 +940,7 @@ type DsSignatureMethod = {
   $algorithm: string | Error;
 };
 
-function buildDsSignatureMethod(elem: Record<string, unknown>): DsSignatureMethod {
+function toDsSignatureMethod(elem: Record<string, unknown>): DsSignatureMethod {
   const algorithmAttr = getStringAttr(elem, "@_Algorithm");
   const $algorithm =
     algorithmAttr === undefined ? new Error("Algorithm attribute not found") : algorithmAttr;
@@ -961,22 +957,22 @@ type DsReference = {
   $uri?: string | Error;
 };
 
-function buildDsReference(elem: Record<string, unknown>): DsReference {
+function toDsReference(elem: Record<string, unknown>): DsReference {
   const transformsElem = getChildElement(elem, "Transforms");
   const transformElems = transformsElem && getChildElements(transformsElem, "Transform");
-  const transforms = transformElems?.map((e) => buildDsTransform(e));
+  const transforms = transformElems?.map((e) => toDsTransform(e));
 
   const digestMethodElem = getChildElement(elem, "DigestMethod");
   const digestMethod =
     digestMethodElem === undefined
       ? new Error("DigestMethod element not found")
-      : buildDsDigestMethod(digestMethodElem);
+      : toDsDigestMethod(digestMethodElem);
 
   const digestValueElem = getChildElement(elem, "DigestValue");
   const digestValue =
     digestValueElem === undefined
       ? new Error("DigestValue element not found")
-      : buildDsDigestValue(digestValueElem);
+      : toDsDigestValue(digestValueElem);
 
   warnUnhandledKeys("Reference", elem, ["Transforms", "DigestMethod", "DigestValue", "@_URI"]);
 
@@ -992,7 +988,7 @@ type DsTransform = {
   $algorithm: string | Error;
 };
 
-function buildDsTransform(elem: Record<string, unknown>): DsTransform {
+function toDsTransform(elem: Record<string, unknown>): DsTransform {
   const algorithmAttr = getStringAttr(elem, "@_Algorithm");
   const $algorithm =
     algorithmAttr === undefined ? new Error("Algorithm attribute not found") : algorithmAttr;
@@ -1006,7 +1002,7 @@ type DsDigestMethod = {
   $algorithm: string | Error;
 };
 
-function buildDsDigestMethod(elem: Record<string, unknown>): DsDigestMethod {
+function toDsDigestMethod(elem: Record<string, unknown>): DsDigestMethod {
   const algorithmAttr = getStringAttr(elem, "@_Algorithm");
   const $algorithm =
     algorithmAttr === undefined ? new Error("Algorithm attribute not found") : algorithmAttr;
@@ -1020,7 +1016,7 @@ type DsDigestValue = {
   $$content: string | Error;
 };
 
-function buildDsDigestValue(elem: Record<string, unknown>): DsDigestValue {
+function toDsDigestValue(elem: Record<string, unknown>): DsDigestValue {
   const content = getStringContent(elem);
   const $$content = content === undefined ? new Error("DigestValue element is empty") : content;
 
@@ -1033,7 +1029,7 @@ type DsSignatureValue = {
   $$content: string | Error;
 };
 
-function buildDsSignatureValue(elem: Record<string, unknown>): DsSignatureValue {
+function toDsSignatureValue(elem: Record<string, unknown>): DsSignatureValue {
   const content = getStringContent(elem);
   const $$content = content === undefined ? new Error("SignatureValue element is empty") : content;
 
@@ -1047,12 +1043,12 @@ type DsKeyInfo = {
   keyName?: DsKeyName | Error;
 };
 
-function buildDsKeyInfo(elem: Record<string, unknown>): DsKeyInfo {
+function toDsKeyInfo(elem: Record<string, unknown>): DsKeyInfo {
   const x509DataElem = getChildElement(elem, "X509Data");
-  const x509Data = x509DataElem && buildDsX509Data(x509DataElem);
+  const x509Data = x509DataElem && toDsX509Data(x509DataElem);
 
   const keyNameElem = getChildElement(elem, "KeyName");
-  const keyName = keyNameElem && buildDsKeyName(keyNameElem);
+  const keyName = keyNameElem && toDsKeyName(keyNameElem);
 
   warnUnhandledKeys("KeyInfo", elem, ["X509Data", "KeyName"]);
 
@@ -1063,7 +1059,7 @@ type DsKeyName = {
   $$content: string | Error;
 };
 
-function buildDsKeyName(elem: Record<string, unknown>): DsKeyName {
+function toDsKeyName(elem: Record<string, unknown>): DsKeyName {
   const content = getStringContent(elem);
   const $$content = content === undefined ? new Error("KeyName element is empty") : content;
 
@@ -1076,9 +1072,9 @@ type DsX509Data = {
   x509Certificate?: DsX509Certificate | Error;
 };
 
-function buildDsX509Data(elem: Record<string, unknown>): DsX509Data {
+function toDsX509Data(elem: Record<string, unknown>): DsX509Data {
   const x509CertificateElem = getChildElement(elem, "X509Certificate");
-  const x509Certificate = x509CertificateElem && buildDsX509Certificate(x509CertificateElem);
+  const x509Certificate = x509CertificateElem && toDsX509Certificate(x509CertificateElem);
 
   warnUnhandledKeys("X509Data", elem, ["X509Certificate"]);
 
@@ -1089,7 +1085,7 @@ type DsX509Certificate = {
   $$content: string | Error;
 };
 
-function buildDsX509Certificate(elem: Record<string, unknown>): DsX509Certificate {
+function toDsX509Certificate(elem: Record<string, unknown>): DsX509Certificate {
   const content = getStringContent(elem);
   const $$content = content === undefined ? new Error("X509Certificate element is empty") : content;
 
@@ -1140,10 +1136,10 @@ function isIgnorableKey(elem: Record<string, unknown>, key: string): boolean {
   return (
     key.startsWith("@_xmlns") ||
     // fast-xml-parser's alwaysCreateTextNode option keeps text-only elements (e.g. Audience)
-    // as objects rather than plain strings, so every element builder can treat elem
+    // as objects rather than plain strings, so every element converter can treat elem
     // uniformly. As a side effect, it also adds an empty #text to attribute-only elements
     // (e.g. self-closing tags); that's a parsing artifact, not real SAML data.
-    // If a builder forgets to list "#text" in handledKeys for an element that the schema
+    // If a converter forgets to list "#text" in handledKeys for an element that the schema
     // says does carry text, and the real data happens to be empty, this mistake will not
     // be detected. This is unavoidable as long as alwaysCreateTextNode is used.
     (key === "#text" && getStringContent(elem) === "")
