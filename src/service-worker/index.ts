@@ -5,20 +5,14 @@
 
 import { publishCaptureTerminatedEvent, publishSessionUpdateEvent } from "@/common/pubsub.ts";
 import { registerStartMonitoringHandler, registerStopMonitoringHandler } from "@/common/rpc.ts";
-import { dumpSessionArchive, loadSessionArchive } from "@/common/services/session-archiver.ts";
-import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
 import { isTracedTab } from "@/common/services/watch-query.ts";
-import {
-  getAllSessionStorageItems,
-  getSessionStorageBytesInUse,
-} from "@/common/utils/chrome-storage.ts";
-import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
 import {
   registerTracingTerminatedHandler,
   startTracing,
   stopTracing,
 } from "@/service-worker/capture-manager.ts";
+import { registerDevCommands } from "@/service-worker/dev-commands.ts";
 import { registerHttpInterceptionHandlers } from "@/service-worker/http-interception.ts";
 import { ingestHttpRequest, ingestHttpResponse } from "@/service-worker/saml-tracer.ts";
 import {
@@ -77,6 +71,10 @@ function init() {
       }
     }
   });
+
+  if (import.meta.env.MODE === "development") {
+    registerDevCommands();
+  }
 }
 
 async function handleStartTracingCommand(tabId: number): Promise<void | Error> {
@@ -98,56 +96,3 @@ async function handleStopTracingCommand(tabId: number): Promise<void | Error> {
 }
 
 init();
-
-//
-// Debug utilities
-//
-
-if (import.meta.env.MODE === "development") {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).cmd = {
-    debugStorage: async () => {
-      return await debugStorage();
-    },
-    getSessionSummaries: async (tid: number) => {
-      return await getSessionSummaries(tid);
-    },
-    removeSession: async (tid: number, sid: string) => {
-      return await deleteSession(tid, sid);
-    },
-    dumpSession: async (tid: number, sid: string) => {
-      return await dumpSessionArchive(tid, sid);
-    },
-    loadSession: async (tid: number, sar: string) => {
-      return await loadSessionArchive(tid, sar);
-    },
-  };
-
-  async function debugStorage() {
-    const debug = await newLabeledDebugLogger(["STORAGE"]);
-
-    const allEntries = await getAllSessionStorageItems();
-    if (allEntries instanceof Error) {
-      console.warn("Failed to get all storage entries:", allEntries);
-      return;
-    }
-
-    for (const [key, value] of Object.entries(allEntries).sort()) {
-      const bytes = await getSessionStorageBytesInUse(key);
-      if (bytes instanceof Error) {
-        console.warn("Failed to get bytes in use:", bytes);
-        continue;
-      }
-      debug({ [key]: value }, `${bytes.toLocaleString()} bytes`);
-    }
-
-    const totalBytes = await getSessionStorageBytesInUse(null);
-    if (totalBytes instanceof Error) {
-      console.warn("Failed to get total bytes in use:", totalBytes);
-      return;
-    }
-    debug(
-      `Storage usage: ${Object.keys(allEntries).length} items (${totalBytes.toLocaleString()} bytes)`,
-    );
-  }
-}
