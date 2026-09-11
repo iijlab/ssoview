@@ -94,26 +94,26 @@ function makeResponsePausedEvent(responseStatusCode: number): Protocol.Fetch.Req
 
 describe("registerHttpInterceptionHandlers", () => {
   it("gives the request the ongoing tracing session and the tab", async () => {
-    const onInterceptHttpRequest = vi.fn();
-    registerHttpInterceptionHandlers(onInterceptHttpRequest, vi.fn());
+    const onHttpRequestIntercepted = vi.fn();
+    registerHttpInterceptionHandlers(onHttpRequestIntercepted, vi.fn());
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeRequestPausedEvent());
 
-    await vi.waitFor(() => expect(onInterceptHttpRequest).toHaveBeenCalledOnce());
-    expect(onInterceptHttpRequest).toHaveBeenCalledWith(
+    await vi.waitFor(() => expect(onHttpRequestIntercepted).toHaveBeenCalledOnce());
+    expect(onHttpRequestIntercepted).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ tracingSessionId: "tracing-session-1", tabId: 1 }),
     );
   });
 
   it("gives the response the ongoing tracing session and the tab", async () => {
-    const onInterceptHttpResponse = vi.fn();
-    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
+    const onHttpResponseIntercepted = vi.fn();
+    registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(302));
 
-    await vi.waitFor(() => expect(onInterceptHttpResponse).toHaveBeenCalledOnce());
-    expect(onInterceptHttpResponse).toHaveBeenCalledWith(
+    await vi.waitFor(() => expect(onHttpResponseIntercepted).toHaveBeenCalledOnce());
+    expect(onHttpResponseIntercepted).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ tracingSessionId: "tracing-session-1", tabId: 1 }),
       storedHttpRequest,
@@ -122,8 +122,8 @@ describe("registerHttpInterceptionHandlers", () => {
 
   it("skips the request but continues it when no tracing session is ongoing", async () => {
     vi.mocked(getOngoingTracingSessionId).mockResolvedValue(undefined);
-    const onInterceptHttpRequest = vi.fn();
-    registerHttpInterceptionHandlers(onInterceptHttpRequest, vi.fn());
+    const onHttpRequestIntercepted = vi.fn();
+    registerHttpInterceptionHandlers(onHttpRequestIntercepted, vi.fn());
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeRequestPausedEvent());
 
@@ -133,14 +133,14 @@ describe("registerHttpInterceptionHandlers", () => {
         interceptResponse: true,
       }),
     );
-    expect(onInterceptHttpRequest).not.toHaveBeenCalled();
+    expect(onHttpRequestIntercepted).not.toHaveBeenCalled();
     expect(console.warn).toHaveBeenCalled();
   });
 
   it("skips the response but continues it when no tracing session is ongoing", async () => {
     vi.mocked(getOngoingTracingSessionId).mockResolvedValue(undefined);
-    const onInterceptHttpResponse = vi.fn();
-    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
+    const onHttpResponseIntercepted = vi.fn();
+    registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(200));
 
@@ -149,7 +149,7 @@ describe("registerHttpInterceptionHandlers", () => {
         requestId: "req-1",
       }),
     );
-    expect(onInterceptHttpResponse).not.toHaveBeenCalled();
+    expect(onHttpResponseIntercepted).not.toHaveBeenCalled();
     expect(findHttpRequestByFetchRequestId).not.toHaveBeenCalled();
     expect(sendCommand).not.toHaveBeenCalledWith(
       expect.anything(),
@@ -159,18 +159,18 @@ describe("registerHttpInterceptionHandlers", () => {
   });
 
   it("does not send Fetch.getResponseBody for redirects", async () => {
-    const onInterceptHttpResponse = vi.fn();
-    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
+    const onHttpResponseIntercepted = vi.fn();
+    registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(302));
 
-    await vi.waitFor(() => expect(onInterceptHttpResponse).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(onHttpResponseIntercepted).toHaveBeenCalledOnce());
     expect(sendCommand).not.toHaveBeenCalledWith(
       expect.anything(),
       "Fetch.getResponseBody",
       expect.anything(),
     );
-    expect(onInterceptHttpResponse).toHaveBeenCalledWith(
+    expect(onHttpResponseIntercepted).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ body: undefined }),
       expect.anything(),
@@ -178,26 +178,26 @@ describe("registerHttpInterceptionHandlers", () => {
   });
 
   it("pairs the response with the stored request of the same request ID", async () => {
-    const onInterceptHttpResponse = vi.fn();
-    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
+    const onHttpResponseIntercepted = vi.fn();
+    registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(302));
 
-    await vi.waitFor(() => expect(onInterceptHttpResponse).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(onHttpResponseIntercepted).toHaveBeenCalledOnce());
     expect(findHttpRequestByFetchRequestId).toHaveBeenCalledExactlyOnceWith(
       "tracing-session-1",
       1,
       "req-1",
     );
-    const [, httpResponse, pairedHttpRequest] = onInterceptHttpResponse.mock.calls[0]!;
+    const [, httpResponse, pairedHttpRequest] = onHttpResponseIntercepted.mock.calls[0]!;
     expect(pairedHttpRequest).toBe(storedHttpRequest);
     expect(httpResponse.pairedHttpRequestId).toBe("stored-1");
   });
 
   it("skips the response but continues it when no paired request is stored", async () => {
     vi.mocked(findHttpRequestByFetchRequestId).mockResolvedValue(undefined);
-    const onInterceptHttpResponse = vi.fn();
-    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
+    const onHttpResponseIntercepted = vi.fn();
+    registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(200));
 
@@ -206,7 +206,7 @@ describe("registerHttpInterceptionHandlers", () => {
         requestId: "req-1",
       }),
     );
-    expect(onInterceptHttpResponse).not.toHaveBeenCalled();
+    expect(onHttpResponseIntercepted).not.toHaveBeenCalled();
     expect(sendCommand).not.toHaveBeenCalledWith(
       expect.anything(),
       "Fetch.getResponseBody",
@@ -217,8 +217,8 @@ describe("registerHttpInterceptionHandlers", () => {
 
   it("skips the response but continues it when the paired request cannot be found", async () => {
     vi.mocked(findHttpRequestByFetchRequestId).mockResolvedValue(new Error("store error"));
-    const onInterceptHttpResponse = vi.fn();
-    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
+    const onHttpResponseIntercepted = vi.fn();
+    registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(200));
 
@@ -227,7 +227,7 @@ describe("registerHttpInterceptionHandlers", () => {
         requestId: "req-1",
       }),
     );
-    expect(onInterceptHttpResponse).not.toHaveBeenCalled();
+    expect(onHttpResponseIntercepted).not.toHaveBeenCalled();
     expect(console.warn).toHaveBeenCalled();
   });
 
@@ -237,8 +237,8 @@ describe("registerHttpInterceptionHandlers", () => {
         throw new Error("Debugger is not attached to the tab");
       }
     });
-    const onInterceptHttpResponse = vi.fn();
-    registerHttpInterceptionHandlers(vi.fn(), onInterceptHttpResponse);
+    const onHttpResponseIntercepted = vi.fn();
+    registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
 
     fireDebuggerEvent({ tabId: 1 }, "Fetch.requestPaused", makeResponsePausedEvent(200));
 
@@ -247,7 +247,7 @@ describe("registerHttpInterceptionHandlers", () => {
         requestId: "req-1",
       }),
     );
-    expect(onInterceptHttpResponse).not.toHaveBeenCalled();
+    expect(onHttpResponseIntercepted).not.toHaveBeenCalled();
     expect(console.warn).toHaveBeenCalled();
   });
 });

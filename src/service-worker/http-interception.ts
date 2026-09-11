@@ -15,8 +15,8 @@ import { findHttpRequestByFetchRequestId } from "@/common/services/http-store.ts
 import { isObject } from "@/common/utils/type-guard.ts";
 
 export function registerHttpInterceptionHandlers(
-  onInterceptHttpRequest: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
-  onInterceptHttpResponse: (
+  onHttpRequestIntercepted: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
+  onHttpResponseIntercepted: (
     tabId: number,
     httpResponse: HttpResponse,
     pairedHttpRequest: HttpRequest,
@@ -24,14 +24,14 @@ export function registerHttpInterceptionHandlers(
 ): void {
   chrome.debugger.onEvent.addListener(
     onFetchRequestPausedEvent
-      .bind(null, onInterceptHttpRequest)
-      .bind(null, onInterceptHttpResponse),
+      .bind(null, onHttpRequestIntercepted)
+      .bind(null, onHttpResponseIntercepted),
   );
 }
 
 function onFetchRequestPausedEvent(
-  onInterceptHttpRequest: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
-  onInterceptHttpResponse: (
+  onHttpRequestIntercepted: (tabId: number, httpRequest: HttpRequest) => Promise<void>,
+  onHttpResponseIntercepted: (
     tabId: number,
     httpResponse: HttpResponse,
     pairedHttpRequest: HttpRequest,
@@ -57,15 +57,19 @@ function onFetchRequestPausedEvent(
     // Ignore non-http URLs like chrome://
     const isHttpUrl = requestPausedEvent.request.url.startsWith("http");
 
-    const tracingSessionId = await resolveTracingSessionId();
-    if (!tracingSessionId) {
+    const ongoingTracingSessionId = await getOngoingTracingSessionId();
+    if (ongoingTracingSessionId instanceof Error) {
+      console.warn("Failed to get ongoing tracing session:", ongoingTracingSessionId);
+    } else if (!ongoingTracingSessionId) {
       console.warn("No ongoing tracing session, skipping the HTTP message:", { tabId });
     }
+    const tracingSessionId =
+      ongoingTracingSessionId instanceof Error ? undefined : ongoingTracingSessionId;
 
     // Determine request or response stage based on the presence of status code
     if (!requestPausedEvent.responseStatusCode) {
       if (isHttpUrl && tracingSessionId) {
-        await onInterceptHttpRequest(
+        await onHttpRequestIntercepted(
           tabId,
           newHttpRequest(tracingSessionId, tabId, requestPausedEvent),
         );
@@ -81,12 +85,14 @@ function onFetchRequestPausedEvent(
       }
     } else {
       if (isHttpUrl && tracingSessionId) {
-        const pairedHttpRequest = await resolvePairedHttpRequest(
+        const pairedHttpRequest = await findHttpRequestByFetchRequestId(
           tracingSessionId,
           tabId,
           requestPausedEvent.requestId,
         );
-        if (!pairedHttpRequest) {
+        if (pairedHttpRequest instanceof Error) {
+          console.warn("Failed to find the paired request:", pairedHttpRequest);
+        } else if (!pairedHttpRequest) {
           console.warn("No paired request stored, skipping the HTTP response:", {
             tabId,
             fetchRequestId: requestPausedEvent.requestId,
@@ -107,7 +113,7 @@ function onFetchRequestPausedEvent(
               getResponseBodyResponse,
               pairedHttpRequest,
             );
-            await onInterceptHttpResponse(tabId, httpResponse, pairedHttpRequest);
+            await onHttpResponseIntercepted(tabId, httpResponse, pairedHttpRequest);
           }
         }
       }
@@ -124,34 +130,6 @@ function onFetchRequestPausedEvent(
   })(source.tabId, params).catch((err) => {
     console.error("Unexpected error in Fetch.requestPaused event:", { error: err });
   });
-}
-
-async function resolveTracingSessionId(): Promise<string | undefined> {
-  const tracingSessionId = await getOngoingTracingSessionId();
-  if (tracingSessionId instanceof Error) {
-    console.warn("Failed to get ongoing tracing session:", tracingSessionId);
-    return undefined;
-  }
-
-  return tracingSessionId;
-}
-
-async function resolvePairedHttpRequest(
-  tracingSessionId: string,
-  tabId: number,
-  fetchRequestId: Protocol.Fetch.RequestId,
-): Promise<HttpRequest | undefined> {
-  const httpRequest = await findHttpRequestByFetchRequestId(
-    tracingSessionId,
-    tabId,
-    fetchRequestId,
-  );
-  if (httpRequest instanceof Error) {
-    console.warn("Failed to find the paired request:", httpRequest);
-    return undefined;
-  }
-
-  return httpRequest;
 }
 
 async function getGetResponseBodyResponse(

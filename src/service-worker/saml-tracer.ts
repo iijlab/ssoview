@@ -16,7 +16,7 @@ import {
 } from "@/common/services/saml-detector.ts";
 import { recordSamlLog } from "@/common/services/saml-recorder.ts";
 
-export async function processHttpRequest(
+export async function ingestHttpRequest(
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   await debugHttpRequest(httpRequest);
@@ -41,7 +41,7 @@ export async function processHttpRequest(
   return ssoTrace.id;
 }
 
-export async function processHttpResponse(
+export async function ingestHttpResponse(
   httpResponse: HttpResponse,
   pairedHttpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
