@@ -9,8 +9,8 @@ import { getTracingSession } from "@/common/services/capture-query.ts";
 import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
 import { findSsoTraceById } from "@/common/services/flow-store.ts";
 import {
-  extractSamlAuthnRequestXml,
-  extractSamlResponseXml,
+  extractSamlpAuthnRequestXml,
+  extractSamlpResponseXml,
 } from "@/common/services/saml-detector.ts";
 import { findSamlLogsBySsoTraceId } from "@/common/services/saml-store.ts";
 import { type FlowData } from "@/report-page/common/types.ts";
@@ -90,7 +90,7 @@ export async function getSamlAuthnRequestXml(
     return undefined;
   }
 
-  const authnRequestXml = await extractSamlAuthnRequestXml(httpMessage);
+  const authnRequestXml = await extractSamlpAuthnRequestXml(httpMessage);
   if (authnRequestXml instanceof Error) {
     console.warn("Failed to extract SAML AuthnRequest XML:", authnRequestXml);
     return undefined;
@@ -107,7 +107,7 @@ export async function getSamlResponseXml(
     return undefined;
   }
 
-  const responseXml = await extractSamlResponseXml(httpMessage);
+  const responseXml = await extractSamlpResponseXml(httpMessage);
   if (responseXml instanceof Error) {
     console.warn("Failed to extract SAML Response XML:", responseXml);
     return undefined;

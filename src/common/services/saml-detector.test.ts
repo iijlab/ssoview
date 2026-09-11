@@ -9,8 +9,8 @@ import { type HttpRequest, type HttpResponse } from "@/common/models/http-messag
 import {
   detectSamlSignalFromHttpRequest,
   detectSamlSignalFromHttpResponse,
-  extractSamlAuthnRequestXml,
-  extractSamlResponseXml,
+  extractSamlpAuthnRequestXml,
+  extractSamlpResponseXml,
 } from "./saml-detector.ts";
 
 //
@@ -94,66 +94,66 @@ function makeResponse(overrides: Record<string, unknown> = {}): HttpResponse {
   } as unknown as HttpResponse;
 }
 
-async function buildIdpLocationUrl(encodedAuthnRequest?: string): Promise<string> {
+async function makeIdpLocationUrl(encodedAuthnRequest?: string): Promise<string> {
   const encoded = encodedAuthnRequest ?? (await deflateAndBase64Encode(AUTHN_REQUEST_XML));
   return `https://idp.example.org/sso?SAMLRequest=${encodeURIComponent(encoded)}`;
 }
 
-function buildSamlRequestFormBody(): string {
+function makeSamlRequestFormBody(): string {
   const encoded = Base64.encode(AUTHN_REQUEST_XML);
   return `<html><body><form action="https://idp.example.org/sso"><input name="SAMLRequest" value="${encoded}"/></form></body></html>`;
 }
 
-function buildSamlRequestFormBodyWithUpperCaseAttributes(): string {
+function makeSamlRequestFormBodyWithUpperCaseAttributes(): string {
   const encoded = Base64.encode(AUTHN_REQUEST_XML);
   return `<HTML><BODY Onload="document.forms[0].submit()"><FORM METHOD="POST" ACTION="https://idp.example.org/sso"><INPUT TYPE="HIDDEN" NAME="SAMLRequest"\nVALUE="${encoded}"></FORM></BODY></HTML>`;
 }
 
-function buildSamlRequestPostBody(): string {
+function makeSamlRequestPostBody(): string {
   const encoded = Base64.encode(AUTHN_REQUEST_XML);
   return new URLSearchParams({ SAMLRequest: encoded }).toString();
 }
 
-async function buildSpLocationUrlWithResponse(): Promise<string> {
+async function makeSpLocationUrlWithResponse(): Promise<string> {
   const encoded = await deflateAndBase64Encode(RESPONSE_XML);
   return `https://sp.example.com/acs?SAMLResponse=${encodeURIComponent(encoded)}`;
 }
 
-async function buildSamlRequestOnclickBody(): Promise<string> {
+async function makeSamlRequestOnclickBody(): Promise<string> {
   const encoded = await deflateAndBase64Encode(AUTHN_REQUEST_XML);
   const url = `https://idp.example.org/sso?SAMLRequest=${encodeURIComponent(encoded)}`;
   const escapedUrl = url.replace(/&/g, "&amp;");
   return `<html><body><button onclick="location.href=&quot;${escapedUrl}&quot;">Login</button></body></html>`;
 }
 
-async function buildSamlRequestMetaRefreshBody(): Promise<string> {
+async function makeSamlRequestMetaRefreshBody(): Promise<string> {
   const encoded = await deflateAndBase64Encode(AUTHN_REQUEST_XML);
   const url = `https://idp.example.org/sso?SAMLRequest=${encodeURIComponent(encoded)}`;
   return `<html><head><meta http-equiv="refresh" content="0;url=${url}"></head><body></body></html>`;
 }
 
-async function buildSamlRequestMetaRefreshBodyWithEscapedQuotes(): Promise<string> {
+async function makeSamlRequestMetaRefreshBodyWithEscapedQuotes(): Promise<string> {
   const encoded = await deflateAndBase64Encode(AUTHN_REQUEST_XML);
   const url = `https://idp.example.org/sso?SAMLRequest=${encodeURIComponent(encoded)}`;
   return `<html><head><meta http-equiv=\\"refresh\\" content=\\"0;url=${url}\\"></head><body></body></html>`;
 }
 
-function buildSamlResponseFormBody(): string {
+function makeSamlResponseFormBody(): string {
   const encoded = Base64.encode(RESPONSE_XML);
   return `<html><body><form><input name="SAMLResponse" value="${encoded}"/></form></body></html>`;
 }
 
-function buildSamlResponseFormBodyWithUpperCaseAttributes(): string {
+function makeSamlResponseFormBodyWithUpperCaseAttributes(): string {
   const encoded = Base64.encode(RESPONSE_XML);
   return `<HTML><BODY Onload="document.forms[0].submit()"><FORM METHOD="POST" ACTION="https://sp.example.com/acs"><INPUT TYPE="HIDDEN" NAME="SAMLResponse"\nVALUE="${encoded}"></FORM></BODY></HTML>`;
 }
 
-function buildSamlResponsePostBody(): string {
+function makeSamlResponsePostBody(): string {
   const encoded = Base64.encode(RESPONSE_XML);
   return new URLSearchParams({ SAMLResponse: encoded }).toString();
 }
 
-function buildUnsolicitedSamlResponsePostBody(): string {
+function makeUnsolicitedSamlResponsePostBody(): string {
   const encoded = Base64.encode(UNSOLICITED_RESPONSE_XML);
   return new URLSearchParams({ SAMLResponse: encoded }).toString();
 }
@@ -197,7 +197,7 @@ describe("detectSamlSignal", () => {
 
   describe("Step 2: IncomingSamlAuthnRequest (SP issues AuthnRequest via redirect)", () => {
     it("detects AuthnRequest in a 302 redirect", async () => {
-      const location = await buildIdpLocationUrl();
+      const location = await makeIdpLocationUrl();
       const response = makeResponse({
         url: "https://sp.example.com/login",
         statusCode: 302,
@@ -214,7 +214,7 @@ describe("detectSamlSignal", () => {
     });
 
     it("detects AuthnRequest in a 307 redirect", async () => {
-      const location = await buildIdpLocationUrl();
+      const location = await makeIdpLocationUrl();
       const response = makeResponse({
         url: "https://sp.example.com/login",
         statusCode: 307,
@@ -231,7 +231,7 @@ describe("detectSamlSignal", () => {
     });
 
     it("detects AuthnRequest in a 303 redirect", async () => {
-      const location = await buildIdpLocationUrl();
+      const location = await makeIdpLocationUrl();
       const response = makeResponse({
         url: "https://sp.example.com/login",
         statusCode: 303,
@@ -248,7 +248,7 @@ describe("detectSamlSignal", () => {
     });
 
     it("returns undefined for non-redirect status codes", async () => {
-      const location = await buildIdpLocationUrl();
+      const location = await makeIdpLocationUrl();
       const response = makeResponse({
         statusCode: 200,
         headers: [
@@ -306,7 +306,7 @@ describe("detectSamlSignal", () => {
     it("returns Error when AuthnRequest XML has no ID attribute", async () => {
       const noIdXml = '<samlp:AuthnRequest Version="2.0"></samlp:AuthnRequest>';
       const encoded = await deflateAndBase64Encode(noIdXml);
-      const location = await buildIdpLocationUrl(encoded);
+      const location = await makeIdpLocationUrl(encoded);
       const response = makeResponse({
         statusCode: 302,
         headers: [
@@ -330,7 +330,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "text/html" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: buildSamlRequestFormBody(),
+        body: makeSamlRequestFormBody(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
@@ -346,7 +346,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "application/json" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: buildSamlRequestFormBody(),
+        body: makeSamlRequestFormBody(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
@@ -376,7 +376,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "text/html" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: buildSamlRequestFormBodyWithUpperCaseAttributes(),
+        body: makeSamlRequestFormBodyWithUpperCaseAttributes(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
@@ -394,7 +394,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "text/html" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: await buildSamlRequestOnclickBody(),
+        body: await makeSamlRequestOnclickBody(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
@@ -427,7 +427,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "application/json" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: await buildSamlRequestOnclickBody(),
+        body: await makeSamlRequestOnclickBody(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
@@ -444,7 +444,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "text/html" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: await buildSamlRequestMetaRefreshBody(),
+        body: await makeSamlRequestMetaRefreshBody(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
@@ -460,7 +460,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "text/html" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: await buildSamlRequestMetaRefreshBodyWithEscapedQuotes(),
+        body: await makeSamlRequestMetaRefreshBodyWithEscapedQuotes(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
@@ -476,7 +476,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "application/json" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: await buildSamlRequestMetaRefreshBody(),
+        body: await makeSamlRequestMetaRefreshBody(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
@@ -519,7 +519,7 @@ describe("detectSamlSignal", () => {
 
   describe("Step 3: OutgoingSamlAuthnRequest (UA redirects AuthnRequest to IdP)", () => {
     it("detects AuthnRequest in a GET request URL", async () => {
-      const url = await buildIdpLocationUrl();
+      const url = await makeIdpLocationUrl();
       const request = makeRequest({ url, method: "GET" });
 
       const result = await detectSamlSignalFromHttpRequest(request);
@@ -529,7 +529,7 @@ describe("detectSamlSignal", () => {
     });
 
     it("returns undefined for non-GET request", async () => {
-      const url = await buildIdpLocationUrl();
+      const url = await makeIdpLocationUrl();
       const request = makeRequest({ url, method: "POST", body: "" });
 
       const result = await detectSamlSignalFromHttpRequest(request);
@@ -552,7 +552,7 @@ describe("detectSamlSignal", () => {
       const request = makeRequest({
         url: "https://idp.example.org/sso",
         method: "POST",
-        body: buildSamlRequestPostBody(),
+        body: makeSamlRequestPostBody(),
       });
 
       const result = await detectSamlSignalFromHttpRequest(request);
@@ -576,7 +576,7 @@ describe("detectSamlSignal", () => {
 
   describe("Step 4: IncomingSamlResponse (IdP issues SAML Response via Redirect Binding)", () => {
     it("detects SAMLResponse in a 302 redirect", async () => {
-      const location = await buildSpLocationUrlWithResponse();
+      const location = await makeSpLocationUrlWithResponse();
       const response = makeResponse({
         url: "https://idp.example.org/sso",
         statusCode: 302,
@@ -597,7 +597,7 @@ describe("detectSamlSignal", () => {
     });
 
     it("detects SAMLResponse in a 307 redirect", async () => {
-      const location = await buildSpLocationUrlWithResponse();
+      const location = await makeSpLocationUrlWithResponse();
       const response = makeResponse({
         url: "https://idp.example.org/sso",
         statusCode: 307,
@@ -635,7 +635,7 @@ describe("detectSamlSignal", () => {
 
   describe("Step 4: IncomingSamlResponse (IdP issues SAML Response via POST Binding)", () => {
     it("detects SAMLResponse in HTML response body", async () => {
-      const requestUrl = await buildIdpLocationUrl();
+      const requestUrl = await makeIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
       const response = makeResponse({
         url: "https://idp.example.org/sso",
@@ -643,7 +643,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "text/html; charset=utf-8" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: buildSamlResponseFormBody(),
+        body: makeSamlResponseFormBody(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, request);
@@ -657,7 +657,7 @@ describe("detectSamlSignal", () => {
     });
 
     it("detects SAMLResponse with reversed attribute order", async () => {
-      const requestUrl = await buildIdpLocationUrl();
+      const requestUrl = await makeIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
       const encoded = Base64.encode(RESPONSE_XML);
       const body = `<html><body><form><input value="${encoded}" name="SAMLResponse"/></form></body></html>`;
@@ -680,7 +680,7 @@ describe("detectSamlSignal", () => {
     });
 
     it("returns undefined when Content-Type is not text/html", async () => {
-      const requestUrl = await buildIdpLocationUrl();
+      const requestUrl = await makeIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
       const response = makeResponse({
         headers: [
@@ -696,7 +696,7 @@ describe("detectSamlSignal", () => {
     });
 
     it("returns undefined when body has no SAMLResponse form field", async () => {
-      const requestUrl = await buildIdpLocationUrl();
+      const requestUrl = await makeIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
       const response = makeResponse({
         url: "https://idp.example.org/sso",
@@ -713,7 +713,7 @@ describe("detectSamlSignal", () => {
     });
 
     it("detects SAMLResponse with upper-case HTML attributes", async () => {
-      const requestUrl = await buildIdpLocationUrl();
+      const requestUrl = await makeIdpLocationUrl();
       const request = makeRequest({ url: requestUrl, method: "GET" });
       const response = makeResponse({
         url: "https://idp.example.org/sso",
@@ -721,7 +721,7 @@ describe("detectSamlSignal", () => {
           { name: "Content-Type", value: "text/html" },
           { name: "Date", value: DATE_HEADER_VALUE },
         ],
-        body: buildSamlResponseFormBodyWithUpperCaseAttributes(),
+        body: makeSamlResponseFormBodyWithUpperCaseAttributes(),
       });
 
       const result = await detectSamlSignalFromHttpResponse(response, request);
@@ -737,7 +737,7 @@ describe("detectSamlSignal", () => {
 
   describe("Step 5: OutgoingSamlResponse (UA redirects SAML Response to SP via Redirect Binding)", () => {
     it("detects SAMLResponse in a GET request URL", async () => {
-      const url = await buildSpLocationUrlWithResponse();
+      const url = await makeSpLocationUrlWithResponse();
       const request = makeRequest({ url, method: "GET" });
 
       const result = await detectSamlSignalFromHttpRequest(request);
@@ -764,7 +764,7 @@ describe("detectSamlSignal", () => {
       const request = makeRequest({
         url: "https://sp.example.com/acs",
         method: "POST",
-        body: buildSamlResponsePostBody(),
+        body: makeSamlResponsePostBody(),
       });
 
       const result = await detectSamlSignalFromHttpRequest(request);
@@ -797,7 +797,7 @@ describe("detectSamlSignal", () => {
       const request = makeRequest({
         url: "https://sp.example.com/acs",
         method: "POST",
-        body: buildUnsolicitedSamlResponsePostBody(),
+        body: makeUnsolicitedSamlResponsePostBody(),
       });
 
       const result = await detectSamlSignalFromHttpRequest(request);
@@ -832,7 +832,7 @@ describe("detectSamlSignal", () => {
       const request = makeRequest({
         url: "https://sp.example.com/acs",
         method: "POST",
-        body: buildSamlResponsePostBody(),
+        body: makeSamlResponsePostBody(),
       });
       const response = makeResponse({
         url: "https://sp.example.com/acs",
@@ -858,9 +858,9 @@ describe("detectSamlSignal", () => {
   });
 });
 
-describe("extractSamlAuthnRequestXml", () => {
+describe("extractSamlpAuthnRequestXml", () => {
   it("extracts XML from a redirect response Location URL", async () => {
-    const location = await buildIdpLocationUrl();
+    const location = await makeIdpLocationUrl();
     const response = makeResponse({
       url: "https://sp.example.com/login",
       statusCode: 302,
@@ -870,7 +870,7 @@ describe("extractSamlAuthnRequestXml", () => {
       ],
     });
 
-    const result = await extractSamlAuthnRequestXml(response);
+    const result = await extractSamlpAuthnRequestXml(response);
 
     expect(result).toBe(AUTHN_REQUEST_XML);
   });
@@ -882,19 +882,19 @@ describe("extractSamlAuthnRequestXml", () => {
         { name: "Content-Type", value: "text/html" },
         { name: "Date", value: DATE_HEADER_VALUE },
       ],
-      body: buildSamlRequestFormBody(),
+      body: makeSamlRequestFormBody(),
     });
 
-    const result = await extractSamlAuthnRequestXml(response);
+    const result = await extractSamlpAuthnRequestXml(response);
 
     expect(result).toBe(AUTHN_REQUEST_XML);
   });
 
   it("extracts XML from a GET request URL", async () => {
-    const url = await buildIdpLocationUrl();
+    const url = await makeIdpLocationUrl();
     const request = makeRequest({ url, method: "GET" });
 
-    const result = await extractSamlAuthnRequestXml(request);
+    const result = await extractSamlpAuthnRequestXml(request);
 
     expect(result).toBe(AUTHN_REQUEST_XML);
   });
@@ -903,28 +903,28 @@ describe("extractSamlAuthnRequestXml", () => {
     const request = makeRequest({
       url: "https://idp.example.org/sso",
       method: "POST",
-      body: buildSamlRequestPostBody(),
+      body: makeSamlRequestPostBody(),
     });
 
-    const result = await extractSamlAuthnRequestXml(request);
+    const result = await extractSamlpAuthnRequestXml(request);
 
     expect(result).toBe(AUTHN_REQUEST_XML);
   });
 
   it("returns undefined for a request without SAMLRequest", async () => {
-    const result = await extractSamlAuthnRequestXml(makeRequest());
+    const result = await extractSamlpAuthnRequestXml(makeRequest());
     expect(result).toBeUndefined();
   });
 
   it("returns undefined for a response without SAMLRequest", async () => {
-    const result = await extractSamlAuthnRequestXml(makeResponse());
+    const result = await extractSamlpAuthnRequestXml(makeResponse());
     expect(result).toBeUndefined();
   });
 });
 
-describe("extractSamlResponseXml", () => {
+describe("extractSamlpResponseXml", () => {
   it("extracts XML from a redirect response Location URL", async () => {
-    const location = await buildSpLocationUrlWithResponse();
+    const location = await makeSpLocationUrlWithResponse();
     const response = makeResponse({
       url: "https://idp.example.org/sso",
       statusCode: 302,
@@ -934,7 +934,7 @@ describe("extractSamlResponseXml", () => {
       ],
     });
 
-    const result = await extractSamlResponseXml(response);
+    const result = await extractSamlpResponseXml(response);
 
     expect(result).toBe(RESPONSE_XML);
   });
@@ -946,19 +946,19 @@ describe("extractSamlResponseXml", () => {
         { name: "Content-Type", value: "text/html" },
         { name: "Date", value: DATE_HEADER_VALUE },
       ],
-      body: buildSamlResponseFormBody(),
+      body: makeSamlResponseFormBody(),
     });
 
-    const result = await extractSamlResponseXml(response);
+    const result = await extractSamlpResponseXml(response);
 
     expect(result).toBe(RESPONSE_XML);
   });
 
   it("extracts XML from a GET request URL", async () => {
-    const url = await buildSpLocationUrlWithResponse();
+    const url = await makeSpLocationUrlWithResponse();
     const request = makeRequest({ url, method: "GET" });
 
-    const result = await extractSamlResponseXml(request);
+    const result = await extractSamlpResponseXml(request);
 
     expect(result).toBe(RESPONSE_XML);
   });
@@ -967,21 +967,21 @@ describe("extractSamlResponseXml", () => {
     const request = makeRequest({
       url: "https://sp.example.com/acs",
       method: "POST",
-      body: buildSamlResponsePostBody(),
+      body: makeSamlResponsePostBody(),
     });
 
-    const result = await extractSamlResponseXml(request);
+    const result = await extractSamlpResponseXml(request);
 
     expect(result).toBe(RESPONSE_XML);
   });
 
   it("returns undefined for a request without SAMLResponse", async () => {
-    const result = await extractSamlResponseXml(makeRequest());
+    const result = await extractSamlpResponseXml(makeRequest());
     expect(result).toBeUndefined();
   });
 
   it("returns undefined for a response without SAMLResponse", async () => {
-    const result = await extractSamlResponseXml(makeResponse());
+    const result = await extractSamlpResponseXml(makeResponse());
     expect(result).toBeUndefined();
   });
 });

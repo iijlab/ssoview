@@ -37,20 +37,20 @@ export async function detectSamlSignalFromHttpResponse(
   );
 }
 
-export async function extractSamlAuthnRequestXml(
+export async function extractSamlpAuthnRequestXml(
   httpMessage: HttpMessage,
 ): Promise<string | undefined | Error> {
   return httpMessage.type === "Request"
-    ? await extractSamlAuthnRequestXmlFromHttpRequest(httpMessage)
-    : await extractSamlAuthnRequestXmlFromHttpResponse(httpMessage);
+    ? await extractSamlpAuthnRequestXmlFromHttpRequest(httpMessage)
+    : await extractSamlpAuthnRequestXmlFromHttpResponse(httpMessage);
 }
 
-export async function extractSamlResponseXml(
+export async function extractSamlpResponseXml(
   httpMessage: HttpMessage,
 ): Promise<string | undefined | Error> {
   return httpMessage.type === "Request"
-    ? await extractSamlResponseXmlFromHttpRequest(httpMessage)
-    : await extractSamlResponseXmlFromHttpResponse(httpMessage);
+    ? await extractSamlpResponseXmlFromHttpRequest(httpMessage)
+    : await extractSamlpResponseXmlFromHttpResponse(httpMessage);
 }
 
 // Step 1: UA ---(resource request)--> SP
@@ -66,7 +66,7 @@ async function detectUnauthenticatedResourceRequest(_: HttpRequest): Promise<und
 async function detectIncomingSamlAuthnRequest(
   httpResponse: HttpResponse,
 ): Promise<(SamlSignalFromHttpResponse & { step: 2 }) | undefined | Error> {
-  const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpResponse(httpResponse);
+  const authnRequestXml = await extractSamlpAuthnRequestXmlFromHttpResponse(httpResponse);
   if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
     return authnRequestXml;
   }
@@ -82,14 +82,14 @@ async function detectIncomingSamlAuthnRequest(
   };
 }
 
-async function extractSamlAuthnRequestXmlFromHttpResponse(
+async function extractSamlpAuthnRequestXmlFromHttpResponse(
   httpResponse: HttpResponse,
 ): Promise<string | undefined | Error> {
   return (
-    (await extractSamlAuthnRequestXmlFromHttpResponseForHttpRedirect(httpResponse)) ??
-    (await extractSamlAuthnRequestXmlFromHttpResponseForHttpPost(httpResponse)) ??
-    (await extractSamlAuthnRequestXmlFromHttpResponseForScriptRedirect(httpResponse)) ??
-    (await extractSamlAuthnRequestXmlFromHttpResponseForMetaRefresh(httpResponse))
+    (await extractSamlpAuthnRequestXmlFromHttpResponseForHttpRedirect(httpResponse)) ??
+    (await extractSamlpAuthnRequestXmlFromHttpResponseForHttpPost(httpResponse)) ??
+    (await extractSamlpAuthnRequestXmlFromHttpResponseForScriptRedirect(httpResponse)) ??
+    (await extractSamlpAuthnRequestXmlFromHttpResponseForMetaRefresh(httpResponse))
   );
 }
 
@@ -98,7 +98,7 @@ async function extractSamlAuthnRequestXmlFromHttpResponse(
 // Detected when:
 // - It is a redirect response
 // - The Location URL query string contains SAMLRequest
-async function extractSamlAuthnRequestXmlFromHttpResponseForHttpRedirect(
+async function extractSamlpAuthnRequestXmlFromHttpResponseForHttpRedirect(
   httpResponse: HttpResponse,
 ): Promise<string | undefined | Error> {
   if (
@@ -134,7 +134,7 @@ async function extractSamlAuthnRequestXmlFromHttpResponseForHttpRedirect(
 // Detected when:
 // - The response body is HTML
 // - A form in that HTML has a parameter named SAMLRequest
-async function extractSamlAuthnRequestXmlFromHttpResponseForHttpPost(
+async function extractSamlpAuthnRequestXmlFromHttpResponseForHttpPost(
   httpResponse: HttpResponse,
 ): Promise<string | undefined | Error> {
   if (httpResponse.body === undefined) {
@@ -172,7 +172,7 @@ function extractSamlRequestFromResponseBody(responseBody: string): string | unde
 // - A URL is specified via location.href in that HTML
 // - The query string of that URL contains SAMLRequest
 // - e.g. <button onclick="location.href=&quot;https://idp.example.org/saml2?SAMLRequest=...&quot;">
-async function extractSamlAuthnRequestXmlFromHttpResponseForScriptRedirect(
+async function extractSamlpAuthnRequestXmlFromHttpResponseForScriptRedirect(
   httpResponse: HttpResponse,
 ): Promise<string | undefined | Error> {
   if (httpResponse.body === undefined) {
@@ -213,7 +213,7 @@ async function extractSamlAuthnRequestXmlFromHttpResponseForScriptRedirect(
 // - The response body is HTML
 // - A URL is specified via <meta http-equiv="refresh"> in that HTML
 // - The query string of that URL contains SAMLRequest
-async function extractSamlAuthnRequestXmlFromHttpResponseForMetaRefresh(
+async function extractSamlpAuthnRequestXmlFromHttpResponseForMetaRefresh(
   httpResponse: HttpResponse,
 ): Promise<string | undefined | Error> {
   if (httpResponse.body === undefined) {
@@ -255,7 +255,7 @@ function extractUrlFromMetaRefresh(responseBody: string): string | undefined {
 async function detectOutgoingSamlAuthnRequest(
   httpRequest: HttpRequest,
 ): Promise<(SamlSignalFromHttpRequest & { step: 3 }) | undefined | Error> {
-  const authnRequestXml = await extractSamlAuthnRequestXmlFromHttpRequest(httpRequest);
+  const authnRequestXml = await extractSamlpAuthnRequestXmlFromHttpRequest(httpRequest);
   if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
     return authnRequestXml;
   }
@@ -271,12 +271,12 @@ async function detectOutgoingSamlAuthnRequest(
   };
 }
 
-async function extractSamlAuthnRequestXmlFromHttpRequest(
+async function extractSamlpAuthnRequestXmlFromHttpRequest(
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   return (
-    (await extractSamlAuthnRequestXmlFromHttpRequestForHttpRedirect(httpRequest)) ??
-    (await extractSamlAuthnRequestXmlFromHttpRequestForHttpPost(httpRequest))
+    (await extractSamlpAuthnRequestXmlFromHttpRequestForHttpRedirect(httpRequest)) ??
+    (await extractSamlpAuthnRequestXmlFromHttpRequestForHttpPost(httpRequest))
   );
 }
 
@@ -285,7 +285,7 @@ async function extractSamlAuthnRequestXmlFromHttpRequest(
 // Detected when:
 // - It is a GET request
 // - The URL query string contains SAMLRequest
-async function extractSamlAuthnRequestXmlFromHttpRequestForHttpRedirect(
+async function extractSamlpAuthnRequestXmlFromHttpRequestForHttpRedirect(
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   if (httpRequest.method !== "GET") {
@@ -311,7 +311,7 @@ async function extractSamlAuthnRequestXmlFromHttpRequestForHttpRedirect(
 // Detected when:
 // - It is a POST request
 // - The POST parameters contain SAMLRequest
-async function extractSamlAuthnRequestXmlFromHttpRequestForHttpPost(
+async function extractSamlpAuthnRequestXmlFromHttpRequestForHttpPost(
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   if (httpRequest.body === undefined) {
@@ -342,7 +342,7 @@ function extractSamlRequestFromRequestBody(requestBody: string): string | undefi
 async function detectIncomingSamlResponse(
   httpResponse: HttpResponse,
 ): Promise<(SamlSignalFromHttpResponse & { step: 4 }) | undefined | Error> {
-  const responseXml = await extractSamlResponseXmlFromHttpResponse(httpResponse);
+  const responseXml = await extractSamlpResponseXmlFromHttpResponse(httpResponse);
   if (responseXml === undefined || responseXml instanceof Error) {
     return responseXml;
   }
@@ -364,12 +364,12 @@ async function detectIncomingSamlResponse(
   };
 }
 
-async function extractSamlResponseXmlFromHttpResponse(
+async function extractSamlpResponseXmlFromHttpResponse(
   httpResponse: HttpResponse,
 ): Promise<string | undefined | Error> {
   return (
-    (await extractSamlResponseXmlFromHttpResponseForHttpRedirect(httpResponse)) ??
-    (await extractSamlResponseXmlFromHttpResponseForHttpPost(httpResponse))
+    (await extractSamlpResponseXmlFromHttpResponseForHttpRedirect(httpResponse)) ??
+    (await extractSamlpResponseXmlFromHttpResponseForHttpPost(httpResponse))
   );
 }
 
@@ -378,7 +378,7 @@ async function extractSamlResponseXmlFromHttpResponse(
 // Detected when:
 // - It is a redirect response
 // - The Location URL query string contains SAMLResponse
-async function extractSamlResponseXmlFromHttpResponseForHttpRedirect(
+async function extractSamlpResponseXmlFromHttpResponseForHttpRedirect(
   httpResponse: HttpResponse,
 ): Promise<string | undefined | Error> {
   if (
@@ -414,7 +414,7 @@ async function extractSamlResponseXmlFromHttpResponseForHttpRedirect(
 // Detected when:
 // - The response body is HTML
 // - A form in that HTML has a parameter named SAMLResponse
-async function extractSamlResponseXmlFromHttpResponseForHttpPost(
+async function extractSamlpResponseXmlFromHttpResponseForHttpPost(
   httpResponse: HttpResponse,
 ): Promise<string | undefined | Error> {
   if (httpResponse.body === undefined) {
@@ -445,7 +445,7 @@ function extractSamlResponseFromResponseBody(responseBody: string): string | und
 async function detectOutgoingSamlResponse(
   httpRequest: HttpRequest,
 ): Promise<(SamlSignalFromHttpRequest & { step: 5 }) | undefined | Error> {
-  const responseXml = await extractSamlResponseXmlFromHttpRequest(httpRequest);
+  const responseXml = await extractSamlpResponseXmlFromHttpRequest(httpRequest);
   if (responseXml === undefined || responseXml instanceof Error) {
     return responseXml;
   }
@@ -467,12 +467,12 @@ async function detectOutgoingSamlResponse(
   };
 }
 
-async function extractSamlResponseXmlFromHttpRequest(
+async function extractSamlpResponseXmlFromHttpRequest(
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   return (
-    (await extractSamlResponseXmlFromHttpRequestForHttpRedirect(httpRequest)) ??
-    (await extractSamlResponseXmlFromHttpRequestForHttpPost(httpRequest))
+    (await extractSamlpResponseXmlFromHttpRequestForHttpRedirect(httpRequest)) ??
+    (await extractSamlpResponseXmlFromHttpRequestForHttpPost(httpRequest))
   );
 }
 
@@ -481,7 +481,7 @@ async function extractSamlResponseXmlFromHttpRequest(
 // Detected when:
 // - It is a GET request
 // - The URL query string contains SAMLResponse
-async function extractSamlResponseXmlFromHttpRequestForHttpRedirect(
+async function extractSamlpResponseXmlFromHttpRequestForHttpRedirect(
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   if (httpRequest.method !== "GET") {
@@ -507,7 +507,7 @@ async function extractSamlResponseXmlFromHttpRequestForHttpRedirect(
 // Detected when:
 // - It is a POST request
 // - The POST parameters contain SAMLResponse
-async function extractSamlResponseXmlFromHttpRequestForHttpPost(
+async function extractSamlpResponseXmlFromHttpRequestForHttpPost(
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   if (httpRequest.body === undefined) {
