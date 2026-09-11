@@ -27,8 +27,8 @@ import {
 } from "@/service-worker/side-panel.ts";
 
 function init() {
-  registerStartMonitoringHandler(onStartMonitoring);
-  registerStopMonitoringHandler(onStopMonitoring);
+  registerStartMonitoringHandler(handleStartTracingCommand);
+  registerStopMonitoringHandler(handleStopTracingCommand);
 
   registerHttpInterceptionHandlers(
     async (tabId, httpRequest) => {
@@ -71,7 +71,7 @@ function init() {
     if (tabTraced instanceof Error) {
       console.warn("Failed to get tab tracing state:", tabTraced);
     } else if (tabTraced) {
-      const stopError = await onStopMonitoring(tabId);
+      const stopError = await handleStopTracingCommand(tabId);
       if (stopError) {
         console.warn("Failed to stop monitoring:", stopError);
       }
@@ -79,7 +79,7 @@ function init() {
   });
 }
 
-async function onStartMonitoring(tabId: number): Promise<void | Error> {
+async function handleStartTracingCommand(tabId: number): Promise<void | Error> {
   const startError = await startTracing(tabId);
   if (startError) {
     return startError;
@@ -88,7 +88,7 @@ async function onStartMonitoring(tabId: number): Promise<void | Error> {
   showBadge("REC", BadgeColor.REC_TEXT, BadgeColor.REC_BACKGROUND);
 }
 
-async function onStopMonitoring(tabId: number): Promise<void | Error> {
+async function handleStopTracingCommand(tabId: number): Promise<void | Error> {
   const stopError = await stopTracing(tabId);
   if (stopError) {
     return stopError;
