@@ -37,7 +37,7 @@ beforeEach(() => {
 function makeRequest(overrides: Record<string, unknown> = {}): HttpMessage {
   return {
     id: "msg-1",
-    tracingSessionId: "cs-1",
+    tracingSessionId: "tracing-session-1",
     observedAt: "2026-01-01T00:00:00Z",
     tabId: 1,
     fetchRequestId: "req-1",
@@ -88,7 +88,7 @@ describe("saveHttpMessage", () => {
 
     expect(result).toBeUndefined();
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
-      '{"id":"msg-1","kind":"http","tracingSessionId":"cs-1","tabId":1,"fetchRequestId":"req-1","type":"Request"}',
+      '{"id":"msg-1","kind":"http","tracingSessionId":"tracing-session-1","tabId":1,"fetchRequestId":"req-1","type":"Request"}',
       httpMessage,
     );
   });
@@ -100,13 +100,13 @@ describe("saveHttpMessage", () => {
     await saveHttpMessage(httpMessage);
 
     expect(setSessionStorageItem).toHaveBeenCalledExactlyOnceWith(
-      '{"id":"msg-1","kind":"http","tracingSessionId":"cs-1","type":"Request"}',
+      '{"id":"msg-1","kind":"http","tracingSessionId":"tracing-session-1","type":"Request"}',
       httpMessage,
     );
   });
 
   it("propagates an error from the storage", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(setSessionStorageItem).mockResolvedValue(error);
 
     expect(await saveHttpMessage(makeRequest())).toBe(error);
@@ -133,7 +133,7 @@ describe("findHttpMessagesByIds", () => {
 
   it("ignores keys of other kinds", async () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([
-      '{"id":"msg-1","kind":"saml","tabId":1,"ssoTraceId":"flow-1"}',
+      '{"id":"msg-1","kind":"saml","tabId":1,"ssoTraceId":"sso-trace-1"}',
     ]);
     vi.mocked(getSessionStorageItems).mockResolvedValue({});
 
@@ -152,14 +152,14 @@ describe("findHttpMessagesByIds", () => {
   });
 
   it("propagates an error from listing the keys", async () => {
-    const error = new Error("keys failed");
+    const error = new Error("error");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
     expect(await findHttpMessagesByIds(["msg-1"])).toBe(error);
   });
 
   it("propagates an error from reading the items", async () => {
-    const error = new Error("items failed");
+    const error = new Error("error");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([]);
     vi.mocked(getSessionStorageItems).mockResolvedValue(error);
 
@@ -172,30 +172,30 @@ describe("findHttpRequestByFetchRequestId", () => {
     const request = makeRequest();
     mockStorage(request);
 
-    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toEqual(request);
+    expect(await findHttpRequestByFetchRequestId("tracing-session-1", 1, "req-1")).toEqual(request);
   });
 
   it("ignores requests of another tracing session, tab, or request ID", async () => {
     mockStorage(
-      makeRequest({ id: "msg-3", tracingSessionId: "cs-2" }),
+      makeRequest({ id: "msg-3", tracingSessionId: "tracing-session-2" }),
       makeRequest({ id: "msg-4", tabId: 2 }),
       makeRequest({ id: "msg-5", fetchRequestId: "req-2" }),
     );
 
-    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toBeUndefined();
+    expect(await findHttpRequestByFetchRequestId("tracing-session-1", 1, "req-1")).toBeUndefined();
   });
 
   it("ignores responses", async () => {
     mockStorage(makeResponse());
 
-    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toBeUndefined();
+    expect(await findHttpRequestByFetchRequestId("tracing-session-1", 1, "req-1")).toBeUndefined();
   });
 
   it("propagates an error from the storage", async () => {
-    const error = new Error("keys failed");
+    const error = new Error("error");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
-    expect(await findHttpRequestByFetchRequestId("cs-1", 1, "req-1")).toBe(error);
+    expect(await findHttpRequestByFetchRequestId("tracing-session-1", 1, "req-1")).toBe(error);
   });
 });
 
@@ -213,7 +213,7 @@ describe("deleteHttpMessages", () => {
   });
 
   it("propagates an error from the storage", async () => {
-    const error = new Error("remove failed");
+    const error = new Error("error");
     vi.mocked(removeSessionStorageItems).mockResolvedValue(error);
 
     expect(await deleteHttpMessages([makeRequest()])).toBe(error);

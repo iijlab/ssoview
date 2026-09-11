@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 
 describe("saveTracingLifecycleEvent", () => {
-  it("stores the event under a JSON key of the ID, kind, and type", async () => {
+  it("saves the event under a JSON key of the ID, kind, and type", async () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
     const event = newTracingStartedEvent();
 
@@ -66,7 +66,7 @@ describe("saveTracingLifecycleEvent", () => {
   });
 
   it("propagates an error from the storage", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(setSessionStorageItem).mockResolvedValue(error);
 
     const result = await saveTracingLifecycleEvent(newTracingStartedEvent());
@@ -115,7 +115,7 @@ describe("findAllTracingLifecycleEvents", () => {
     expect(getSessionStorageItems).toHaveBeenCalledExactlyOnceWith([key]);
   });
 
-  it("returns an empty array when nothing is stored", async () => {
+  it("returns an empty array when no event is saved", async () => {
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([]);
     vi.mocked(getSessionStorageItems).mockResolvedValue({});
 
@@ -137,14 +137,14 @@ describe("findAllTracingLifecycleEvents", () => {
   });
 
   it("propagates an error from the key retrieval", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
     expect(await findAllTracingLifecycleEvents()).toBe(error);
   });
 
   it("propagates an error from the item retrieval", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([]);
     vi.mocked(getSessionStorageItems).mockResolvedValue(error);
 

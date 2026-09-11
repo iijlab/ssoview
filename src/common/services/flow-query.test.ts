@@ -26,7 +26,7 @@ beforeEach(() => {
 // Helpers
 //
 
-function makeSamlLog(httpMessageId: string, ssoTraceId = "flow-1"): SamlLog {
+function makeSamlLog(httpMessageId: string, ssoTraceId = "sso-trace-1"): SamlLog {
   return { httpMessageId, ssoTraceId } as SamlLog;
 }
 
@@ -55,9 +55,9 @@ describe("getHttpMessagesBySsoTraceId", () => {
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog("msg-1")]);
     mockHttpStore(referenced, makeRequest("msg-2"));
 
-    const result = await getHttpMessagesBySsoTraceId("flow-1");
+    const result = await getHttpMessagesBySsoTraceId("sso-trace-1");
 
-    expect(findSamlLogsBySsoTraceId).toHaveBeenCalledWith("flow-1");
+    expect(findSamlLogsBySsoTraceId).toHaveBeenCalledWith("sso-trace-1");
     expect(findHttpMessagesByIds).toHaveBeenNthCalledWith(1, ["msg-1"]);
     expect(result).toEqual([referenced]);
   });
@@ -68,7 +68,7 @@ describe("getHttpMessagesBySsoTraceId", () => {
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog("msg-2")]);
     mockHttpStore(pairedRequest, response);
 
-    const result = await getHttpMessagesBySsoTraceId("flow-1");
+    const result = await getHttpMessagesBySsoTraceId("sso-trace-1");
 
     expect(findHttpMessagesByIds).toHaveBeenNthCalledWith(2, ["msg-1"]);
     expect(result).toEqual([pairedRequest, response]);
@@ -83,35 +83,35 @@ describe("getHttpMessagesBySsoTraceId", () => {
     ]);
     mockHttpStore(pairedRequest, response);
 
-    const result = await getHttpMessagesBySsoTraceId("flow-1");
+    const result = await getHttpMessagesBySsoTraceId("sso-trace-1");
 
     expect(findHttpMessagesByIds).toHaveBeenNthCalledWith(2, []);
     expect(result).toEqual([pairedRequest, response]);
   });
 
   it("returns an error when the logs cannot be found", async () => {
-    const error = new Error("saml store error");
+    const error = new Error("error");
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue(error);
 
-    expect(await getHttpMessagesBySsoTraceId("flow-1")).toBe(error);
+    expect(await getHttpMessagesBySsoTraceId("sso-trace-1")).toBe(error);
     expect(findHttpMessagesByIds).not.toHaveBeenCalled();
   });
 
   it("returns an error when the HTTP messages cannot be found", async () => {
-    const error = new Error("http store error");
+    const error = new Error("error");
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([]);
     vi.mocked(findHttpMessagesByIds).mockResolvedValue(error);
 
-    expect(await getHttpMessagesBySsoTraceId("flow-1")).toBe(error);
+    expect(await getHttpMessagesBySsoTraceId("sso-trace-1")).toBe(error);
   });
 
   it("returns an error when the paired requests cannot be found", async () => {
-    const error = new Error("http store error");
+    const error = new Error("error");
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog("msg-2")]);
     vi.mocked(findHttpMessagesByIds)
       .mockResolvedValueOnce([makeResponse("msg-2", "msg-1")])
       .mockResolvedValueOnce(error);
 
-    expect(await getHttpMessagesBySsoTraceId("flow-1")).toBe(error);
+    expect(await getHttpMessagesBySsoTraceId("sso-trace-1")).toBe(error);
   });
 });

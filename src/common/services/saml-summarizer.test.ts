@@ -15,8 +15,8 @@ import { deriveSsoFlowFromSamlLogs } from "./saml-summarizer.ts";
 
 function makeSamlLog(overrides: Partial<SamlLog>): SamlLog {
   const base = {
-    id: "trace-1",
-    ssoTraceId: "flow-1",
+    id: "saml-log-1",
+    ssoTraceId: "sso-trace-1",
     httpMessageId: "msg-1",
     observedAt: "2026-01-01T00:00:00.000Z",
     serverHostname: "sp.example.com",
@@ -38,14 +38,14 @@ function makeSamlLog(overrides: Partial<SamlLog>): SamlLog {
 }
 
 const ssoTrace: SsoTrace = {
-  id: "flow-1",
-  tracingSessionId: "cs-1",
+  id: "sso-trace-1",
+  tracingSessionId: "tracing-session-1",
   protocol: "saml",
-  correlationKey: "corr-1",
+  correlationKey: "correlation-key-1",
 };
 
 const tracingSession: TracingSession = {
-  id: "cs-1",
+  id: "tracing-session-1",
   imported: false,
   startedAt: "2026-01-01T00:00:00Z",
 };
@@ -65,7 +65,7 @@ describe("deriveSsoFlowFromSamlLogs", () => {
     ]);
 
     expect(result).toMatchObject({
-      id: "flow-1",
+      id: "sso-trace-1",
       protocol: "saml",
       imported: false,
       live: false,
@@ -169,17 +169,17 @@ describe("deriveSsoFlowFromSamlLogs", () => {
       makeSamlLog({ step: 2, type: "IncomingSamlAuthnRequest" }),
     ]);
 
-    expect(result).toMatchObject({ id: "flow-1", imported: false });
+    expect(result).toMatchObject({ id: "sso-trace-1", imported: false });
   });
 
   it("derives imported from the tracing session", () => {
-    const importedSession: TracingSession = {
-      id: "cs-1",
+    const importedTracingSession: TracingSession = {
+      id: "tracing-session-1",
       imported: true,
       importedAt: "2026-01-01T00:00:00Z",
     };
 
-    const result = deriveSsoFlowFromSamlLogs(ssoTrace, importedSession, [
+    const result = deriveSsoFlowFromSamlLogs(ssoTrace, importedTracingSession, [
       makeSamlLog({ step: 2, type: "IncomingSamlAuthnRequest" }),
     ]);
 

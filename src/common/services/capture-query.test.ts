@@ -68,7 +68,7 @@ function tracingEvents(...types: ("TracingStarted" | "TracingStopped")[]): Traci
 //
 
 describe("getTracingSessions", () => {
-  it("derives a session from a pair of tracing events", async () => {
+  it("derives a tracing session from a pair of tracing events", async () => {
     const started = event("TracingStarted");
     const stopped = event("TracingStopped");
     mockEvents(started, stopped);
@@ -92,7 +92,7 @@ describe("getTracingSessions", () => {
     ]);
   });
 
-  it("derives an imported session from an archive imported event", async () => {
+  it("derives an imported tracing session from an archive imported event", async () => {
     const imported = event("ArchiveImported");
     mockEvents(imported);
 
@@ -101,7 +101,7 @@ describe("getTracingSessions", () => {
     ]);
   });
 
-  it("returns the sessions in descending order of ID", async () => {
+  it("returns the tracing sessions in descending order of ID", async () => {
     const first = event("TracingStarted");
     const imported = event("ArchiveImported");
     const stopped = event("TracingStopped");
@@ -146,7 +146,7 @@ describe("getTracingSessions", () => {
   });
 
   it("returns the error when the events cannot be retrieved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await getTracingSessions()).toBe(error);
@@ -154,7 +154,7 @@ describe("getTracingSessions", () => {
 });
 
 describe("getTracingSession", () => {
-  it("returns the imported session with the given ID", async () => {
+  it("returns the imported tracing session with the given ID", async () => {
     const started = event("TracingStarted");
     const imported = event("ArchiveImported");
     mockEvents(started, imported);
@@ -185,7 +185,7 @@ describe("getTracingSession", () => {
   });
 
   it("returns the error when the events cannot be retrieved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await getTracingSession("unknown")).toBe(error);
@@ -219,7 +219,7 @@ describe("getOngoingTracingSessionId", () => {
   });
 
   it("returns the error when the events cannot be retrieved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await getOngoingTracingSessionId()).toBe(error);
@@ -262,14 +262,14 @@ describe("isTracing", () => {
   });
 
   it("returns the error when the events cannot be retrieved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await isTracing()).toBe(error);
   });
 
   it("returns the error when the traced tabs cannot be determined", async () => {
-    const error = new Error("targets failed");
+    const error = new Error("error");
     mockEvents(...tracingEvents("TracingStarted"));
     vi.mocked(getTracedTabIds).mockResolvedValue(error);
 

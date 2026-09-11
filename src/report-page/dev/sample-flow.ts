@@ -28,8 +28,8 @@ const samlSuccessResponseXml = samlSuccessResponseXmlRaw.trim();
 const samlFailureResponseXml = samlFailureResponseXmlRaw.trim();
 const samlUnknownResponseXml = samlUnknownResponseXmlRaw.trim();
 
-const sampleSsoTraceId = "trace-sample";
-const sampleTracingSessionId = "cs-sample";
+const sampleSsoTraceId = "sso-trace-sample";
+const sampleTracingSessionId = "tracing-session-sample";
 
 export async function buildSampleFlowData(): Promise<FlowData> {
   const sample = new URLSearchParams(window.location.search).get("sample");

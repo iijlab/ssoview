@@ -10,7 +10,7 @@ import { newHttpArchive, parseHttpArchiveJson, toHttpArchiveJson } from "./http-
 function makeRequest(): HttpMessage {
   return {
     id: "msg-1",
-    tracingSessionId: "cs-1",
+    tracingSessionId: "tracing-session-1",
     observedAt: "2026-01-01T00:00:00Z",
     tabId: 1,
     fetchRequestId: "req-1",

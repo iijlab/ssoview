@@ -121,7 +121,7 @@ describe("getTracedTabIds", () => {
   });
 
   it("returns the error when the events cannot be retrieved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await getTracedTabIds()).toBe(error);
@@ -132,7 +132,7 @@ describe("getTracedTabIds", () => {
       newTabTracingStartedEvent(1),
       newDebuggingStartedEvent(1, false),
     ]);
-    getTargets.mockRejectedValue(new Error("targets failed"));
+    getTargets.mockRejectedValue(new Error("error"));
 
     expect(await getTracedTabIds()).toBeInstanceOf(Error);
   });
@@ -160,7 +160,7 @@ describe("isTracedTab", () => {
   });
 
   it("returns the error when the traced tabs cannot be determined", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await isTracedTab(1)).toBe(error);

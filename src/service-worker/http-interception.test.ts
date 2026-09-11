@@ -31,8 +31,8 @@ type DebuggerEventListener = (
 const eventListeners: DebuggerEventListener[] = [];
 const sendCommand = vi.fn();
 
-const storedHttpRequest = {
-  id: "stored-1",
+const savedHttpRequest = {
+  id: "msg-1",
   tracingSessionId: "tracing-session-1",
   type: "Request",
   tabId: 1,
@@ -45,7 +45,7 @@ beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.mocked(getOngoingTracingSessionId).mockReset().mockResolvedValue("tracing-session-1");
-  vi.mocked(findHttpRequestByFetchRequestId).mockReset().mockResolvedValue(storedHttpRequest);
+  vi.mocked(findHttpRequestByFetchRequestId).mockReset().mockResolvedValue(savedHttpRequest);
   eventListeners.length = 0;
   sendCommand.mockReset();
   vi.stubGlobal("chrome", {
@@ -116,7 +116,7 @@ describe("registerHttpInterceptionHandlers", () => {
     expect(onHttpResponseIntercepted).toHaveBeenCalledWith(
       1,
       expect.objectContaining({ tracingSessionId: "tracing-session-1", tabId: 1 }),
-      storedHttpRequest,
+      savedHttpRequest,
     );
   });
 
@@ -177,7 +177,7 @@ describe("registerHttpInterceptionHandlers", () => {
     );
   });
 
-  it("pairs the response with the stored request of the same request ID", async () => {
+  it("pairs the response with the saved request of the same request ID", async () => {
     const onHttpResponseIntercepted = vi.fn();
     registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
 
@@ -190,11 +190,11 @@ describe("registerHttpInterceptionHandlers", () => {
       "req-1",
     );
     const [, httpResponse, pairedHttpRequest] = onHttpResponseIntercepted.mock.calls[0]!;
-    expect(pairedHttpRequest).toBe(storedHttpRequest);
-    expect(httpResponse.pairedHttpRequestId).toBe("stored-1");
+    expect(pairedHttpRequest).toBe(savedHttpRequest);
+    expect(httpResponse.pairedHttpRequestId).toBe("msg-1");
   });
 
-  it("skips the response but continues it when no paired request is stored", async () => {
+  it("skips the response but continues it when no paired request is saved", async () => {
     vi.mocked(findHttpRequestByFetchRequestId).mockResolvedValue(undefined);
     const onHttpResponseIntercepted = vi.fn();
     registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
@@ -216,7 +216,7 @@ describe("registerHttpInterceptionHandlers", () => {
   });
 
   it("skips the response but continues it when the paired request cannot be found", async () => {
-    vi.mocked(findHttpRequestByFetchRequestId).mockResolvedValue(new Error("store error"));
+    vi.mocked(findHttpRequestByFetchRequestId).mockResolvedValue(new Error("error"));
     const onHttpResponseIntercepted = vi.fn();
     registerHttpInterceptionHandlers(vi.fn(), onHttpResponseIntercepted);
 

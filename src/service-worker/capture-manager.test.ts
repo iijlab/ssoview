@@ -95,7 +95,7 @@ describe("startTracing", () => {
   });
 
   it("closes tracing and returns the error when tab tracing cannot be started", async () => {
-    const error = new Error("tab tracing failed");
+    const error = new Error("error");
     vi.mocked(startTabTracing).mockResolvedValue(error);
 
     const result = await startTracing(1);
@@ -105,7 +105,7 @@ describe("startTracing", () => {
   });
 
   it("does not start tab tracing when the event cannot be saved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await startTracing(1);
@@ -137,7 +137,7 @@ describe("startTracing", () => {
   });
 
   it("does not start when the stale tracing cannot be closed", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(tracingEvents("TracingStarted"));
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
@@ -163,7 +163,7 @@ describe("stopTracing", () => {
   });
 
   it("saves nothing when tab tracing cannot be stopped", async () => {
-    const error = new Error("detach failed");
+    const error = new Error("error");
     vi.mocked(stopTabTracing).mockResolvedValue(error);
 
     const result = await stopTracing(1);
@@ -173,7 +173,7 @@ describe("stopTracing", () => {
   });
 
   it("returns an error when the event cannot be saved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await stopTracing(1);
@@ -200,7 +200,7 @@ describe("registerTracingTerminatedHandler", () => {
   });
 
   it("reports the stop even when the event cannot be saved", async () => {
-    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("storage failed"));
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("error"));
     const onTracingTerminated = vi.fn();
     const handler = registerAndGetHandler(onTracingTerminated);
 

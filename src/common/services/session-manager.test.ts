@@ -71,8 +71,8 @@ beforeEach(() => {
 
 function makeSamlLog(overrides: Partial<SamlLog>): SamlLog {
   return {
-    id: "trace-1",
-    ssoTraceId: "flow-1",
+    id: "saml-log-1",
+    ssoTraceId: "sso-trace-1",
     httpMessageId: "msg-1",
     observedAt: "2026-01-01T00:00:00.000Z",
     serverHostname: "sp.example.com",
@@ -85,17 +85,17 @@ function makeSamlLog(overrides: Partial<SamlLog>): SamlLog {
 
 function makeSsoTrace(overrides: Partial<SsoTrace> = {}): SsoTrace {
   return {
-    id: "flow-1",
-    tracingSessionId: "cs-1",
+    id: "sso-trace-1",
+    tracingSessionId: "tracing-session-1",
     protocol: "saml",
-    correlationKey: "corr-1",
+    correlationKey: "correlation-key-1",
     ...overrides,
   };
 }
 
 function makeTracingSession(overrides: Partial<TracingSession> = {}): TracingSession {
   return {
-    id: "cs-1",
+    id: "tracing-session-1",
     imported: false,
     startedAt: "2026-01-01T00:00:00Z",
     endedAt: "2026-01-01T00:01:00Z",
@@ -114,28 +114,49 @@ describe("getSsoFlows", () => {
 
   it("derives one SSO flow per SSO trace in the given order", async () => {
     vi.mocked(getTracingSessions).mockResolvedValue([
-      makeTracingSession({ id: "cs-2" }),
-      makeTracingSession({ id: "cs-1" }),
+      makeTracingSession({ id: "tracing-session-2" }),
+      makeTracingSession({ id: "tracing-session-1" }),
     ]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([
-      makeSsoTrace({ id: "flow-2", tracingSessionId: "cs-2", correlationKey: "corr-2" }),
-      makeSsoTrace({ id: "flow-1", correlationKey: "corr-1" }),
+      makeSsoTrace({
+        id: "sso-trace-2",
+        tracingSessionId: "tracing-session-2",
+        correlationKey: "correlation-key-2",
+      }),
+      makeSsoTrace({ id: "sso-trace-1", correlationKey: "correlation-key-1" }),
     ]);
     vi.mocked(findSamlLogsBySsoTraceId).mockImplementation(async (ssoTraceId) =>
-      ssoTraceId === "flow-1"
+      ssoTraceId === "sso-trace-1"
         ? [
-            makeSamlLog({ id: "trace-1", ssoTraceId: "flow-1", step: 2, action: "first action" }),
-            makeSamlLog({ id: "trace-2", ssoTraceId: "flow-1", step: 3, action: "second action" }),
+            makeSamlLog({
+              id: "saml-log-1",
+              ssoTraceId: "sso-trace-1",
+              step: 2,
+              action: "first action",
+            }),
+            makeSamlLog({
+              id: "saml-log-2",
+              ssoTraceId: "sso-trace-1",
+              step: 3,
+              action: "second action",
+            }),
           ]
-        : [makeSamlLog({ id: "trace-3", ssoTraceId: "flow-2", step: 2, action: "other action" })],
+        : [
+            makeSamlLog({
+              id: "saml-log-3",
+              ssoTraceId: "sso-trace-2",
+              step: 2,
+              action: "other action",
+            }),
+          ],
     );
 
     const result = await getSsoFlows();
 
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toMatchObject([
-      { id: "flow-2", action: "other action" },
-      { id: "flow-1", action: "second action" },
+      { id: "sso-trace-2", action: "other action" },
+      { id: "sso-trace-1", action: "second action" },
     ]);
   });
 
@@ -152,33 +173,41 @@ describe("getSsoFlows", () => {
   it("sets live on the newest SSO trace of the ongoing tracing session", async () => {
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ endedAt: undefined })]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([
-      makeSsoTrace({ id: "flow-2", correlationKey: "corr-2" }),
-      makeSsoTrace({ id: "flow-1", correlationKey: "corr-1" }),
+      makeSsoTrace({ id: "sso-trace-2", correlationKey: "correlation-key-2" }),
+      makeSsoTrace({ id: "sso-trace-1", correlationKey: "correlation-key-1" }),
     ]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
     vi.mocked(isTracing).mockResolvedValue(true);
 
     expect(await getSsoFlows()).toMatchObject([
-      { id: "flow-2", live: true },
-      { id: "flow-1", live: false },
+      { id: "sso-trace-2", live: true },
+      { id: "sso-trace-1", live: false },
     ]);
   });
 
   it("sets live on the newest SSO trace of the ongoing tracing session, not of an import", async () => {
     vi.mocked(getTracingSessions).mockResolvedValue([
-      makeTracingSession({ id: "cs-2", imported: true, importedAt: "2026-01-01T00:02:00Z" }),
-      makeTracingSession({ id: "cs-1", endedAt: undefined }),
+      makeTracingSession({
+        id: "tracing-session-2",
+        imported: true,
+        importedAt: "2026-01-01T00:02:00Z",
+      }),
+      makeTracingSession({ id: "tracing-session-1", endedAt: undefined }),
     ]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([
-      makeSsoTrace({ id: "flow-2", tracingSessionId: "cs-2", correlationKey: "corr-2" }),
-      makeSsoTrace({ id: "flow-1", correlationKey: "corr-1" }),
+      makeSsoTrace({
+        id: "sso-trace-2",
+        tracingSessionId: "tracing-session-2",
+        correlationKey: "correlation-key-2",
+      }),
+      makeSsoTrace({ id: "sso-trace-1", correlationKey: "correlation-key-1" }),
     ]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
     vi.mocked(isTracing).mockResolvedValue(true);
 
     expect(await getSsoFlows()).toMatchObject([
-      { id: "flow-2", live: false },
-      { id: "flow-1", live: true },
+      { id: "sso-trace-2", live: false },
+      { id: "sso-trace-1", live: true },
     ]);
   });
 
@@ -202,7 +231,9 @@ describe("getSsoFlows", () => {
 
   it("skips an SSO trace whose tracing session is missing with a warning", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ id: "cs-2" })]);
+    vi.mocked(getTracingSessions).mockResolvedValue([
+      makeTracingSession({ id: "tracing-session-2" }),
+    ]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
 
     expect(await getSsoFlows()).toEqual([]);
@@ -211,21 +242,21 @@ describe("getSsoFlows", () => {
   });
 
   it("propagates an error from the tracing state", async () => {
-    const error = new Error("capture query error");
+    const error = new Error("error");
     vi.mocked(isTracing).mockResolvedValue(error);
 
     expect(await getSsoFlows()).toBe(error);
   });
 
   it("propagates an error from the tracing session query", async () => {
-    const error = new Error("capture query error");
+    const error = new Error("error");
     vi.mocked(getTracingSessions).mockResolvedValue(error);
 
     expect(await getSsoFlows()).toBe(error);
   });
 
   it("propagates an error from the SSO trace store", async () => {
-    const error = new Error("SSO trace store error");
+    const error = new Error("error");
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession()]);
     vi.mocked(findAllSsoTraces).mockResolvedValue(error);
 
@@ -233,7 +264,7 @@ describe("getSsoFlows", () => {
   });
 
   it("propagates an error from the log store", async () => {
-    const error = new Error("log store error");
+    const error = new Error("error");
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession()]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue(error);
@@ -248,10 +279,10 @@ describe("deleteSsoFlow", () => {
     const httpMessages = [{ id: "msg-1" } as HttpMessage];
     vi.mocked(getHttpMessagesBySsoTraceId).mockResolvedValue(httpMessages);
 
-    expect(await deleteSsoFlow("flow-1")).toBeUndefined();
-    expect(findSsoTraceById).toHaveBeenCalledWith("flow-1");
-    expect(getHttpMessagesBySsoTraceId).toHaveBeenCalledWith("flow-1");
-    expect(deleteSamlLogsBySsoTraceId).toHaveBeenCalledWith("flow-1");
+    expect(await deleteSsoFlow("sso-trace-1")).toBeUndefined();
+    expect(findSsoTraceById).toHaveBeenCalledWith("sso-trace-1");
+    expect(getHttpMessagesBySsoTraceId).toHaveBeenCalledWith("sso-trace-1");
+    expect(deleteSamlLogsBySsoTraceId).toHaveBeenCalledWith("sso-trace-1");
     expect(deleteSsoTrace).toHaveBeenCalledWith(ssoTrace);
     expect(deleteHttpMessages).toHaveBeenCalledWith(httpMessages);
     const order = [deleteSamlLogsBySsoTraceId, deleteSsoTrace, deleteHttpMessages].map(
@@ -264,51 +295,51 @@ describe("deleteSsoFlow", () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.mocked(findSsoTraceById).mockResolvedValue(undefined);
 
-    expect(await deleteSsoFlow("flow-1")).toBeUndefined();
+    expect(await deleteSsoFlow("sso-trace-1")).toBeUndefined();
     expect(consoleWarn).toHaveBeenCalledOnce();
     expect(deleteSamlLogsBySsoTraceId).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
 
   it("returns an error when the SSO trace cannot be found", async () => {
-    const error = new Error("SSO trace query error");
+    const error = new Error("error");
     vi.mocked(findSsoTraceById).mockResolvedValue(error);
 
-    expect(await deleteSsoFlow("flow-1")).toBe(error);
+    expect(await deleteSsoFlow("sso-trace-1")).toBe(error);
     expect(deleteSamlLogsBySsoTraceId).not.toHaveBeenCalled();
   });
 
   it("returns an error when the HTTP messages cannot be found", async () => {
-    const error = new Error("query error");
+    const error = new Error("error");
     vi.mocked(getHttpMessagesBySsoTraceId).mockResolvedValue(error);
 
-    expect(await deleteSsoFlow("flow-1")).toBe(error);
+    expect(await deleteSsoFlow("sso-trace-1")).toBe(error);
     expect(deleteSamlLogsBySsoTraceId).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
 
   it("returns an error when the log deletion fails", async () => {
-    const error = new Error("saml delete error");
+    const error = new Error("error");
     vi.mocked(deleteSamlLogsBySsoTraceId).mockResolvedValue(error);
 
-    expect(await deleteSsoFlow("flow-1")).toBe(error);
+    expect(await deleteSsoFlow("sso-trace-1")).toBe(error);
     expect(deleteSsoTrace).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
 
   it("returns an error when the SSO trace deletion fails", async () => {
-    const error = new Error("SSO trace delete error");
+    const error = new Error("error");
     vi.mocked(deleteSsoTrace).mockResolvedValue(error);
 
-    expect(await deleteSsoFlow("flow-1")).toBe(error);
+    expect(await deleteSsoFlow("sso-trace-1")).toBe(error);
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
 
   it("ignores a failure of the HTTP message deletion", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.mocked(deleteHttpMessages).mockResolvedValue(new Error("http delete error"));
+    vi.mocked(deleteHttpMessages).mockResolvedValue(new Error("error"));
 
-    expect(await deleteSsoFlow("flow-1")).toBeUndefined();
+    expect(await deleteSsoFlow("sso-trace-1")).toBeUndefined();
     expect(consoleWarn).toHaveBeenCalledOnce();
   });
 });
@@ -331,17 +362,17 @@ describe("getSessionSummaries", () => {
     expect(result).not.toBeInstanceOf(Error);
     expect(result).toEqual([
       expect.objectContaining({
-        sessionId: "flow-1",
+        sessionId: "sso-trace-1",
         capturing: true,
         start: "2026-01-01T00:00:00.000Z",
         end: "2026-01-01T00:00:00.000Z",
       }),
     ]);
-    expect(result).not.toEqual([expect.objectContaining({ id: "flow-1" })]);
+    expect(result).not.toEqual([expect.objectContaining({ id: "sso-trace-1" })]);
   });
 
   it("propagates an error", async () => {
-    const error = new Error("capture query error");
+    const error = new Error("error");
     vi.mocked(isTracing).mockResolvedValue(error);
 
     expect(await getSessionSummaries(1)).toBe(error);
@@ -350,7 +381,7 @@ describe("getSessionSummaries", () => {
 
 describe("deleteSession", () => {
   it("delegates to deleteSsoFlow", async () => {
-    expect(await deleteSession(1, "flow-1")).toBeUndefined();
+    expect(await deleteSession(1, "sso-trace-1")).toBeUndefined();
     expect(deleteSsoTrace).toHaveBeenCalledWith(makeSsoTrace());
   });
 });

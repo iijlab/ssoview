@@ -53,7 +53,7 @@ function registerAndGetHandler(
   registerTabTracingTerminatedHandler(onTabTracingTerminated);
   const handler = vi.mocked(registerDebuggingTerminatedHandler).mock.calls[0]?.[0];
   if (handler === undefined) {
-    throw new Error("No detach handler is registered");
+    throw new Error("No debugging terminated handler is registered");
   }
   return handler as DebuggingTerminatedHandler;
 }
@@ -82,7 +82,7 @@ describe("startTabTracing", () => {
   });
 
   it("closes tab tracing and returns the error when debugging cannot be started", async () => {
-    const error = new Error("attach failed");
+    const error = new Error("error");
     vi.mocked(startDebugging).mockResolvedValue(error);
 
     const result = await startTabTracing(1);
@@ -95,7 +95,7 @@ describe("startTabTracing", () => {
   });
 
   it("does not start debugging when the event cannot be saved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await startTabTracing(1);
@@ -120,7 +120,7 @@ describe("stopTabTracing", () => {
   });
 
   it("saves nothing when debugging cannot be stopped", async () => {
-    const error = new Error("detach failed");
+    const error = new Error("error");
     vi.mocked(stopDebugging).mockResolvedValue(error);
 
     const result = await stopTabTracing(1);
@@ -130,7 +130,7 @@ describe("stopTabTracing", () => {
   });
 
   it("returns an error when the event cannot be saved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await stopTabTracing(1);
@@ -180,7 +180,7 @@ describe("registerTabTracingTerminatedHandler", () => {
 
   it("stops tab tracing and reports it when re-attaching fails", async () => {
     vi.mocked(tabExists).mockResolvedValue(true);
-    vi.mocked(startDebugging).mockResolvedValue(new Error("attach failed"));
+    vi.mocked(startDebugging).mockResolvedValue(new Error("error"));
     const onTabTracingTerminated = vi.fn();
     const handler = registerAndGetHandler(onTabTracingTerminated);
 
@@ -193,7 +193,7 @@ describe("registerTabTracingTerminatedHandler", () => {
   });
 
   it("reports the stop even when the event cannot be saved", async () => {
-    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("storage failed"));
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("error"));
     const onTabTracingTerminated = vi.fn();
     const handler = registerAndGetHandler(onTabTracingTerminated);
 

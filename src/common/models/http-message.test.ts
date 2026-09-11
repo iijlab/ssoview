@@ -23,7 +23,7 @@ function makeRequest(overrides: Record<string, unknown> = {}): HttpRequest {
     id: "msg-1",
     observedAt: "2026-01-01T00:00:00Z",
     type: "Request",
-    tracingSessionId: "cs-1",
+    tracingSessionId: "tracing-session-1",
     tabId: 1,
     fetchRequestId: "req-1",
     url: "https://example.com/",
@@ -58,7 +58,7 @@ describe("isHttpMessage", () => {
   const validHttpRequest = {
     id: "msg-123",
     observedAt: "2026-01-01T00:00:00Z",
-    tracingSessionId: "cs-1",
+    tracingSessionId: "tracing-session-1",
     tabId: 1,
     fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
@@ -71,7 +71,7 @@ describe("isHttpMessage", () => {
   const validHttpResponse = {
     id: "msg-124",
     observedAt: "2026-01-01T00:00:00Z",
-    tracingSessionId: "cs-1",
+    tracingSessionId: "tracing-session-1",
     tabId: 1,
     fetchRequestId: "req-123",
     headers: [{ name: "Content-Type", value: "text/html" }],
@@ -196,7 +196,7 @@ describe("newHttpRequest", () => {
       method: "POST",
     });
 
-    const httpRequest = newHttpRequest("cs-1", 1, requestPausedEvent);
+    const httpRequest = newHttpRequest("tracing-session-1", 1, requestPausedEvent);
 
     expect(httpRequest).toMatchObject({
       type: "Request",
@@ -207,16 +207,16 @@ describe("newHttpRequest", () => {
   });
 
   it("belongs to the given tracing session and tab", () => {
-    const httpRequest = newHttpRequest("cs-1", 1, makeRequestPausedEvent());
+    const httpRequest = newHttpRequest("tracing-session-1", 1, makeRequestPausedEvent());
 
-    expect(httpRequest).toMatchObject({ tracingSessionId: "cs-1", tabId: 1 });
+    expect(httpRequest).toMatchObject({ tracingSessionId: "tracing-session-1", tabId: 1 });
   });
 
-  it("issues a unique id", () => {
+  it("assigns a unique ID", () => {
     const requestPausedEvent = makeRequestPausedEvent();
 
-    const first = newHttpRequest("cs-1", 1, requestPausedEvent);
-    const second = newHttpRequest("cs-1", 1, requestPausedEvent);
+    const first = newHttpRequest("tracing-session-1", 1, requestPausedEvent);
+    const second = newHttpRequest("tracing-session-1", 1, requestPausedEvent);
 
     expect(first.id).not.toBe("");
     expect(first.id).not.toBe(second.id);
@@ -227,7 +227,7 @@ describe("newHttpRequest", () => {
       headers: { Host: "example.com", "Content-Type": "text/html" },
     });
 
-    const httpRequest = newHttpRequest("cs-1", 1, requestPausedEvent);
+    const httpRequest = newHttpRequest("tracing-session-1", 1, requestPausedEvent);
 
     expect(httpRequest.headers).toEqual([
       { name: "Host", value: "example.com" },
@@ -236,13 +236,17 @@ describe("newHttpRequest", () => {
   });
 
   it("returns an empty body when the request has no post data", () => {
-    const httpRequest = newHttpRequest("cs-1", 1, makeRequestPausedEvent());
+    const httpRequest = newHttpRequest("tracing-session-1", 1, makeRequestPausedEvent());
 
     expect(httpRequest.body).toBe("");
   });
 
   it("returns an empty body when postDataEntries is missing", () => {
-    const httpRequest = newHttpRequest("cs-1", 1, makeRequestPausedEvent({ hasPostData: true }));
+    const httpRequest = newHttpRequest(
+      "tracing-session-1",
+      1,
+      makeRequestPausedEvent({ hasPostData: true }),
+    );
 
     expect(httpRequest.body).toBe("");
   });
@@ -256,7 +260,7 @@ describe("newHttpRequest", () => {
       ],
     });
 
-    const httpRequest = newHttpRequest("cs-1", 1, requestPausedEvent);
+    const httpRequest = newHttpRequest("tracing-session-1", 1, requestPausedEvent);
 
     expect(httpRequest.body).toBe("SAMLResponse=abc&RelayState=xyz");
   });
@@ -267,7 +271,7 @@ describe("newHttpRequest", () => {
       postDataEntries: [{ bytes: Base64.encode("a") }, {}, { bytes: Base64.encode("b") }],
     });
 
-    const httpRequest = newHttpRequest("cs-1", 1, requestPausedEvent);
+    const httpRequest = newHttpRequest("tracing-session-1", 1, requestPausedEvent);
 
     expect(httpRequest.body).toBe("ab");
   });
@@ -284,7 +288,7 @@ describe("newHttpResponse", () => {
     );
 
     const httpResponse = newHttpResponse(
-      "cs-1",
+      "tracing-session-1",
       1,
       requestPausedEvent,
       200,
@@ -303,7 +307,7 @@ describe("newHttpResponse", () => {
 
   it("belongs to the given tracing session and tab", () => {
     const httpResponse = newHttpResponse(
-      "cs-1",
+      "tracing-session-1",
       1,
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
@@ -311,12 +315,12 @@ describe("newHttpResponse", () => {
       makeRequest(),
     );
 
-    expect(httpResponse).toMatchObject({ tracingSessionId: "cs-1", tabId: 1 });
+    expect(httpResponse).toMatchObject({ tracingSessionId: "tracing-session-1", tabId: 1 });
   });
 
   it("returns empty headers when responseHeaders is missing", () => {
     const httpResponse = newHttpResponse(
-      "cs-1",
+      "tracing-session-1",
       1,
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
@@ -329,7 +333,7 @@ describe("newHttpResponse", () => {
 
   it("decodes a base64 encoded response body", () => {
     const httpResponse = newHttpResponse(
-      "cs-1",
+      "tracing-session-1",
       1,
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
@@ -340,11 +344,11 @@ describe("newHttpResponse", () => {
     expect(httpResponse).toMatchObject({ body: "<html></html>" });
   });
 
-  it("issues an id distinct from the paired request", () => {
+  it("assigns an ID distinct from the paired request", () => {
     const httpRequest = makeRequest();
 
     const httpResponse = newHttpResponse(
-      "cs-1",
+      "tracing-session-1",
       1,
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
@@ -360,7 +364,7 @@ describe("newHttpResponse", () => {
     const httpRequest = makeRequest({ id: "msg-9" });
 
     const httpResponse = newHttpResponse(
-      "cs-1",
+      "tracing-session-1",
       1,
       makeRequestPausedEvent({}, { responseStatusCode: 200 }),
       200,
@@ -373,7 +377,7 @@ describe("newHttpResponse", () => {
 
   it("leaves the body undefined when the response body is not given", () => {
     const httpResponse = newHttpResponse(
-      "cs-1",
+      "tracing-session-1",
       1,
       makeRequestPausedEvent({}, { responseStatusCode: 302 }),
       302,

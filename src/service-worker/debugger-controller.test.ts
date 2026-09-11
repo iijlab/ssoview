@@ -84,7 +84,7 @@ describe("registerDebuggingTerminatedHandler", () => {
   });
 
   it("calls the handler even when the event cannot be saved", async () => {
-    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("storage failed"));
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(new Error("error"));
     const onDebuggingTerminated = vi.fn();
     registerDebuggingTerminatedHandler(onDebuggingTerminated);
 
@@ -145,7 +145,7 @@ describe("startDebugging", () => {
   });
 
   it("detaches and returns the error when the event cannot be saved", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await startDebugging(1);
@@ -179,7 +179,7 @@ describe("stopDebugging", () => {
   });
 
   it("returns an error when the event cannot be saved after detaching", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await stopDebugging(1);

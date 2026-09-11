@@ -73,19 +73,19 @@ function makeResponse(): HttpResponse {
 }
 
 describe("recordSamlLog", () => {
-  it("issues an SSO trace for an unknown correlation key and saves the log", async () => {
+  it("creates an SSO trace for an unknown correlation key and saves the log", async () => {
     const result = await recordSamlLog(
-      "cs-1",
-      { step: 6, correlationKey: "authn-req-1" },
+      "tracing-session-1",
+      { step: 6, correlationKey: "correlation-key-1" },
       makeResponse(),
     );
 
     expect(result).toEqual(savedSsoTraces()[0]);
     expect(savedSsoTraces()).toEqual([
       expect.objectContaining({
-        tracingSessionId: "cs-1",
+        tracingSessionId: "tracing-session-1",
         protocol: "saml",
-        correlationKey: "authn-req-1",
+        correlationKey: "correlation-key-1",
       }),
     ]);
     const samlLogs = savedSamlLogs();
@@ -97,8 +97,8 @@ describe("recordSamlLog", () => {
     const pairedHttpRequest = makeRequest();
 
     const result = await recordSamlLog(
-      "cs-1",
-      { step: 2, correlationKey: "authn-req-1" },
+      "tracing-session-1",
+      { step: 2, correlationKey: "correlation-key-1" },
       makeResponse(),
       pairedHttpRequest,
     );
@@ -118,16 +118,20 @@ describe("recordSamlLog", () => {
   it("skips the step 1 log when the paired request is missing", async () => {
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await recordSamlLog("cs-1", { step: 2, correlationKey: "authn-req-1" }, makeResponse());
+    await recordSamlLog(
+      "tracing-session-1",
+      { step: 2, correlationKey: "correlation-key-1" },
+      makeResponse(),
+    );
 
     expect(savedSamlLogs().map((l) => l.step)).toEqual([2]);
     expect(consoleWarn).toHaveBeenCalledOnce();
   });
 
-  it("does not issue a step 1 log for steps other than 2", async () => {
+  it("does not create a step 1 log for steps other than 2", async () => {
     await recordSamlLog(
-      "cs-1",
-      { step: 6, correlationKey: "authn-req-1" },
+      "tracing-session-1",
+      { step: 6, correlationKey: "correlation-key-1" },
       makeResponse(),
       makeRequest(),
     );
@@ -139,8 +143,8 @@ describe("recordSamlLog", () => {
     const pairedHttpRequest = { ...makeRequest(), url: "not a url" } as HttpRequest;
 
     const result = await recordSamlLog(
-      "cs-1",
-      { step: 2, correlationKey: "authn-req-1" },
+      "tracing-session-1",
+      { step: 2, correlationKey: "correlation-key-1" },
       makeResponse(),
       pairedHttpRequest,
     );
@@ -150,11 +154,16 @@ describe("recordSamlLog", () => {
   });
 
   it("reuses the SSO trace of the same correlation key", async () => {
-    const samlSignal = { step: 2, correlationKey: "authn-req-1" } as const;
-    const first = await recordSamlLog("cs-1", samlSignal, makeResponse(), makeRequest());
+    const samlSignal = { step: 2, correlationKey: "correlation-key-1" } as const;
+    const first = await recordSamlLog(
+      "tracing-session-1",
+      samlSignal,
+      makeResponse(),
+      makeRequest(),
+    );
     const second = await recordSamlLog(
-      "cs-1",
-      { step: 6, correlationKey: "authn-req-1" },
+      "tracing-session-1",
+      { step: 6, correlationKey: "correlation-key-1" },
       makeResponse(),
     );
 
@@ -162,20 +171,23 @@ describe("recordSamlLog", () => {
     expect(second).toEqual(first);
   });
 
-  it("issues an SSO trace per tracing session", async () => {
-    const samlSignal = { step: 2, correlationKey: "authn-req-1" } as const;
-    await recordSamlLog("cs-1", samlSignal, makeResponse(), makeRequest());
-    await recordSamlLog("cs-2", samlSignal, makeResponse(), makeRequest());
+  it("creates an SSO trace per tracing session", async () => {
+    const samlSignal = { step: 2, correlationKey: "correlation-key-1" } as const;
+    await recordSamlLog("tracing-session-1", samlSignal, makeResponse(), makeRequest());
+    await recordSamlLog("tracing-session-2", samlSignal, makeResponse(), makeRequest());
 
-    expect(savedSsoTraces().map((f) => f.tracingSessionId)).toEqual(["cs-1", "cs-2"]);
+    expect(savedSsoTraces().map((f) => f.tracingSessionId)).toEqual([
+      "tracing-session-1",
+      "tracing-session-2",
+    ]);
   });
 
   it("returns an error when the log cannot be built", async () => {
     const httpResponse = { ...makeResponse(), url: "not a url" } as HttpResponse;
 
     const result = await recordSamlLog(
-      "cs-1",
-      { step: 2, correlationKey: "authn-req-1" },
+      "tracing-session-1",
+      { step: 2, correlationKey: "correlation-key-1" },
       httpResponse,
       makeRequest(),
     );
@@ -184,12 +196,12 @@ describe("recordSamlLog", () => {
   });
 
   it("propagates an error from the storage", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(setSessionStorageItem).mockResolvedValue(error);
 
     const result = await recordSamlLog(
-      "cs-1",
-      { step: 6, correlationKey: "authn-req-1" },
+      "tracing-session-1",
+      { step: 6, correlationKey: "correlation-key-1" },
       makeResponse(),
     );
 

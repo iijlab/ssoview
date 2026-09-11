@@ -793,7 +793,7 @@ describe("detectSamlSignal", () => {
       expect(result).toBeUndefined();
     });
 
-    it("uses the Response ID as the session ID when there is no InResponseTo", async () => {
+    it("uses the Response ID as the correlation key when there is no InResponseTo", async () => {
       const request = makeRequest({
         url: "https://sp.example.com/acs",
         method: "POST",

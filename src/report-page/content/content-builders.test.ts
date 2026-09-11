@@ -20,7 +20,7 @@ import {
 
 function makeSsoFlow(overrides: Partial<SsoFlow> = {}): SsoFlow {
   return {
-    id: "session-1",
+    id: "sso-flow-1",
     protocol: "saml",
     imported: false,
     live: false,

@@ -47,7 +47,7 @@ function mockStorage(...ssoTraces: SsoTrace[]): void {
 describe("saveSsoTrace", () => {
   it("saves the SSO trace under a JSON key of the ID, kind, tracing session, and correlation key", async () => {
     vi.mocked(setSessionStorageItem).mockResolvedValue(undefined);
-    const ssoTrace = newSsoTrace("cs-1", "saml", "_authn-request-id");
+    const ssoTrace = newSsoTrace("tracing-session-1", "saml", "correlation-key-1");
 
     const result = await saveSsoTrace(ssoTrace);
 
@@ -56,10 +56,12 @@ describe("saveSsoTrace", () => {
   });
 
   it("propagates an error from the storage", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(setSessionStorageItem).mockResolvedValue(error);
 
-    const result = await saveSsoTrace(newSsoTrace("cs-1", "saml", "key"));
+    const result = await saveSsoTrace(
+      newSsoTrace("tracing-session-1", "saml", "correlation-key-1"),
+    );
 
     expect(result).toBe(error);
   });
@@ -68,7 +70,7 @@ describe("saveSsoTrace", () => {
 describe("deleteSsoTrace", () => {
   it("removes the SSO trace by its key", async () => {
     vi.mocked(removeSessionStorageItems).mockResolvedValue(undefined);
-    const ssoTrace = newSsoTrace("cs-1", "saml", "_authn-request-id");
+    const ssoTrace = newSsoTrace("tracing-session-1", "saml", "correlation-key-1");
 
     const result = await deleteSsoTrace(ssoTrace);
 
@@ -77,10 +79,12 @@ describe("deleteSsoTrace", () => {
   });
 
   it("propagates an error from the storage", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(removeSessionStorageItems).mockResolvedValue(error);
 
-    const result = await deleteSsoTrace(newSsoTrace("cs-1", "saml", "key"));
+    const result = await deleteSsoTrace(
+      newSsoTrace("tracing-session-1", "saml", "correlation-key-1"),
+    );
 
     expect(result).toBe(error);
   });
@@ -88,9 +92,9 @@ describe("deleteSsoTrace", () => {
 
 describe("findAllSsoTraces", () => {
   it("retrieves every SSO trace, newest first", async () => {
-    const first = newSsoTrace("cs-1", "saml", "key-1");
-    const second = newSsoTrace("cs-1", "saml", "key-2");
-    const third = newSsoTrace("cs-2", "saml", "key-3");
+    const first = newSsoTrace("tracing-session-1", "saml", "correlation-key-1");
+    const second = newSsoTrace("tracing-session-1", "saml", "correlation-key-2");
+    const third = newSsoTrace("tracing-session-2", "saml", "correlation-key-3");
     mockStorage(second, third, first);
 
     expect(await findAllSsoTraces()).toEqual([third, second, first]);
@@ -103,12 +107,12 @@ describe("findAllSsoTraces", () => {
   });
 
   it("ignores keys that are not SSO trace keys", async () => {
-    const ssoTrace = newSsoTrace("cs-1", "saml", "key");
+    const ssoTrace = newSsoTrace("tracing-session-1", "saml", "correlation-key-1");
     mockStorage(ssoTrace);
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([
       "not-a-json-key",
       `{"id":"x","kind":"event","type":"TracingStarted"}`,
-      `{"id":"x","kind":"trace","tracingSessionId":"cs-1"}`,
+      `{"id":"x","kind":"trace","tracingSessionId":"tracing-session-1"}`,
       keyOf(ssoTrace),
     ]);
 
@@ -116,8 +120,11 @@ describe("findAllSsoTraces", () => {
   });
 
   it("skips invalid SSO traces with a warning", async () => {
-    const valid = newSsoTrace("cs-1", "saml", "key-1");
-    const invalid = { ...newSsoTrace("cs-1", "saml", "key-2"), protocol: "kerberos" };
+    const valid = newSsoTrace("tracing-session-1", "saml", "correlation-key-1");
+    const invalid = {
+      ...newSsoTrace("tracing-session-1", "saml", "correlation-key-2"),
+      protocol: "kerberos",
+    };
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([keyOf(valid), keyOf(invalid)]);
     vi.mocked(getSessionStorageItems).mockResolvedValue({
       [keyOf(valid)]: valid,
@@ -129,15 +136,15 @@ describe("findAllSsoTraces", () => {
   });
 
   it("propagates an error from the key retrieval", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
     expect(await findAllSsoTraces()).toBe(error);
   });
 
   it("propagates an error from the item retrieval", async () => {
-    const error = new Error("storage failed");
-    const ssoTrace = newSsoTrace("cs-1", "saml", "key");
+    const error = new Error("error");
+    const ssoTrace = newSsoTrace("tracing-session-1", "saml", "correlation-key-1");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue([keyOf(ssoTrace)]);
     vi.mocked(getSessionStorageItems).mockResolvedValue(error);
 
@@ -147,51 +154,59 @@ describe("findAllSsoTraces", () => {
 
 describe("findSsoTraceByCorrelationKey", () => {
   it("finds the SSO trace with the correlation key in the tracing session", async () => {
-    const target = newSsoTrace("cs-1", "saml", "key-1");
-    mockStorage(newSsoTrace("cs-1", "saml", "key-2"), target);
+    const target = newSsoTrace("tracing-session-1", "saml", "correlation-key-1");
+    mockStorage(newSsoTrace("tracing-session-1", "saml", "correlation-key-2"), target);
 
-    expect(await findSsoTraceByCorrelationKey("cs-1", "key-1")).toEqual(target);
+    expect(await findSsoTraceByCorrelationKey("tracing-session-1", "correlation-key-1")).toEqual(
+      target,
+    );
   });
 
   it("does not find an SSO trace with the same correlation key in another tracing session", async () => {
-    mockStorage(newSsoTrace("cs-2", "saml", "key-1"));
+    mockStorage(newSsoTrace("tracing-session-2", "saml", "correlation-key-1"));
 
-    expect(await findSsoTraceByCorrelationKey("cs-1", "key-1")).toBeUndefined();
+    expect(
+      await findSsoTraceByCorrelationKey("tracing-session-1", "correlation-key-1"),
+    ).toBeUndefined();
   });
 
   it("returns undefined when no SSO trace has the correlation key", async () => {
-    mockStorage(newSsoTrace("cs-1", "saml", "key-2"));
+    mockStorage(newSsoTrace("tracing-session-1", "saml", "correlation-key-2"));
 
-    expect(await findSsoTraceByCorrelationKey("cs-1", "key-1")).toBeUndefined();
+    expect(
+      await findSsoTraceByCorrelationKey("tracing-session-1", "correlation-key-1"),
+    ).toBeUndefined();
   });
 
   it("reads only the item with the matching key", async () => {
-    const target = newSsoTrace("cs-1", "saml", "key-1");
-    mockStorage(newSsoTrace("cs-1", "saml", "key-2"), target);
+    const target = newSsoTrace("tracing-session-1", "saml", "correlation-key-1");
+    mockStorage(newSsoTrace("tracing-session-1", "saml", "correlation-key-2"), target);
 
-    await findSsoTraceByCorrelationKey("cs-1", "key-1");
+    await findSsoTraceByCorrelationKey("tracing-session-1", "correlation-key-1");
 
     expect(getSessionStorageItems).toHaveBeenCalledExactlyOnceWith([keyOf(target)]);
   });
 
   it("propagates an error from the key retrieval", async () => {
-    const error = new Error("storage failed");
+    const error = new Error("error");
     vi.mocked(getAllSessionStorageKeys).mockResolvedValue(error);
 
-    expect(await findSsoTraceByCorrelationKey("cs-1", "key-1")).toBe(error);
+    expect(await findSsoTraceByCorrelationKey("tracing-session-1", "correlation-key-1")).toBe(
+      error,
+    );
   });
 });
 
 describe("findSsoTraceById", () => {
   it("retrieves the SSO trace with the ID", async () => {
-    const target = newSsoTrace("cs-1", "saml", "key-1");
-    mockStorage(newSsoTrace("cs-1", "saml", "key-2"), target);
+    const target = newSsoTrace("tracing-session-1", "saml", "correlation-key-1");
+    mockStorage(newSsoTrace("tracing-session-1", "saml", "correlation-key-2"), target);
 
     expect(await findSsoTraceById(target.id)).toEqual(target);
   });
 
   it("returns undefined when no SSO trace has the ID", async () => {
-    mockStorage(newSsoTrace("cs-1", "saml", "key-1"));
+    mockStorage(newSsoTrace("tracing-session-1", "saml", "correlation-key-1"));
 
     expect(await findSsoTraceById("unknown-id")).toBeUndefined();
   });

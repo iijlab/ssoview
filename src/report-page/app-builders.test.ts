@@ -22,7 +22,7 @@ function makeHttpMessage(id: string): HttpMessage {
     id,
     observedAt: "2026-01-01T00:00:00Z",
     type: "Request",
-    tracingSessionId: "cs-1",
+    tracingSessionId: "tracing-session-1",
     tabId: 1,
     fetchRequestId: "req-1",
     url: "https://sp.example.com/",
@@ -44,7 +44,7 @@ function makePostRequest(id: string, body: string): HttpMessage {
 function makeSamlLog(id: string, step: SamlLog["step"], httpMessageId: string): SamlLog {
   return {
     id,
-    ssoTraceId: "flow-1",
+    ssoTraceId: "sso-trace-1",
     httpMessageId,
     observedAt: "2026-01-01T00:00:00Z",
     serverHostname: "sp.example.com",
@@ -70,7 +70,7 @@ describe("buildHttpMessageRecord", () => {
     const msg2 = makeHttpMessage("msg-2");
 
     const result = buildHttpMessageRecord(
-      [makeSamlLog("trace-1", 1, "msg-1"), makeSamlLog("trace-2", 2, "msg-2")],
+      [makeSamlLog("saml-log-1", 1, "msg-1"), makeSamlLog("saml-log-2", 2, "msg-2")],
       [msg1, msg2],
     );
 
@@ -82,7 +82,7 @@ describe("buildHttpMessageRecord", () => {
     const msg2 = makeHttpMessage("msg-2");
 
     const result = buildHttpMessageRecord(
-      [makeSamlLog("trace-1", 4, "msg-1"), makeSamlLog("trace-2", 4, "msg-2")],
+      [makeSamlLog("saml-log-1", 4, "msg-1"), makeSamlLog("saml-log-2", 4, "msg-2")],
       [msg1, msg2],
     );
 
@@ -94,7 +94,7 @@ describe("buildHttpMessageRecord", () => {
     const msg2 = makeHttpMessage("msg-2");
 
     const result = buildHttpMessageRecord(
-      [makeSamlLog("trace-1", 1, "msg-1"), makeSamlLog("trace-2", 2, "msg-2")],
+      [makeSamlLog("saml-log-1", 1, "msg-1"), makeSamlLog("saml-log-2", 2, "msg-2")],
       [msg2],
     );
 

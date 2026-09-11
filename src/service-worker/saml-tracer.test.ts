@@ -87,12 +87,12 @@ describe("ingestHttpRequest", () => {
   it("saves the request and returns Error when detection fails", async () => {
     const request = makeRequest();
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(new Error("detection error"));
+    const error = new Error("error");
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(error);
 
     const result = await ingestHttpRequest(request);
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("detection error");
+    expect(result).toBe(error);
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(request);
     expect(recordSamlLog).not.toHaveBeenCalled();
   });
@@ -102,29 +102,29 @@ describe("ingestHttpRequest", () => {
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
-    vi.mocked(recordSamlLog).mockResolvedValue({ id: "trace-1" } as SsoTrace);
+    vi.mocked(recordSamlLog).mockResolvedValue({ id: "sso-trace-1" } as SsoTrace);
 
     const result = await ingestHttpRequest(request);
 
-    expect(result).toBe("trace-1");
+    expect(result).toBe("sso-trace-1");
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(request);
     expect(recordSamlLog).toHaveBeenCalledExactlyOnceWith(
       "tracing-session-1",
-      { step: 3, correlationKey: "session-1" },
+      { step: 3, correlationKey: "correlation-key-1" },
       request,
     );
   });
 
   it("returns Error without detecting when saving the request fails", async () => {
     const request = makeRequest();
-    vi.mocked(saveHttpMessage).mockResolvedValue(new Error("store error"));
+    const error = new Error("error");
+    vi.mocked(saveHttpMessage).mockResolvedValue(error);
 
     const result = await ingestHttpRequest(request);
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("store error");
+    expect(result).toBe(error);
     expect(detectSamlSignalFromHttpRequest).not.toHaveBeenCalled();
     expect(recordSamlLog).not.toHaveBeenCalled();
   });
@@ -134,36 +134,36 @@ describe("ingestHttpRequest", () => {
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
-    vi.mocked(recordSamlLog).mockResolvedValue(new Error("record error"));
+    const error = new Error("error");
+    vi.mocked(recordSamlLog).mockResolvedValue(error);
 
     const result = await ingestHttpRequest(request);
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("record error");
+    expect(result).toBe(error);
   });
 });
 
 describe("ingestHttpResponse", () => {
   it("saves the response and records the log with the paired request", async () => {
-    const pairedRequest = makeRequest({ id: "stored-1" });
-    const response = makeResponse({ id: "msg-2", pairedHttpRequestId: "stored-1" });
+    const pairedRequest = makeRequest({ id: "msg-1" });
+    const response = makeResponse({ id: "msg-2", pairedHttpRequestId: "msg-1" });
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
       step: 2,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(recordSamlLog).mockResolvedValue({ id: "trace-1" } as SsoTrace);
+    vi.mocked(recordSamlLog).mockResolvedValue({ id: "sso-trace-1" } as SsoTrace);
 
     const result = await ingestHttpResponse(response, pairedRequest);
 
-    expect(result).toBe("trace-1");
+    expect(result).toBe("sso-trace-1");
     expect(detectSamlSignalFromHttpResponse).toHaveBeenCalledWith(response, pairedRequest);
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(response);
     expect(recordSamlLog).toHaveBeenCalledExactlyOnceWith(
       "tracing-session-1",
-      { step: 2, correlationKey: "session-1" },
+      { step: 2, correlationKey: "correlation-key-1" },
       response,
       pairedRequest,
     );
@@ -192,7 +192,7 @@ describe("ingestHttpResponse", () => {
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue(undefined);
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
 
     const result = await ingestHttpResponse(response, pairedRequest);
@@ -206,23 +206,23 @@ describe("ingestHttpResponse", () => {
     const response = makeResponse();
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue(undefined);
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(undefined);
-    vi.mocked(deleteHttpMessages).mockResolvedValue(new Error("delete error"));
+    const error = new Error("error");
+    vi.mocked(deleteHttpMessages).mockResolvedValue(error);
 
     const result = await ingestHttpResponse(response, pairedRequest);
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("delete error");
+    expect(result).toBe(error);
   });
 
   it("returns Error when detection fails", async () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
-    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue(new Error("detection error"));
+    const error = new Error("error");
+    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue(error);
 
     const result = await ingestHttpResponse(response, pairedRequest);
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("detection error");
+    expect(result).toBe(error);
     expect(saveHttpMessage).not.toHaveBeenCalled();
     expect(deleteHttpMessages).not.toHaveBeenCalled();
   });
@@ -232,14 +232,14 @@ describe("ingestHttpResponse", () => {
     const response = makeResponse();
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
       step: 2,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
-    vi.mocked(saveHttpMessage).mockResolvedValue(new Error("store error"));
+    const error = new Error("error");
+    vi.mocked(saveHttpMessage).mockResolvedValue(error);
 
     const result = await ingestHttpResponse(response, pairedRequest);
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("store error");
+    expect(result).toBe(error);
     expect(recordSamlLog).not.toHaveBeenCalled();
   });
 
@@ -248,14 +248,14 @@ describe("ingestHttpResponse", () => {
     const response = makeResponse();
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
       step: 6,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(recordSamlLog).mockResolvedValue(new Error("record error"));
+    const error = new Error("error");
+    vi.mocked(recordSamlLog).mockResolvedValue(error);
 
     const result = await ingestHttpResponse(response, pairedRequest);
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("record error");
+    expect(result).toBe(error);
   });
 });
