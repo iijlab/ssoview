@@ -6,7 +6,6 @@
 import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type TracingLifecycleEvent } from "@/common/models/event-record.ts";
 import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
-import { getTracedTabIds } from "@/common/services/watch-query.ts";
 
 export async function getTracingSession(
   tracingSessionId: string,
@@ -71,45 +70,4 @@ function terminateLastOngoingTracingSession(
     : tracingSessions.map((s) =>
         s.id === ongoingTracingSession.id ? { ...ongoingTracingSession, endedAt } : s,
       );
-}
-
-export async function isTracing(): Promise<boolean | Error> {
-  // How the tracing event and the traced tabs decide the result:
-  //
-  //   event  | traced tab  | result
-  //   -------+-------------+-------
-  //   open   | yes         | tracing
-  //   open   | no          | not tracing -- the stop event was lost [1]
-  //   closed | yes         | not tracing -- the event wins [2]
-  //   closed | no          | not tracing
-  //
-  // [1] The debugger is already detached, so staying "tracing" would show a recording that can
-  //     never be stopped.
-  // [2] The user can detach from the banner.
-
-  const sessionId = await getOngoingTracingSessionId();
-  if (sessionId instanceof Error) {
-    return sessionId;
-  } else if (sessionId === undefined) {
-    return false;
-  }
-
-  const tabIds = await getTracedTabIds();
-  if (tabIds instanceof Error) {
-    return tabIds;
-  }
-
-  return 0 < tabIds.length;
-}
-
-export async function getOngoingTracingSessionId(): Promise<string | undefined | Error> {
-  const tracingLifecycleEvents = await findAllTracingLifecycleEvents();
-  if (tracingLifecycleEvents instanceof Error) {
-    return tracingLifecycleEvents;
-  }
-
-  const latest = tracingLifecycleEvents
-    .filter((e) => e.type === "TracingStarted" || e.type === "TracingStopped")
-    .at(-1);
-  return latest?.type === "TracingStarted" ? latest.id : undefined;
 }

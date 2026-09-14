@@ -9,7 +9,7 @@ import {
   debugSsoFlow,
   toSessionSummary,
 } from "@/common/models/session-summary.ts";
-import { getTracingSessions, isTracing } from "@/common/services/capture-query.ts";
+import { getTracingSessions } from "@/common/services/capture-query.ts";
 import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
 import {
   deleteSsoTrace,
@@ -22,6 +22,7 @@ import {
   findSamlLogsBySsoTraceId,
 } from "@/common/services/saml-store.ts";
 import { deriveSsoFlowFromSamlLogs } from "@/common/services/saml-summarizer.ts";
+import { isTracing } from "@/common/services/watch-query.ts";
 
 // NOTE: getSsoFlows has known inefficiencies (e.g., repeated data fetches),
 // but we prioritize simplicity as performance is not a concern at current

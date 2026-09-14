@@ -4,16 +4,12 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
 import {
-  type TracingLifecycleEvent,
-  newTracingStartedEvent,
-  newTracingStoppedEvent,
-} from "@/common/models/event-record.ts";
-import {
-  findAllTracingLifecycleEvents,
-  saveTracingLifecycleEvent,
-} from "@/common/services/event-store.ts";
-import { getTracedTabIds } from "@/common/services/watch-query.ts";
+  getOngoingTracingSessionId,
+  getTracedTabIds,
+  isTracing,
+} from "@/common/services/watch-query.ts";
 import {
   registerTabTracingTerminatedHandler,
   startTabTracing,
@@ -22,12 +18,13 @@ import {
 import { registerTracingTerminatedHandler, startTracing, stopTracing } from "./capture-manager.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
-  findAllTracingLifecycleEvents: vi.fn(),
   saveTracingLifecycleEvent: vi.fn(),
 }));
 
 vi.mock("@/common/services/watch-query.ts", () => ({
+  getOngoingTracingSessionId: vi.fn(),
   getTracedTabIds: vi.fn(),
+  isTracing: vi.fn(),
 }));
 
 vi.mock("@/service-worker/tab-watcher.ts", () => ({
@@ -48,8 +45,9 @@ beforeEach(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(undefined);
-  vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([]);
+  vi.mocked(getOngoingTracingSessionId).mockResolvedValue(undefined);
   vi.mocked(getTracedTabIds).mockResolvedValue([]);
+  vi.mocked(isTracing).mockResolvedValue(false);
   vi.mocked(startTabTracing).mockResolvedValue(undefined);
   vi.mocked(stopTabTracing).mockResolvedValue(undefined);
 });
@@ -63,12 +61,6 @@ function registerAndGetHandler(
     throw new Error("No tab tracing terminated handler is registered");
   }
   return handler as TabTracingTerminatedHandler;
-}
-
-function tracingEvents(...types: ("TracingStarted" | "TracingStopped")[]): TracingLifecycleEvent[] {
-  return types.map((type) =>
-    type === "TracingStarted" ? newTracingStartedEvent() : newTracingStoppedEvent(),
-  );
 }
 
 // Types of the events saved so far, in order
@@ -115,7 +107,7 @@ describe("startTracing", () => {
   });
 
   it("closes stale tracing before starting anew", async () => {
-    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(tracingEvents("TracingStarted"));
+    vi.mocked(getOngoingTracingSessionId).mockResolvedValue("tracing-session-1");
 
     const result = await startTracing(1);
 
@@ -125,8 +117,9 @@ describe("startTracing", () => {
   });
 
   it("does not start again while tracing is in progress", async () => {
-    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(tracingEvents("TracingStarted"));
+    vi.mocked(getOngoingTracingSessionId).mockResolvedValue("tracing-session-1");
     vi.mocked(getTracedTabIds).mockResolvedValue([1]);
+    vi.mocked(isTracing).mockResolvedValue(true);
 
     const result = await startTracing(1);
 
@@ -138,7 +131,7 @@ describe("startTracing", () => {
 
   it("does not start when the stale tracing cannot be closed", async () => {
     const error = new Error("error");
-    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(tracingEvents("TracingStarted"));
+    vi.mocked(getOngoingTracingSessionId).mockResolvedValue("tracing-session-1");
     vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
     const result = await startTracing(1);

@@ -15,26 +15,15 @@ import {
   newTracingStoppedEvent,
 } from "@/common/models/event-record.ts";
 import { findAllTracingLifecycleEvents } from "@/common/services/event-store.ts";
-import { getTracedTabIds } from "@/common/services/watch-query.ts";
-import {
-  getOngoingTracingSessionId,
-  getTracingSession,
-  getTracingSessions,
-  isTracing,
-} from "./capture-query.ts";
+import { getTracingSession, getTracingSessions } from "./capture-query.ts";
 
 vi.mock("@/common/services/event-store.ts", () => ({
   findAllTracingLifecycleEvents: vi.fn(),
 }));
 
-vi.mock("@/common/services/watch-query.ts", () => ({
-  getTracedTabIds: vi.fn(),
-}));
-
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue([]);
-  vi.mocked(getTracedTabIds).mockResolvedValue([]);
 });
 
 //
@@ -57,10 +46,6 @@ function event(type: TracingLifecycleEvent["type"]): TracingLifecycleEvent {
 
 function mockEvents(...events: TracingLifecycleEvent[]): void {
   vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(events);
-}
-
-function tracingEvents(...types: ("TracingStarted" | "TracingStopped")[]): TracingLifecycleEvent[] {
-  return types.map(event);
 }
 
 //
@@ -189,90 +174,5 @@ describe("getTracingSession", () => {
     vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
 
     expect(await getTracingSession("unknown")).toBe(error);
-  });
-});
-
-describe("getOngoingTracingSessionId", () => {
-  it("returns the ID of the event that started the ongoing tracing", async () => {
-    const events = tracingEvents("TracingStarted", "TracingStopped", "TracingStarted");
-    mockEvents(...events);
-
-    expect(await getOngoingTracingSessionId()).toBe(events[2]?.id);
-    expect(getTracedTabIds).not.toHaveBeenCalled();
-  });
-
-  it("ignores events other than tracing events", async () => {
-    const started = event("TracingStarted");
-    mockEvents(started, event("TabTracingStarted"));
-
-    expect(await getOngoingTracingSessionId()).toBe(started.id);
-  });
-
-  it("returns undefined when the latest tracing has stopped", async () => {
-    mockEvents(...tracingEvents("TracingStarted", "TracingStopped"));
-
-    expect(await getOngoingTracingSessionId()).toBeUndefined();
-  });
-
-  it("returns undefined when no tracing has started", async () => {
-    expect(await getOngoingTracingSessionId()).toBeUndefined();
-  });
-
-  it("returns the error when the events cannot be retrieved", async () => {
-    const error = new Error("error");
-    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
-
-    expect(await getOngoingTracingSessionId()).toBe(error);
-  });
-});
-
-describe("isTracing", () => {
-  it("returns true when tracing has started and a tab is still traced", async () => {
-    mockEvents(...tracingEvents("TracingStarted"));
-    vi.mocked(getTracedTabIds).mockResolvedValue([1]);
-
-    expect(await isTracing()).toBe(true);
-  });
-
-  it("returns false when the latest tracing has stopped", async () => {
-    mockEvents(...tracingEvents("TracingStarted", "TracingStopped"));
-    vi.mocked(getTracedTabIds).mockResolvedValue([1]);
-
-    expect(await isTracing()).toBe(false);
-    expect(getTracedTabIds).not.toHaveBeenCalled();
-  });
-
-  it("returns true when tracing has started again after stopping", async () => {
-    mockEvents(...tracingEvents("TracingStarted", "TracingStopped", "TracingStarted"));
-    vi.mocked(getTracedTabIds).mockResolvedValue([1]);
-
-    expect(await isTracing()).toBe(true);
-  });
-
-  it("returns false when no tracing has started", async () => {
-    vi.mocked(getTracedTabIds).mockResolvedValue([1]);
-
-    expect(await isTracing()).toBe(false);
-  });
-
-  it("returns false when no tab is traced even though tracing is left open", async () => {
-    mockEvents(...tracingEvents("TracingStarted"));
-
-    expect(await isTracing()).toBe(false);
-  });
-
-  it("returns the error when the events cannot be retrieved", async () => {
-    const error = new Error("error");
-    vi.mocked(findAllTracingLifecycleEvents).mockResolvedValue(error);
-
-    expect(await isTracing()).toBe(error);
-  });
-
-  it("returns the error when the traced tabs cannot be determined", async () => {
-    const error = new Error("error");
-    mockEvents(...tracingEvents("TracingStarted"));
-    vi.mocked(getTracedTabIds).mockResolvedValue(error);
-
-    expect(await isTracing()).toBe(error);
   });
 });

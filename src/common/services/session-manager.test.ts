@@ -8,7 +8,7 @@ import { type TracingSession } from "@/common/models/capture-session.ts";
 import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import { type HttpMessage } from "@/common/models/http-message.ts";
 import { type SamlLog } from "@/common/models/saml-trace.ts";
-import { getTracingSessions, isTracing } from "@/common/services/capture-query.ts";
+import { getTracingSessions } from "@/common/services/capture-query.ts";
 import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
 import {
   deleteSsoTrace,
@@ -20,6 +20,7 @@ import {
   deleteSamlLogsBySsoTraceId,
   findSamlLogsBySsoTraceId,
 } from "@/common/services/saml-store.ts";
+import { isTracing } from "@/common/services/watch-query.ts";
 import {
   deleteSession,
   deleteSsoFlow,
@@ -29,7 +30,6 @@ import {
 
 vi.mock("@/common/services/capture-query.ts", () => ({
   getTracingSessions: vi.fn(),
-  isTracing: vi.fn(),
 }));
 
 vi.mock("@/common/services/flow-query.ts", () => ({
@@ -49,6 +49,10 @@ vi.mock("@/common/services/http-store.ts", () => ({
 vi.mock("@/common/services/saml-store.ts", () => ({
   deleteSamlLogsBySsoTraceId: vi.fn(),
   findSamlLogsBySsoTraceId: vi.fn(),
+}));
+
+vi.mock("@/common/services/watch-query.ts", () => ({
+  isTracing: vi.fn(),
 }));
 
 beforeEach(() => {

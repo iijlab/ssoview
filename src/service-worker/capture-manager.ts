@@ -4,9 +4,12 @@
  */
 
 import { newTracingStartedEvent, newTracingStoppedEvent } from "@/common/models/event-record.ts";
-import { getOngoingTracingSessionId, isTracing } from "@/common/services/capture-query.ts";
 import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
-import { getTracedTabIds } from "@/common/services/watch-query.ts";
+import {
+  getOngoingTracingSessionId,
+  getTracedTabIds,
+  isTracing,
+} from "@/common/services/watch-query.ts";
 import {
   registerTabTracingTerminatedHandler,
   startTabTracing,

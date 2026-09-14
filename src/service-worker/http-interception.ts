@@ -10,8 +10,8 @@ import {
   newHttpRequest,
   newHttpResponse,
 } from "@/common/models/http-message.ts";
-import { getOngoingTracingSessionId } from "@/common/services/capture-query.ts";
 import { findHttpRequestByFetchRequestId } from "@/common/services/http-store.ts";
+import { getOngoingTracingSessionId } from "@/common/services/watch-query.ts";
 import { isObject } from "@/common/utils/type-guard.ts";
 
 export function registerHttpInterceptionHandlers(
