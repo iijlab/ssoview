@@ -3,8 +3,10 @@
  * @license BSD-3-Clause
  */
 
-import { exportSsoFlow, importHttpArchive } from "@/common/services/session-archiver.ts";
-import { deleteSsoFlow, getSsoFlows } from "@/common/services/session-manager.ts";
+import { deleteSsoFlow } from "@/application/delete-sso-flow.ts";
+import { exportSsoFlow } from "@/application/export-sso-flow.ts";
+import { getSsoFlows } from "@/application/get-sso-flows.ts";
+import { importHttpArchive } from "@/application/import-http-archive.ts";
 import { getAllSessionStorageItems, getSessionStorageBytesInUse } from "@/shared/chrome-storage.ts";
 import { newLabeledDebugLogger } from "@/shared/labeled-logger.ts";
 
