@@ -4,8 +4,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SsoFlow } from "@/common/models/session-summary.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import { type ArrowClickHandler, type ContentSectionId } from "@/report-page/common/types.ts";
 import { AuthPhase } from "./auth-phase.tsx";
 import { HttpArrow } from "./http-arrow.tsx";

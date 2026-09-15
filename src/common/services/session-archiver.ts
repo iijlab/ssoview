@@ -3,28 +3,24 @@
  * @license BSD-3-Clause
  */
 
-import { newArchiveImportedEvent } from "@/common/models/event-record.ts";
 import {
   type HttpArchiveJson,
   newHttpArchive,
   parseHttpArchiveJson,
   toHttpArchiveJson,
-} from "@/common/models/http-archive.ts";
-import {
-  type HttpMessage,
-  type HttpRequest,
-  type HttpResponse,
-} from "@/common/models/http-message.ts";
-import { type SamlSignal } from "@/common/models/saml-detection.ts";
-import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
-import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
-import { findSsoTraceById } from "@/common/services/flow-store.ts";
-import { saveHttpMessage } from "@/common/services/http-store.ts";
+} from "@/core/http/http-archive.ts";
+import { type HttpMessage, type HttpRequest, type HttpResponse } from "@/core/http/http-message.ts";
+import { saveHttpMessage } from "@/core/http/http-message-repository.ts";
+import { recordSamlLog } from "@/core/sso/saml-log-recorder.ts";
+import { type SamlSignal } from "@/core/sso/saml-signal.ts";
 import {
   detectSamlSignalFromHttpRequest,
   detectSamlSignalFromHttpResponse,
-} from "@/common/services/saml-detector.ts";
-import { recordSamlLog } from "@/common/services/saml-recorder.ts";
+} from "@/core/sso/saml-signal-detector.ts";
+import { getHttpMessagesBySsoTraceId } from "@/core/sso/sso-trace-query.ts";
+import { findSsoTraceById } from "@/core/sso/sso-trace-repository.ts";
+import { newArchiveImportedEvent } from "@/core/tracing/tracing-event.ts";
+import { saveTracingLifecycleEvent } from "@/core/tracing/tracing-event-repository.ts";
 
 /**
  * Export SSO flow data as an HTTP Archive (HAR) JSON string.

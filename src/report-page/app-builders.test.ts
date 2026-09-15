@@ -5,8 +5,8 @@
 
 import { Base64 } from "js-base64";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SamlLog } from "@/common/models/saml-trace.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { type SamlLog } from "@/core/sso/saml-log.ts";
 import {
   buildHttpMessageRecord,
   getSamlAuthnRequestXml,

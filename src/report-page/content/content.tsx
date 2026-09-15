@@ -4,8 +4,8 @@
  */
 
 import { type RefObject } from "react";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SsoFlow } from "@/common/models/session-summary.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import { type ContentSectionId } from "@/report-page/common/types.ts";
 import { HttpDetails } from "./http-details.tsx";
 import { SamlDetails } from "./saml-details.tsx";

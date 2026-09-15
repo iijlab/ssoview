@@ -4,15 +4,15 @@
  */
 
 import { Base64 } from "js-base64";
-import { type TracingSession } from "@/common/models/capture-session.ts";
-import { type SsoTrace } from "@/common/models/flow-entry.ts";
-import { type HttpMessage, type HttpRequest } from "@/common/models/http-message.ts";
-import { type SamlSignal } from "@/common/models/saml-detection.ts";
-import { type SamlLog, newSamlLog } from "@/common/models/saml-trace.ts";
+import { type HttpMessage, type HttpRequest } from "@/core/http/http-message.ts";
+import { type SamlLog, newSamlLog } from "@/core/sso/saml-log.ts";
+import { type SamlSignal } from "@/core/sso/saml-signal.ts";
 import {
   detectSamlSignalFromHttpRequest,
   detectSamlSignalFromHttpResponse,
-} from "@/common/services/saml-detector.ts";
+} from "@/core/sso/saml-signal-detector.ts";
+import { type SsoTrace } from "@/core/sso/sso-trace.ts";
+import { type TracingSession } from "@/core/tracing/tracing-session.ts";
 import { type FlowData } from "@/report-page/common/types.ts";
 import sampleAuthnRequestXmlRaw from "./authn-request.xml?raw";
 import samlFailureResponseXmlRaw from "./response-failure.xml?raw";

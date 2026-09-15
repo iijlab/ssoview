@@ -3,8 +3,8 @@
  * @license BSD-3-Clause
  */
 
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SsoFlow } from "@/common/models/session-summary.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import { type ArrowClickHandler, type ContentSectionId } from "@/report-page/common/types.ts";
 import { LogoHeader } from "./logo-header.tsx";
 import { SequenceDiagram } from "./sequence-diagram.tsx";

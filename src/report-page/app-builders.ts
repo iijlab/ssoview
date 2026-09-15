@@ -3,16 +3,16 @@
  * @license BSD-3-Clause
  */
 
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SamlLog } from "@/common/models/saml-trace.ts";
-import { getTracingSession } from "@/common/services/capture-query.ts";
-import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
-import { findSsoTraceById } from "@/common/services/flow-store.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { type SamlLog } from "@/core/sso/saml-log.ts";
+import { findSamlLogsBySsoTraceId } from "@/core/sso/saml-log-repository.ts";
 import {
   extractSamlpAuthnRequestXml,
   extractSamlpResponseXml,
-} from "@/common/services/saml-detector.ts";
-import { findSamlLogsBySsoTraceId } from "@/common/services/saml-store.ts";
+} from "@/core/sso/saml-signal-detector.ts";
+import { getHttpMessagesBySsoTraceId } from "@/core/sso/sso-trace-query.ts";
+import { findSsoTraceById } from "@/core/sso/sso-trace-repository.ts";
+import { getTracingSession } from "@/core/tracing/tracing-session-query.ts";
 import { type FlowData } from "@/report-page/common/types.ts";
 
 export async function loadFlowData(ssoTraceId: string | null): Promise<FlowData | Error> {

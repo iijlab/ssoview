@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SsoFlow } from "@/common/models/session-summary.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import {
   buildAuthnRequestDetails,
   buildHttpMessageDetails,

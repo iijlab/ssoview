@@ -5,11 +5,8 @@
 
 import { exportSsoFlow, importHttpArchive } from "@/common/services/session-archiver.ts";
 import { deleteSsoFlow, getSsoFlows } from "@/common/services/session-manager.ts";
-import {
-  getAllSessionStorageItems,
-  getSessionStorageBytesInUse,
-} from "@/common/utils/chrome-storage.ts";
-import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
+import { getAllSessionStorageItems, getSessionStorageBytesInUse } from "@/shared/chrome-storage.ts";
+import { newLabeledDebugLogger } from "@/shared/labeled-logger.ts";
 
 export function registerDevCommands(): void {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

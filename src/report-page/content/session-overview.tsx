@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { type SsoFlow } from "@/common/models/session-summary.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import { buildSessionData, buildSessionResult } from "./content-builders.ts";
 
 type SessionOverviewProps = {

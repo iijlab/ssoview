@@ -5,20 +5,20 @@
 
 import { publishCaptureTerminatedEvent, publishSessionUpdateEvent } from "@/common/pubsub.ts";
 import { registerStartMonitoringHandler, registerStopMonitoringHandler } from "@/common/rpc.ts";
-import { isTracedTab } from "@/common/services/watch-query.ts";
+import { ingestHttpRequest, ingestHttpResponse } from "@/core/sso/saml-ingestor.ts";
+import { isTracedTab } from "@/core/tracing/tracing-state-query.ts";
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
-import {
-  registerTracingTerminatedHandler,
-  startTracing,
-  stopTracing,
-} from "@/service-worker/capture-manager.ts";
 import { registerDevCommands } from "@/service-worker/dev-commands.ts";
-import { registerHttpInterceptionHandlers } from "@/service-worker/http-interception.ts";
-import { ingestHttpRequest, ingestHttpResponse } from "@/service-worker/saml-tracer.ts";
+import { registerHttpInterceptionHandlers } from "@/service-worker/http-message-interceptor.ts";
 import {
   registerSidePanelCloseHandler,
   registerSidePanelOpenHandler,
 } from "@/service-worker/side-panel.ts";
+import {
+  registerTracingTerminatedHandler,
+  startTracing,
+  stopTracing,
+} from "@/service-worker/tracing-controller.ts";
 
 function init() {
   registerStartMonitoringHandler(handleStartTracingCommand);

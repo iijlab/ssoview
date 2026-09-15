@@ -3,10 +3,10 @@
  * @license BSD-3-Clause
  */
 
-import { type TracingSession } from "@/common/models/capture-session.ts";
-import { type SsoTrace } from "@/common/models/flow-entry.ts";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SamlLog } from "@/common/models/saml-trace.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { type SamlLog } from "@/core/sso/saml-log.ts";
+import { type SsoTrace } from "@/core/sso/sso-trace.ts";
+import { type TracingSession } from "@/core/tracing/tracing-session.ts";
 
 export type ContentSectionId = SummarySectionId | SamlSectionId | HttpSectionId;
 export type SummarySectionId = "session-summary";

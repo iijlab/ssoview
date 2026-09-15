@@ -3,26 +3,22 @@
  * @license BSD-3-Clause
  */
 
+import { type SessionSummary, toSessionSummary } from "@/common/models/session-summary.ts";
+import { deleteHttpMessages } from "@/core/http/http-message-repository.ts";
+import { deriveSsoFlowFromSamlLogs } from "@/core/sso/saml-flow-factory.ts";
 import {
-  type SessionSummary,
-  type SsoFlow,
-  debugSsoFlow,
-  toSessionSummary,
-} from "@/common/models/session-summary.ts";
-import { getTracingSessions } from "@/common/services/capture-query.ts";
-import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
+  deleteSamlLogsBySsoTraceId,
+  findSamlLogsBySsoTraceId,
+} from "@/core/sso/saml-log-repository.ts";
+import { type SsoFlow, debugSsoFlow } from "@/core/sso/sso-flow.ts";
+import { getHttpMessagesBySsoTraceId } from "@/core/sso/sso-trace-query.ts";
 import {
   deleteSsoTrace,
   findAllSsoTraces,
   findSsoTraceById,
-} from "@/common/services/flow-store.ts";
-import { deleteHttpMessages } from "@/common/services/http-store.ts";
-import {
-  deleteSamlLogsBySsoTraceId,
-  findSamlLogsBySsoTraceId,
-} from "@/common/services/saml-store.ts";
-import { deriveSsoFlowFromSamlLogs } from "@/common/services/saml-summarizer.ts";
-import { isTracing } from "@/common/services/watch-query.ts";
+} from "@/core/sso/sso-trace-repository.ts";
+import { getTracingSessions } from "@/core/tracing/tracing-session-query.ts";
+import { isTracing } from "@/core/tracing/tracing-state-query.ts";
 
 // NOTE: getSsoFlows has known inefficiencies (e.g., repeated data fetches),
 // but we prioritize simplicity as performance is not a concern at current

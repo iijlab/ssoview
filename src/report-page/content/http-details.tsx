@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { type HttpMessage } from "@/common/models/http-message.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
 import {
   buildHttpMessageDetails,
   type HttpRequestDetails,

@@ -7,7 +7,7 @@
 // - response required
 // - single receiver
 
-import { isObject } from "@/common/utils/type-guard.ts";
+import { isObject } from "@/shared/type-guard.ts";
 
 type Method = "StartMonitoring" | "StopMonitoring";
 

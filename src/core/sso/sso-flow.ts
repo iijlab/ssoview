@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { newLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
+import { newLabeledDebugLogger } from "@/shared/labeled-logger.ts";
 
 export type SsoFlow = {
   id: string;

@@ -4,9 +4,9 @@
  */
 
 import type Protocol from "devtools-protocol";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SsoFlow } from "@/common/models/session-summary.ts";
-import { parseSamlpAuthnRequestXml, parseSamlpResponseXml } from "@/common/services/saml-parser.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { parseSamlpAuthnRequestXml, parseSamlpResponseXml } from "@/core/sso/saml-xml-parser.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import { getHttpStatusText } from "@/report-page/common/utils.ts";
 
 //

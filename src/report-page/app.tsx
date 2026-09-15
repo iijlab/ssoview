@@ -4,9 +4,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SsoFlow } from "@/common/models/session-summary.ts";
-import { deriveSsoFlowFromSamlLogs } from "@/common/services/saml-summarizer.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { deriveSsoFlowFromSamlLogs } from "@/core/sso/saml-flow-factory.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import {
   buildHttpMessageRecord,
   getSamlAuthnRequestXml,

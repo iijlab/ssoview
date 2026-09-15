@@ -4,22 +4,22 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type SsoTrace } from "@/common/models/flow-entry.ts";
 import {
   newHttpArchive,
   parseHttpArchiveJson,
   toHttpArchiveJson,
-} from "@/common/models/http-archive.ts";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { saveTracingLifecycleEvent } from "@/common/services/event-store.ts";
-import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
-import { findSsoTraceById } from "@/common/services/flow-store.ts";
-import { saveHttpMessage } from "@/common/services/http-store.ts";
+} from "@/core/http/http-archive.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { saveHttpMessage } from "@/core/http/http-message-repository.ts";
+import { recordSamlLog } from "@/core/sso/saml-log-recorder.ts";
 import {
   detectSamlSignalFromHttpRequest,
   detectSamlSignalFromHttpResponse,
-} from "@/common/services/saml-detector.ts";
-import { recordSamlLog } from "@/common/services/saml-recorder.ts";
+} from "@/core/sso/saml-signal-detector.ts";
+import { type SsoTrace } from "@/core/sso/sso-trace.ts";
+import { getHttpMessagesBySsoTraceId } from "@/core/sso/sso-trace-query.ts";
+import { findSsoTraceById } from "@/core/sso/sso-trace-repository.ts";
+import { saveTracingLifecycleEvent } from "@/core/tracing/tracing-event-repository.ts";
 import {
   dumpSessionArchive,
   exportSsoFlow,
@@ -27,34 +27,34 @@ import {
   loadSessionArchive,
 } from "./session-archiver.ts";
 
-vi.mock("@/common/models/http-archive.ts", () => ({
+vi.mock("@/core/http/http-archive.ts", () => ({
   newHttpArchive: vi.fn(),
   parseHttpArchiveJson: vi.fn(),
   toHttpArchiveJson: vi.fn(),
 }));
 
-vi.mock("@/common/services/event-store.ts", () => ({
+vi.mock("@/core/tracing/tracing-event-repository.ts", () => ({
   saveTracingLifecycleEvent: vi.fn(),
 }));
 
-vi.mock("@/common/services/flow-query.ts", () => ({
+vi.mock("@/core/sso/sso-trace-query.ts", () => ({
   getHttpMessagesBySsoTraceId: vi.fn(),
 }));
 
-vi.mock("@/common/services/flow-store.ts", () => ({
+vi.mock("@/core/sso/sso-trace-repository.ts", () => ({
   findSsoTraceById: vi.fn(),
 }));
 
-vi.mock("@/common/services/http-store.ts", () => ({
+vi.mock("@/core/http/http-message-repository.ts", () => ({
   saveHttpMessage: vi.fn(),
 }));
 
-vi.mock("@/common/services/saml-detector.ts", () => ({
+vi.mock("@/core/sso/saml-signal-detector.ts", () => ({
   detectSamlSignalFromHttpRequest: vi.fn(),
   detectSamlSignalFromHttpResponse: vi.fn(),
 }));
 
-vi.mock("@/common/services/saml-recorder.ts", () => ({
+vi.mock("@/core/sso/saml-log-recorder.ts", () => ({
   recordSamlLog: vi.fn(),
 }));
 

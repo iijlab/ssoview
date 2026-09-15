@@ -4,23 +4,23 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type TracingSession } from "@/common/models/capture-session.ts";
-import { type SsoTrace } from "@/common/models/flow-entry.ts";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SamlLog } from "@/common/models/saml-trace.ts";
-import { getTracingSessions } from "@/common/services/capture-query.ts";
-import { getHttpMessagesBySsoTraceId } from "@/common/services/flow-query.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { deleteHttpMessages } from "@/core/http/http-message-repository.ts";
+import { type SamlLog } from "@/core/sso/saml-log.ts";
+import {
+  deleteSamlLogsBySsoTraceId,
+  findSamlLogsBySsoTraceId,
+} from "@/core/sso/saml-log-repository.ts";
+import { type SsoTrace } from "@/core/sso/sso-trace.ts";
+import { getHttpMessagesBySsoTraceId } from "@/core/sso/sso-trace-query.ts";
 import {
   deleteSsoTrace,
   findAllSsoTraces,
   findSsoTraceById,
-} from "@/common/services/flow-store.ts";
-import { deleteHttpMessages } from "@/common/services/http-store.ts";
-import {
-  deleteSamlLogsBySsoTraceId,
-  findSamlLogsBySsoTraceId,
-} from "@/common/services/saml-store.ts";
-import { isTracing } from "@/common/services/watch-query.ts";
+} from "@/core/sso/sso-trace-repository.ts";
+import { type TracingSession } from "@/core/tracing/tracing-session.ts";
+import { getTracingSessions } from "@/core/tracing/tracing-session-query.ts";
+import { isTracing } from "@/core/tracing/tracing-state-query.ts";
 import {
   deleteSession,
   deleteSsoFlow,
@@ -28,30 +28,30 @@ import {
   getSsoFlows,
 } from "./session-manager.ts";
 
-vi.mock("@/common/services/capture-query.ts", () => ({
+vi.mock("@/core/tracing/tracing-session-query.ts", () => ({
   getTracingSessions: vi.fn(),
 }));
 
-vi.mock("@/common/services/flow-query.ts", () => ({
+vi.mock("@/core/sso/sso-trace-query.ts", () => ({
   getHttpMessagesBySsoTraceId: vi.fn(),
 }));
 
-vi.mock("@/common/services/flow-store.ts", () => ({
+vi.mock("@/core/sso/sso-trace-repository.ts", () => ({
   deleteSsoTrace: vi.fn(),
   findAllSsoTraces: vi.fn(),
   findSsoTraceById: vi.fn(),
 }));
 
-vi.mock("@/common/services/http-store.ts", () => ({
+vi.mock("@/core/http/http-message-repository.ts", () => ({
   deleteHttpMessages: vi.fn(),
 }));
 
-vi.mock("@/common/services/saml-store.ts", () => ({
+vi.mock("@/core/sso/saml-log-repository.ts", () => ({
   deleteSamlLogsBySsoTraceId: vi.fn(),
   findSamlLogsBySsoTraceId: vi.fn(),
 }));
 
-vi.mock("@/common/services/watch-query.ts", () => ({
+vi.mock("@/core/tracing/tracing-state-query.ts", () => ({
   isTracing: vi.fn(),
 }));
 

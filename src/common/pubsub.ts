@@ -7,7 +7,7 @@
 // - no response required
 // - multiple receivers
 
-import { isObject } from "@/common/utils/type-guard.ts";
+import { isObject } from "@/shared/type-guard.ts";
 
 type Event = "SessionUpdateEvent" | "CaptureTerminatedEvent";
 
