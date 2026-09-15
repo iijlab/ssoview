@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type HttpMessage } from "@/common/models/http-message.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
 import { buildHttpMessageDataRecord } from "./sidebar-builders.ts";
 
 //
@@ -14,7 +14,7 @@ import { buildHttpMessageDataRecord } from "./sidebar-builders.ts";
 const baseFields = {
   id: "msg-1",
   observedAt: "2026-01-01T00:00:00Z",
-  captureSessionId: "cs-1",
+  tracingSessionId: "tracing-session-1",
   tabId: 1,
   fetchRequestId: "req-1",
   headers: [],
@@ -24,7 +24,7 @@ const baseFields = {
 function makeRequest(url: string, method = "GET"): HttpMessage {
   return {
     ...baseFields,
-    stage: "Request",
+    type: "Request",
     url,
     method,
   } as HttpMessage;
@@ -33,7 +33,7 @@ function makeRequest(url: string, method = "GET"): HttpMessage {
 function makeResponse(url: string, statusCode: number, method = "GET"): HttpMessage {
   return {
     ...baseFields,
-    stage: "Response",
+    type: "Response",
     url,
     method,
     statusCode,

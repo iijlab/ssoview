@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 
 export type SessionSummary = {
   protocol: SessionSsoProtocol;
@@ -23,22 +23,7 @@ type SessionSsoProtocol = "saml" | "oidc";
 
 type SessionStatus = "in_progress" | "succeeded" | "failed";
 
-//
-// Debug utilities
-//
-
-export const debugSessionSummary =
-  import.meta.env.MODE === "development" ? debugSessionSummaryImpl : () => Promise.resolve();
-
-async function debugSessionSummaryImpl(summary: SessionSummary) {
-  const debug = await createLabeledDebugLogger([
-    "SUMMARY",
-    summary.sessionId,
-    summary.sp ?? "unknown",
-    summary.idp ?? "unknown",
-    summary.start ?? "not started",
-    summary.end ?? "ongoing",
-    `${summary.status}`,
-  ]);
-  debug(summary.action, { SessionSummary: summary });
+export function toSessionSummary(ssoFlow: SsoFlow): SessionSummary {
+  const { id, live, startedAt, endedAt, ...rest } = ssoFlow;
+  return { ...rest, capturing: live, sessionId: id, start: startedAt, end: endedAt };
 }

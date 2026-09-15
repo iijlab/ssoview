@@ -3,11 +3,11 @@
  * @license BSD-3-Clause
  */
 
-import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import { type SamlSectionId } from "@/report-page/common/types.ts";
 
 type SamlArrowProps = {
-  sessionSummary: SessionSummary;
+  ssoFlow: SsoFlow;
   sectionId: SamlSectionId;
   containerWidth: number;
   startX: number;
@@ -20,7 +20,7 @@ type SamlArrowProps = {
 };
 
 export function SamlArrow({
-  sessionSummary,
+  ssoFlow,
   sectionId,
   containerWidth,
   startX,
@@ -50,7 +50,7 @@ export function SamlArrow({
 
   const arrowColorClass = isActive
     ? "fill-amber-500 stroke-amber-800"
-    : sectionId === "saml-response" && sessionSummary.status === "failed"
+    : sectionId === "saml-response" && ssoFlow.status === "failed"
       ? "fill-red-500 stroke-rose-800 hover:fill-rose-400"
       : "fill-purple-500 stroke-purple-800 hover:fill-purple-400";
 

@@ -3,7 +3,7 @@
  * @license BSD-3-Clause
  */
 
-import { type HttpMessage } from "@/common/models/http-message.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
 import { getHttpStatusText } from "@/report-page/common/utils.ts";
 
 //
@@ -36,7 +36,7 @@ function buildHttpMessageData(
   idpHost: string,
   httpMessage: HttpMessage,
 ): HttpMessageData {
-  const isRequest = httpMessage.stage === "Request";
+  const isRequest = httpMessage.type === "Request";
   const url = (() => {
     try {
       return new URL(httpMessage.url);

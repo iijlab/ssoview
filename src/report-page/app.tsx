@@ -4,9 +4,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SessionSummary } from "@/common/models/session-summary.ts";
-import { summarizeSamlFlow } from "@/common/services/saml-summarizer.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { deriveSsoFlowFromSamlLogs } from "@/core/sso/saml-flow-factory.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import {
   buildHttpMessageRecord,
   getSamlAuthnRequestXml,
@@ -20,7 +20,7 @@ import "./app.css";
 
 type SessionData = {
   httpMessageRecord: Record<number, HttpMessage>;
-  sessionSummary: SessionSummary;
+  ssoFlow: SsoFlow;
   authnRequestXml?: string;
   responseXml?: string;
 };
@@ -31,26 +31,26 @@ export function App() {
   useEffect(() => {
     const fetchSessionData = async () => {
       const params = new URLSearchParams(window.location.search);
-      const flowId = params.get("sessionId");
+      const ssoTraceId = params.get("sessionId");
 
-      const flowData = await loadFlowData(flowId);
+      const flowData = await loadFlowData(ssoTraceId);
       if (flowData instanceof Error) {
         console.warn("Failed to load flow data:", { error: flowData });
         return;
       }
-      const { flowEntry, captureSession, samlTraces, httpMessages } = flowData;
+      const { ssoTrace, tracingSession, samlLogs, httpMessages } = flowData;
 
-      const httpMessageRecord = buildHttpMessageRecord(samlTraces, httpMessages);
+      const httpMessageRecord = buildHttpMessageRecord(samlLogs, httpMessages);
       if (Object.keys(httpMessageRecord).length === 0) {
-        console.warn("No HTTP messages for the SAML traces");
+        console.warn("No HTTP messages for the SAML logs");
         return;
       }
 
-      const sessionSummary = summarizeSamlFlow(flowEntry, captureSession, samlTraces);
+      const ssoFlow = deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, samlLogs);
       const authnRequestXml = await getSamlAuthnRequestXml(httpMessageRecord);
       const responseXml = await getSamlResponseXml(httpMessageRecord);
 
-      setSessionData({ httpMessageRecord, sessionSummary, authnRequestXml, responseXml });
+      setSessionData({ httpMessageRecord, ssoFlow, authnRequestXml, responseXml });
     };
 
     fetchSessionData();
@@ -140,7 +140,7 @@ export function App() {
           <aside className="w-96">
             <Sidebar
               httpMessageRecord={sessionData.httpMessageRecord}
-              sessionSummary={sessionData.sessionSummary}
+              ssoFlow={sessionData.ssoFlow}
               activeSectionId={activeSectionId}
               onLogoClick={scrollToTop}
               onArrowClick={scrollToSection}
@@ -149,7 +149,7 @@ export function App() {
           <main className="flex-1 overflow-y-auto" ref={mainRef}>
             <Content
               httpMessageRecord={sessionData.httpMessageRecord}
-              sessionSummary={sessionData.sessionSummary}
+              ssoFlow={sessionData.ssoFlow}
               authnRequestXml={sessionData.authnRequestXml}
               responseXml={sessionData.responseXml}
               sectionRefs={contentSectionRefs}

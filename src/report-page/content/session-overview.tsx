@@ -3,22 +3,18 @@
  * @license BSD-3-Clause
  */
 
-import { type SessionSummary } from "@/common/models/session-summary.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import { buildSessionData, buildSessionResult } from "./content-builders.ts";
 
 type SessionOverviewProps = {
-  sessionSummary: SessionSummary;
+  ssoFlow: SsoFlow;
   authnRequestXml?: string;
   responseXml?: string;
 };
 
-export function SessionOverview({
-  sessionSummary,
-  authnRequestXml,
-  responseXml,
-}: SessionOverviewProps) {
-  const sessionData = buildSessionData(sessionSummary, authnRequestXml, responseXml);
-  const sessionResult = buildSessionResult(sessionSummary, authnRequestXml, responseXml);
+export function SessionOverview({ ssoFlow, authnRequestXml, responseXml }: SessionOverviewProps) {
+  const sessionData = buildSessionData(ssoFlow, authnRequestXml, responseXml);
+  const sessionResult = buildSessionResult(ssoFlow, authnRequestXml, responseXml);
 
   const statusBadgeColor =
     sessionResult.status === "Success"

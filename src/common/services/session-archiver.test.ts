@@ -4,202 +4,225 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type FlowEntry } from "@/common/models/flow-entry.ts";
-import { newHar, toHttpMessages } from "@/common/models/http-archive.ts";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { saveEventRecord } from "@/common/services/event-store.ts";
-import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
-import { findFlowEntryById } from "@/common/services/flow-store.ts";
-import { saveHttpMessage } from "@/common/services/http-store.ts";
 import {
-  detectSamlStepFromHttpRequest,
-  detectSamlStepFromHttpResponse,
-} from "@/common/services/saml-detector.ts";
-import { recordSamlTrace } from "@/common/services/saml-recorder.ts";
-import { dumpSessionArchive, loadSessionArchive } from "./session-archiver.ts";
+  newHttpArchive,
+  parseHttpArchiveJson,
+  toHttpArchiveJson,
+} from "@/core/http/http-archive.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { saveHttpMessage } from "@/core/http/http-message-repository.ts";
+import { recordSamlLog } from "@/core/sso/saml-log-recorder.ts";
+import {
+  detectSamlSignalFromHttpRequest,
+  detectSamlSignalFromHttpResponse,
+} from "@/core/sso/saml-signal-detector.ts";
+import { type SsoTrace } from "@/core/sso/sso-trace.ts";
+import { getHttpMessagesBySsoTraceId } from "@/core/sso/sso-trace-query.ts";
+import { findSsoTraceById } from "@/core/sso/sso-trace-repository.ts";
+import { saveTracingLifecycleEvent } from "@/core/tracing/tracing-event-repository.ts";
+import {
+  dumpSessionArchive,
+  exportSsoFlow,
+  importHttpArchive,
+  loadSessionArchive,
+} from "./session-archiver.ts";
 
-vi.mock("@/common/models/http-archive.ts", () => ({
-  newHar: vi.fn(),
-  toHttpMessages: vi.fn(),
+vi.mock("@/core/http/http-archive.ts", () => ({
+  newHttpArchive: vi.fn(),
+  parseHttpArchiveJson: vi.fn(),
+  toHttpArchiveJson: vi.fn(),
 }));
 
-vi.mock("@/common/services/event-store.ts", () => ({
-  saveEventRecord: vi.fn(),
+vi.mock("@/core/tracing/tracing-event-repository.ts", () => ({
+  saveTracingLifecycleEvent: vi.fn(),
 }));
 
-vi.mock("@/common/services/flow-query.ts", () => ({
-  findHttpMessagesOfFlow: vi.fn(),
+vi.mock("@/core/sso/sso-trace-query.ts", () => ({
+  getHttpMessagesBySsoTraceId: vi.fn(),
 }));
 
-vi.mock("@/common/services/flow-store.ts", () => ({
-  findFlowEntryById: vi.fn(),
+vi.mock("@/core/sso/sso-trace-repository.ts", () => ({
+  findSsoTraceById: vi.fn(),
 }));
 
-vi.mock("@/common/services/http-store.ts", () => ({
+vi.mock("@/core/http/http-message-repository.ts", () => ({
   saveHttpMessage: vi.fn(),
 }));
 
-vi.mock("@/common/services/saml-detector.ts", () => ({
-  detectSamlStepFromHttpRequest: vi.fn(),
-  detectSamlStepFromHttpResponse: vi.fn(),
+vi.mock("@/core/sso/saml-signal-detector.ts", () => ({
+  detectSamlSignalFromHttpRequest: vi.fn(),
+  detectSamlSignalFromHttpResponse: vi.fn(),
 }));
 
-vi.mock("@/common/services/saml-recorder.ts", () => ({
-  recordSamlTrace: vi.fn(),
+vi.mock("@/core/sso/saml-log-recorder.ts", () => ({
+  recordSamlLog: vi.fn(),
 }));
+
+const ssoTrace: SsoTrace = {
+  id: "sso-trace-1",
+  tracingSessionId: "tracing-session-1",
+  protocol: "saml",
+  correlationKey: "correlation-key-1",
+};
+
+const importedSsoTrace: SsoTrace = {
+  id: "sso-trace-imported",
+  tracingSessionId: "tracing-session-imported",
+  protocol: "saml",
+  correlationKey: "correlation-key-1",
+};
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(saveEventRecord).mockResolvedValue(undefined);
+  vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(undefined);
 });
 
-describe("dumpSessionArchive", () => {
-  const flowEntry: FlowEntry = {
-    id: "flow-1",
-    captureSessionId: "cs-1",
-    protocol: "saml",
-    correlationKey: "session-1",
-  };
-
-  it("returns HAR string on success", async () => {
+describe("exportSsoFlow", () => {
+  it("returns HTTP archive JSON on success", async () => {
     const httpMessages = [{} as HttpMessage];
-    vi.mocked(findFlowEntryById).mockResolvedValue(flowEntry);
-    vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(httpMessages);
-    vi.mocked(newHar).mockReturnValue('{"log":{}}');
+    vi.mocked(findSsoTraceById).mockResolvedValue(ssoTrace);
+    vi.mocked(getHttpMessagesBySsoTraceId).mockResolvedValue(httpMessages);
+    const httpArchive = { version: 1, httpMessages };
+    vi.mocked(newHttpArchive).mockReturnValue(httpArchive);
+    vi.mocked(toHttpArchiveJson).mockReturnValue('{"log":{}}');
 
-    const result = await dumpSessionArchive(1, "flow-1");
+    const result = await exportSsoFlow("sso-trace-1");
 
-    expect(findFlowEntryById).toHaveBeenCalledWith("flow-1");
-    expect(findHttpMessagesOfFlow).toHaveBeenCalledWith("flow-1");
-    expect(newHar).toHaveBeenCalledWith(httpMessages);
+    expect(findSsoTraceById).toHaveBeenCalledWith("sso-trace-1");
+    expect(getHttpMessagesBySsoTraceId).toHaveBeenCalledWith("sso-trace-1");
+    expect(newHttpArchive).toHaveBeenCalledWith(httpMessages);
+    expect(toHttpArchiveJson).toHaveBeenCalledWith(httpArchive);
     expect(result).toBe('{"log":{}}');
   });
 
-  it("returns Error when the flow cannot be found", async () => {
-    vi.mocked(findFlowEntryById).mockResolvedValue(new Error("storage error"));
+  it("returns Error when the SSO trace cannot be found", async () => {
+    const error = new Error("error");
+    vi.mocked(findSsoTraceById).mockResolvedValue(error);
 
-    const result = await dumpSessionArchive(1, "flow-1");
+    const result = await exportSsoFlow("sso-trace-1");
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("storage error");
-    expect(findHttpMessagesOfFlow).not.toHaveBeenCalled();
+    expect(result).toBe(error);
+    expect(getHttpMessagesBySsoTraceId).not.toHaveBeenCalled();
   });
 
-  it("returns Error when no flow has the flow ID", async () => {
-    vi.mocked(findFlowEntryById).mockResolvedValue(undefined);
+  it("returns Error when no SSO trace has the ID", async () => {
+    vi.mocked(findSsoTraceById).mockResolvedValue(undefined);
 
-    const result = await dumpSessionArchive(1, "flow-1");
+    const result = await exportSsoFlow("sso-trace-1");
 
     expect(result).toBeInstanceOf(Error);
-    expect(findHttpMessagesOfFlow).not.toHaveBeenCalled();
+    expect(getHttpMessagesBySsoTraceId).not.toHaveBeenCalled();
   });
 
-  it("returns Error when findHttpMessagesOfFlow fails", async () => {
-    vi.mocked(findFlowEntryById).mockResolvedValue(flowEntry);
-    vi.mocked(findHttpMessagesOfFlow).mockResolvedValue(new Error("storage error"));
+  it("returns Error when getHttpMessagesBySsoTraceId fails", async () => {
+    vi.mocked(findSsoTraceById).mockResolvedValue(ssoTrace);
+    const error = new Error("error");
+    vi.mocked(getHttpMessagesBySsoTraceId).mockResolvedValue(error);
 
-    const result = await dumpSessionArchive(1, "flow-1");
+    const result = await exportSsoFlow("sso-trace-1");
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("storage error");
-    expect(newHar).not.toHaveBeenCalled();
+    expect(result).toBe(error);
+    expect(newHttpArchive).not.toHaveBeenCalled();
   });
 });
 
-describe("loadSessionArchive", () => {
-  it("returns session IDs on success", async () => {
+describe("importHttpArchive", () => {
+  it("returns SSO flow IDs on success", async () => {
     const httpMessage = {
-      stage: "Request",
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
-    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
+    vi.mocked(recordSamlLog).mockResolvedValue(importedSsoTrace);
 
-    const result = await loadSessionArchive(1, "har-string");
+    const result = await importHttpArchive("http-archive-json");
 
-    expect(result).toEqual(["session-1"]);
-    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
-    const importedHttpMessage = { ...httpMessage, captureSessionId: importedRecord.id };
+    expect(result).toEqual(["sso-trace-imported"]);
+    const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
+    const importedHttpMessage = { ...httpMessage, tracingSessionId: importedEvent.id };
     expect(saveHttpMessage).toHaveBeenCalledWith(importedHttpMessage);
-    expect(recordSamlTrace).toHaveBeenCalledWith(
-      importedRecord.id,
-      { step: 3, correlationKey: "session-1" },
+    expect(recordSamlLog).toHaveBeenCalledWith(
+      importedEvent.id,
+      { step: 3, correlationKey: "correlation-key-1" },
       importedHttpMessage,
       undefined,
     );
   });
 
-  it("assigns the imported capture session and drops the observed tab and request ID", async () => {
+  it("assigns the imported tracing session and drops the observed tab and request ID", async () => {
     const httpMessage = {
-      captureSessionId: "cs-exported",
+      tracingSessionId: "tracing-session-exported",
       tabId: 7,
       fetchRequestId: "req-7",
-      stage: "Request",
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
-    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
+    vi.mocked(recordSamlLog).mockResolvedValue(importedSsoTrace);
 
-    await loadSessionArchive(1, "har-string");
+    await importHttpArchive("http-archive-json");
 
-    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
+    const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith({
-      captureSessionId: importedRecord.id,
-      stage: "Request",
+      tracingSessionId: importedEvent.id,
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     });
   });
 
-  it("stores the paired request of a response ", async () => {
+  it("saves the paired request of a response", async () => {
     const pairedRequest = {
       id: "msg-1",
-      stage: "Request",
+      type: "Request",
       url: "https://sp.example.com/resource",
     } as unknown as HttpMessage;
     const httpMessage = {
       id: "msg-2",
-      stage: "Response",
+      type: "Response",
       pairedHttpRequestId: "msg-1",
       url: "https://sp.example.com/acs",
       headers: [],
     } as unknown as HttpMessage;
-    vi.mocked(toHttpMessages).mockReturnValue([pairedRequest, httpMessage]);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
-    vi.mocked(detectSamlStepFromHttpResponse).mockResolvedValue({
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({
+      version: 1,
+      httpMessages: [pairedRequest, httpMessage],
+    });
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(undefined);
+    vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
       step: 6,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
+    vi.mocked(recordSamlLog).mockResolvedValue(importedSsoTrace);
 
-    await loadSessionArchive(1, "har-string");
+    await importHttpArchive("http-archive-json");
 
-    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
-    const importedPairedRequest = { ...pairedRequest, captureSessionId: importedRecord.id };
-    const importedHttpMessage = { ...httpMessage, captureSessionId: importedRecord.id };
-    expect(detectSamlStepFromHttpResponse).toHaveBeenCalledWith(
+    const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
+    const importedPairedRequest = { ...pairedRequest, tracingSessionId: importedEvent.id };
+    const importedHttpMessage = { ...httpMessage, tracingSessionId: importedEvent.id };
+    expect(detectSamlSignalFromHttpResponse).toHaveBeenCalledWith(
       importedHttpMessage,
       importedPairedRequest,
     );
     expect(saveHttpMessage).toHaveBeenCalledTimes(2);
     expect(saveHttpMessage).toHaveBeenNthCalledWith(1, importedPairedRequest);
     expect(saveHttpMessage).toHaveBeenNthCalledWith(2, importedHttpMessage);
-    expect(recordSamlTrace).toHaveBeenCalledExactlyOnceWith(
-      importedRecord.id,
-      { step: 6, correlationKey: "session-1" },
+    expect(recordSamlLog).toHaveBeenCalledExactlyOnceWith(
+      importedEvent.id,
+      { step: 6, correlationKey: "correlation-key-1" },
       importedHttpMessage,
       importedPairedRequest,
     );
@@ -209,111 +232,132 @@ describe("loadSessionArchive", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const httpMessage = {
       id: "msg-2",
-      stage: "Response",
+      type: "Response",
       pairedHttpRequestId: "msg-1",
     } as unknown as HttpMessage;
-    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
 
-    const result = await loadSessionArchive(1, "har-string");
+    const result = await importHttpArchive("http-archive-json");
 
     expect(result).toEqual([]);
-    expect(detectSamlStepFromHttpResponse).not.toHaveBeenCalled();
+    expect(detectSamlSignalFromHttpResponse).not.toHaveBeenCalled();
     expect(saveHttpMessage).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledOnce();
   });
 
-  it("records the traces under the imported capture session", async () => {
+  it("records the logs under the imported tracing session", async () => {
     const httpMessage = {
-      stage: "Request",
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
-    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
+    vi.mocked(recordSamlLog).mockResolvedValue(importedSsoTrace);
 
-    await loadSessionArchive(1, "har-string");
+    await importHttpArchive("http-archive-json");
 
-    const importedRecord = vi.mocked(saveEventRecord).mock.calls[0]![0];
-    expect(vi.mocked(recordSamlTrace).mock.calls[0]![0]).toBe(importedRecord.id);
+    const importedEvent = vi.mocked(saveTracingLifecycleEvent).mock.calls[0]![0];
+    expect(vi.mocked(recordSamlLog).mock.calls[0]![0]).toBe(importedEvent.id);
   });
 
-  it("aborts when a trace cannot be recorded", async () => {
+  it("aborts when a log cannot be recorded", async () => {
     const httpMessage = {
-      stage: "Request",
+      type: "Request",
       url: "https://idp.example.org/sso",
       method: "GET",
     } as unknown as HttpMessage;
-    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    const error = new Error("record error");
-    vi.mocked(recordSamlTrace).mockResolvedValue(error);
+    const error = new Error("error");
+    vi.mocked(recordSamlLog).mockResolvedValue(error);
 
-    expect(await loadSessionArchive(1, "har-string")).toBe(error);
+    expect(await importHttpArchive("http-archive-json")).toBe(error);
   });
 
   it("records the import as an event", async () => {
-    vi.mocked(toHttpMessages).mockReturnValue([]);
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [] });
 
-    await loadSessionArchive(1, "har-string");
+    await importHttpArchive("http-archive-json");
 
-    expect(saveEventRecord).toHaveBeenCalledExactlyOnceWith(
+    expect(saveTracingLifecycleEvent).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ type: "ArchiveImported" }),
     );
   });
 
-  it("returns Error when toHttpMessages fails", async () => {
-    vi.mocked(toHttpMessages).mockReturnValue(new Error("parse error"));
+  it("returns Error when parseHttpArchiveJson fails", async () => {
+    const error = new Error("error");
+    vi.mocked(parseHttpArchiveJson).mockReturnValue(error);
 
-    const result = await loadSessionArchive(1, "invalid");
+    const result = await importHttpArchive("invalid");
 
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toBe("parse error");
-    expect(saveEventRecord).not.toHaveBeenCalled();
+    expect(result).toBe(error);
+    expect(saveTracingLifecycleEvent).not.toHaveBeenCalled();
   });
 
-  it("returns Error when the import event cannot be stored", async () => {
-    const error = new Error("storage failed");
-    vi.mocked(toHttpMessages).mockReturnValue([]);
-    vi.mocked(saveEventRecord).mockResolvedValue(error);
+  it("returns Error when the import event cannot be saved", async () => {
+    const error = new Error("error");
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [] });
+    vi.mocked(saveTracingLifecycleEvent).mockResolvedValue(error);
 
-    expect(await loadSessionArchive(1, "har-string")).toBe(error);
-    expect(detectSamlStepFromHttpRequest).not.toHaveBeenCalled();
+    expect(await importHttpArchive("http-archive-json")).toBe(error);
+    expect(detectSamlSignalFromHttpRequest).not.toHaveBeenCalled();
   });
 
   it("returns empty array when no SAML steps are detected", async () => {
-    const httpMessage = { stage: "Request" } as unknown as HttpMessage;
-    vi.mocked(toHttpMessages).mockReturnValue([httpMessage]);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue(undefined);
+    const httpMessage = { type: "Request" } as unknown as HttpMessage;
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(undefined);
 
-    const result = await loadSessionArchive(1, "har-string");
+    const result = await importHttpArchive("http-archive-json");
 
     expect(result).toEqual([]);
   });
 
-  it("returns deduplicated session IDs", async () => {
+  it("returns deduplicated SSO flow IDs", async () => {
     const httpMessages = [
-      { stage: "Request", url: "https://idp.example.org/sso" },
-      { stage: "Request", url: "https://idp.example.org/sso" },
+      { type: "Request", url: "https://idp.example.org/sso" },
+      { type: "Request", url: "https://idp.example.org/sso" },
     ] as unknown as HttpMessage[];
-    vi.mocked(toHttpMessages).mockReturnValue(httpMessages);
-    vi.mocked(detectSamlStepFromHttpRequest).mockResolvedValue({
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages });
+    vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
       step: 3,
-      correlationKey: "session-1",
+      correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
-    vi.mocked(recordSamlTrace).mockResolvedValue(undefined);
+    vi.mocked(recordSamlLog).mockResolvedValue(importedSsoTrace);
 
-    const result = await loadSessionArchive(1, "har-string");
+    const result = await importHttpArchive("http-archive-json");
 
-    expect(result).toEqual(["session-1"]);
+    expect(result).toEqual(["sso-trace-imported"]);
+  });
+});
+
+describe("dumpSessionArchive", () => {
+  it("exports the SSO flow", async () => {
+    vi.mocked(findSsoTraceById).mockResolvedValue(ssoTrace);
+    vi.mocked(getHttpMessagesBySsoTraceId).mockResolvedValue([]);
+    vi.mocked(newHttpArchive).mockReturnValue({ version: 1, httpMessages: [] });
+    vi.mocked(toHttpArchiveJson).mockReturnValue('{"log":{}}');
+
+    expect(await dumpSessionArchive(1, "sso-trace-1")).toBe('{"log":{}}');
+    expect(findSsoTraceById).toHaveBeenCalledWith("sso-trace-1");
+  });
+});
+
+describe("loadSessionArchive", () => {
+  it("imports the HTTP archive", async () => {
+    vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [] });
+
+    expect(await loadSessionArchive(1, "http-archive-json")).toEqual([]);
+    expect(parseHttpArchiveJson).toHaveBeenCalledWith("http-archive-json");
   });
 });

@@ -3,20 +3,20 @@
  * @license BSD-3-Clause
  */
 
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SamlTrace } from "@/common/models/saml-trace.ts";
-import { getCaptureSession } from "@/common/services/capture-query.ts";
-import { findHttpMessagesOfFlow } from "@/common/services/flow-query.ts";
-import { findFlowEntryById } from "@/common/services/flow-store.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { type SamlLog } from "@/core/sso/saml-log.ts";
+import { findSamlLogsBySsoTraceId } from "@/core/sso/saml-log-repository.ts";
 import {
-  extractSamlAuthnRequestXml,
-  extractSamlResponseXml,
-} from "@/common/services/saml-detector.ts";
-import { findSamlTracesByFlowId } from "@/common/services/saml-store.ts";
+  extractSamlpAuthnRequestXml,
+  extractSamlpResponseXml,
+} from "@/core/sso/saml-signal-detector.ts";
+import { getHttpMessagesBySsoTraceId } from "@/core/sso/sso-trace-query.ts";
+import { findSsoTraceById } from "@/core/sso/sso-trace-repository.ts";
+import { getTracingSession } from "@/core/tracing/tracing-session-query.ts";
 import { type FlowData } from "@/report-page/common/types.ts";
 
-export async function loadFlowData(flowId: string | null): Promise<FlowData | Error> {
-  if (flowId === null) {
+export async function loadFlowData(ssoTraceId: string | null): Promise<FlowData | Error> {
+  if (ssoTraceId === null) {
     // In development mode, fall back to sample data
     if (import.meta.env.MODE === "development") {
       const { buildSampleFlowData } = await import("@/report-page/dev/sample-flow.ts");
@@ -26,57 +26,57 @@ export async function loadFlowData(flowId: string | null): Promise<FlowData | Er
     }
   }
 
-  const flowEntry = await findFlowEntryById(flowId);
-  if (flowEntry instanceof Error) {
-    return flowEntry;
-  } else if (flowEntry === undefined) {
-    return new Error("Flow not found");
+  const ssoTrace = await findSsoTraceById(ssoTraceId);
+  if (ssoTrace instanceof Error) {
+    return ssoTrace;
+  } else if (ssoTrace === undefined) {
+    return new Error("SSO trace not found");
   }
 
-  const captureSession = await getCaptureSession(flowEntry.captureSessionId);
-  if (captureSession instanceof Error) {
-    return captureSession;
-  } else if (captureSession === undefined) {
-    return new Error(`No capture session: ${flowEntry.captureSessionId}`);
+  const tracingSession = await getTracingSession(ssoTrace.tracingSessionId);
+  if (tracingSession instanceof Error) {
+    return tracingSession;
+  } else if (tracingSession === undefined) {
+    return new Error("Tracing session not found");
   }
 
-  const samlTraces = await findSamlTracesByFlowId(flowEntry.id);
-  if (samlTraces instanceof Error) {
-    return samlTraces;
+  const samlLogs = await findSamlLogsBySsoTraceId(ssoTrace.id);
+  if (samlLogs instanceof Error) {
+    return samlLogs;
   }
 
-  const httpMessages = await findHttpMessagesOfFlow(flowEntry.id);
+  const httpMessages = await getHttpMessagesBySsoTraceId(ssoTrace.id);
   if (httpMessages instanceof Error) {
     return httpMessages;
   }
 
-  return { flowEntry, captureSession, samlTraces, httpMessages };
+  return { ssoTrace, tracingSession, samlLogs, httpMessages };
 }
 
 export function buildHttpMessageRecord(
-  samlTraces: SamlTrace[],
+  samlLogs: SamlLog[],
   httpMessages: HttpMessage[],
 ): Record<number, HttpMessage> {
   const httpMessageRecord: Record<number, HttpMessage> = {};
 
-  for (const samlTrace of samlTraces) {
-    if (samlTrace.step in httpMessageRecord) {
+  for (const samlLog of samlLogs) {
+    if (samlLog.step in httpMessageRecord) {
       console.info("Duplicate SAML step, keeping the last one:", {
-        step: samlTrace.step,
-        traceId: samlTrace.id,
+        step: samlLog.step,
+        traceId: samlLog.id,
       });
     }
 
-    const httpMessage = httpMessages.find((m) => m.id === samlTrace.httpMessageId);
+    const httpMessage = httpMessages.find((m) => m.id === samlLog.httpMessageId);
     if (httpMessage === undefined) {
-      console.warn("No HTTP message for the SAML trace:", {
-        step: samlTrace.step,
-        httpMessageId: samlTrace.httpMessageId,
+      console.warn("No HTTP message for the SAML log:", {
+        step: samlLog.step,
+        httpMessageId: samlLog.httpMessageId,
       });
       continue;
     }
 
-    httpMessageRecord[samlTrace.step] = httpMessage;
+    httpMessageRecord[samlLog.step] = httpMessage;
   }
 
   return httpMessageRecord;
@@ -90,7 +90,7 @@ export async function getSamlAuthnRequestXml(
     return undefined;
   }
 
-  const authnRequestXml = await extractSamlAuthnRequestXml(httpMessage);
+  const authnRequestXml = await extractSamlpAuthnRequestXml(httpMessage);
   if (authnRequestXml instanceof Error) {
     console.warn("Failed to extract SAML AuthnRequest XML:", authnRequestXml);
     return undefined;
@@ -107,7 +107,7 @@ export async function getSamlResponseXml(
     return undefined;
   }
 
-  const responseXml = await extractSamlResponseXml(httpMessage);
+  const responseXml = await extractSamlpResponseXml(httpMessage);
   if (responseXml instanceof Error) {
     console.warn("Failed to extract SAML Response XML:", responseXml);
     return undefined;

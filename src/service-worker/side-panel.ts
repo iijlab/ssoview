@@ -6,8 +6,8 @@
 // @ts-expect-error "Avoid errors caused by erasableSyntaxOnly"
 import ContextType = chrome.runtime.ContextType;
 // local
-import { getActiveTabId } from "@/common/utils/chrome-tabs.ts";
 import { hideBadge, IconPath } from "@/service-worker/action-icon.ts";
+import { getActiveTabId } from "@/shared/chrome-tabs.ts";
 
 export function registerSidePanelOpenHandler(): void {
   chrome.action.onClicked.addListener((tab) => {

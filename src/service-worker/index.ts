@@ -5,34 +5,28 @@
 
 import { publishCaptureTerminatedEvent, publishSessionUpdateEvent } from "@/common/pubsub.ts";
 import { registerStartMonitoringHandler, registerStopMonitoringHandler } from "@/common/rpc.ts";
-import { dumpSessionArchive, loadSessionArchive } from "@/common/services/session-archiver.ts";
-import { deleteSession, getSessionSummaries } from "@/common/services/session-manager.ts";
-import { isWatching } from "@/common/services/watch-query.ts";
-import {
-  getAllSessionStorageItems,
-  getSessionStorageBytesInUse,
-} from "@/common/utils/chrome-storage.ts";
-import { createLabeledDebugLogger } from "@/common/utils/labeled-logger.ts";
+import { ingestHttpRequest, ingestHttpResponse } from "@/core/sso/saml-ingestor.ts";
+import { isTracedTab } from "@/core/tracing/tracing-state-query.ts";
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
-import {
-  registerCaptureStopHandler,
-  startCapturing,
-  stopCapturing,
-} from "@/service-worker/capture-manager.ts";
-import { registerHttpInterceptionHandlers } from "@/service-worker/http-interception.ts";
-import { processHttpRequest, processHttpResponse } from "@/service-worker/saml-tracer.ts";
+import { registerDevCommands } from "@/service-worker/dev-commands.ts";
+import { registerHttpInterceptionHandlers } from "@/service-worker/http-message-interceptor.ts";
 import {
   registerSidePanelCloseHandler,
   registerSidePanelOpenHandler,
 } from "@/service-worker/side-panel.ts";
+import {
+  registerTracingTerminatedHandler,
+  startTracing,
+  stopTracing,
+} from "@/service-worker/tracing-controller.ts";
 
 function init() {
-  registerStartMonitoringHandler(onStartMonitoring);
-  registerStopMonitoringHandler(onStopMonitoring);
+  registerStartMonitoringHandler(handleStartTracingCommand);
+  registerStopMonitoringHandler(handleStopTracingCommand);
 
   registerHttpInterceptionHandlers(
     async (tabId, httpRequest) => {
-      const sessionId = await processHttpRequest(httpRequest);
+      const sessionId = await ingestHttpRequest(httpRequest);
       if (sessionId instanceof Error) {
         console.warn("Failed to process HTTP request:", sessionId);
       } else if (sessionId !== undefined) {
@@ -43,7 +37,7 @@ function init() {
       }
     },
     async (tabId, httpResponse, pairedHttpRequest) => {
-      const sessionId = await processHttpResponse(httpResponse, pairedHttpRequest);
+      const sessionId = await ingestHttpResponse(httpResponse, pairedHttpRequest);
       if (sessionId instanceof Error) {
         console.warn("Failed to process HTTP response:", sessionId);
       } else if (sessionId !== undefined) {
@@ -55,7 +49,7 @@ function init() {
     },
   );
 
-  registerCaptureStopHandler(async (tabId) => {
+  registerTracingTerminatedHandler(async (tabId) => {
     hideBadge();
 
     // TODO: The detach reason is no longer used. This parameter will be removed.
@@ -67,20 +61,24 @@ function init() {
 
   registerSidePanelOpenHandler();
   registerSidePanelCloseHandler(async (tabId) => {
-    const watching = await isWatching(tabId);
-    if (watching instanceof Error) {
-      console.warn("Failed to get watching state:", watching);
-    } else if (watching) {
-      const stopError = await onStopMonitoring(tabId);
+    const tabTraced = await isTracedTab(tabId);
+    if (tabTraced instanceof Error) {
+      console.warn("Failed to get tab tracing state:", tabTraced);
+    } else if (tabTraced) {
+      const stopError = await handleStopTracingCommand(tabId);
       if (stopError) {
         console.warn("Failed to stop monitoring:", stopError);
       }
     }
   });
+
+  if (import.meta.env.MODE === "development") {
+    registerDevCommands();
+  }
 }
 
-async function onStartMonitoring(tabId: number): Promise<void | Error> {
-  const startError = await startCapturing(tabId);
+async function handleStartTracingCommand(tabId: number): Promise<void | Error> {
+  const startError = await startTracing(tabId);
   if (startError) {
     return startError;
   }
@@ -88,8 +86,8 @@ async function onStartMonitoring(tabId: number): Promise<void | Error> {
   showBadge("REC", BadgeColor.REC_TEXT, BadgeColor.REC_BACKGROUND);
 }
 
-async function onStopMonitoring(tabId: number): Promise<void | Error> {
-  const stopError = await stopCapturing(tabId);
+async function handleStopTracingCommand(tabId: number): Promise<void | Error> {
+  const stopError = await stopTracing(tabId);
   if (stopError) {
     return stopError;
   }
@@ -98,56 +96,3 @@ async function onStopMonitoring(tabId: number): Promise<void | Error> {
 }
 
 init();
-
-//
-// Debug utilities
-//
-
-if (import.meta.env.MODE === "development") {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).cmd = {
-    debugStorage: async () => {
-      return await debugStorage();
-    },
-    getSessionSummaries: async (tid: number) => {
-      return await getSessionSummaries(tid);
-    },
-    removeSession: async (tid: number, sid: string) => {
-      return await deleteSession(tid, sid);
-    },
-    dumpSession: async (tid: number, sid: string) => {
-      return await dumpSessionArchive(tid, sid);
-    },
-    loadSession: async (tid: number, sar: string) => {
-      return await loadSessionArchive(tid, sar);
-    },
-  };
-
-  async function debugStorage() {
-    const debug = await createLabeledDebugLogger(["STORAGE"]);
-
-    const allEntries = await getAllSessionStorageItems();
-    if (allEntries instanceof Error) {
-      console.warn("Failed to get all storage entries:", allEntries);
-      return;
-    }
-
-    for (const [key, value] of Object.entries(allEntries).sort()) {
-      const bytes = await getSessionStorageBytesInUse(key);
-      if (bytes instanceof Error) {
-        console.warn("Failed to get bytes in use:", bytes);
-        continue;
-      }
-      debug({ [key]: value }, `${bytes.toLocaleString()} bytes`);
-    }
-
-    const totalBytes = await getSessionStorageBytesInUse(null);
-    if (totalBytes instanceof Error) {
-      console.warn("Failed to get total bytes in use:", totalBytes);
-      return;
-    }
-    debug(
-      `Storage usage: ${Object.keys(allEntries).length} items (${totalBytes.toLocaleString()} bytes)`,
-    );
-  }
-}

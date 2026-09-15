@@ -4,9 +4,9 @@
  */
 
 import type Protocol from "devtools-protocol";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SessionSummary } from "@/common/models/session-summary.ts";
-import { parseSamlpAuthnRequest, parseSamlpResponse } from "@/common/services/saml-parser.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { parseSamlpAuthnRequestXml, parseSamlpResponseXml } from "@/core/sso/saml-xml-parser.ts";
+import { type SsoFlow } from "@/core/sso/sso-flow.ts";
 import { getHttpStatusText } from "@/report-page/common/utils.ts";
 
 //
@@ -26,12 +26,12 @@ type SessionData = {
 };
 
 export function buildSessionData(
-  sessionSummary: SessionSummary,
+  ssoFlow: SsoFlow,
   authnRequestXml?: string,
   responseXml?: string,
 ): SessionData {
-  const authnRequest = authnRequestXml ? parseSamlpAuthnRequest(authnRequestXml) : undefined;
-  const response = responseXml ? parseSamlpResponse(responseXml) : undefined;
+  const authnRequest = authnRequestXml ? parseSamlpAuthnRequestXml(authnRequestXml) : undefined;
+  const response = responseXml ? parseSamlpResponseXml(responseXml) : undefined;
 
   // Extract fields (fall back to "N/A" if error or undefined)
   const samlVersion =
@@ -80,10 +80,10 @@ export function buildSessionData(
   })();
 
   return {
-    sessionStartTime: sessionSummary.start ?? "N/A",
-    sessionEndTime: sessionSummary.end ?? "N/A",
-    serviceProvider: sessionSummary.sp ?? "N/A",
-    identityProvider: sessionSummary.idp ?? "N/A",
+    sessionStartTime: ssoFlow.startedAt ?? "N/A",
+    sessionEndTime: ssoFlow.endedAt ?? "N/A",
+    serviceProvider: ssoFlow.sp ?? "N/A",
+    identityProvider: ssoFlow.idp ?? "N/A",
     samlVersion,
     samlProfile: "Web Browser SSO Profile",
     protocolBinding,
@@ -98,7 +98,7 @@ type SessionResult = {
 };
 
 export function buildSessionResult(
-  _sessionSummary: SessionSummary,
+  _ssoFlow: SsoFlow,
   _authnRequestXml?: string,
   responseXml?: string,
 ): SessionResult {
@@ -109,7 +109,7 @@ export function buildSessionResult(
     };
   }
 
-  const parsed = parseSamlpResponse(responseXml);
+  const parsed = parseSamlpResponseXml(responseXml);
   if (parsed instanceof Error) {
     return {
       status: "Unknown",
@@ -217,7 +217,7 @@ type SamlMessageField = {
 };
 
 export function buildAuthnRequestDetails(rawXml: string): SamlMessageDetails | undefined {
-  const parsed = parseSamlpAuthnRequest(rawXml);
+  const parsed = parseSamlpAuthnRequestXml(rawXml);
   if (parsed instanceof Error) {
     return undefined;
   }
@@ -328,7 +328,7 @@ export function buildAuthnRequestDetails(rawXml: string): SamlMessageDetails | u
 }
 
 export function buildResponseDetails(rawXml: string): SamlMessageDetails | undefined {
-  const parsed = parseSamlpResponse(rawXml);
+  const parsed = parseSamlpResponseXml(rawXml);
   if (parsed instanceof Error) {
     return undefined;
   }
@@ -645,7 +645,7 @@ export type HttpResponseDetails = HttpMessageDetailsBase & {
 };
 
 export function buildHttpMessageDetails(httpMessage: HttpMessage): HttpMessageDetails {
-  if (httpMessage.stage === "Request") {
+  if (httpMessage.type === "Request") {
     return {
       kind: "request",
       method: httpMessage.method,

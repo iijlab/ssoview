@@ -5,8 +5,8 @@
 
 import { Base64 } from "js-base64";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type HttpMessage } from "@/common/models/http-message.ts";
-import { type SamlTrace } from "@/common/models/saml-trace.ts";
+import { type HttpMessage } from "@/core/http/http-message.ts";
+import { type SamlLog } from "@/core/sso/saml-log.ts";
 import {
   buildHttpMessageRecord,
   getSamlAuthnRequestXml,
@@ -21,8 +21,8 @@ function makeHttpMessage(id: string): HttpMessage {
   return {
     id,
     observedAt: "2026-01-01T00:00:00Z",
-    stage: "Request",
-    captureSessionId: "cs-1",
+    type: "Request",
+    tracingSessionId: "tracing-session-1",
     tabId: 1,
     fetchRequestId: "req-1",
     url: "https://sp.example.com/",
@@ -41,17 +41,17 @@ function makePostRequest(id: string, body: string): HttpMessage {
   };
 }
 
-function makeSamlTrace(id: string, step: SamlTrace["step"], httpMessageId: string): SamlTrace {
+function makeSamlLog(id: string, step: SamlLog["step"], httpMessageId: string): SamlLog {
   return {
     id,
-    flowId: "flow-1",
+    ssoTraceId: "sso-trace-1",
     httpMessageId,
     observedAt: "2026-01-01T00:00:00Z",
     serverHostname: "sp.example.com",
     action: "test action",
     step,
     type: "UnauthenticatedResourceRequest",
-  } as SamlTrace;
+  } as SamlLog;
 }
 
 //
@@ -65,24 +65,24 @@ beforeEach(() => {
 });
 
 describe("buildHttpMessageRecord", () => {
-  it("maps each SAML step to the HTTP message referenced by its trace", () => {
+  it("maps each SAML step to the HTTP message referenced by its log", () => {
     const msg1 = makeHttpMessage("msg-1");
     const msg2 = makeHttpMessage("msg-2");
 
     const result = buildHttpMessageRecord(
-      [makeSamlTrace("trace-1", 1, "msg-1"), makeSamlTrace("trace-2", 2, "msg-2")],
+      [makeSamlLog("saml-log-1", 1, "msg-1"), makeSamlLog("saml-log-2", 2, "msg-2")],
       [msg1, msg2],
     );
 
     expect(result).toEqual({ 1: msg1, 2: msg2 });
   });
 
-  it("keeps the last trace when the same step appears more than once", () => {
+  it("keeps the last log when the same step appears more than once", () => {
     const msg1 = makeHttpMessage("msg-1");
     const msg2 = makeHttpMessage("msg-2");
 
     const result = buildHttpMessageRecord(
-      [makeSamlTrace("trace-1", 4, "msg-1"), makeSamlTrace("trace-2", 4, "msg-2")],
+      [makeSamlLog("saml-log-1", 4, "msg-1"), makeSamlLog("saml-log-2", 4, "msg-2")],
       [msg1, msg2],
     );
 
@@ -90,11 +90,11 @@ describe("buildHttpMessageRecord", () => {
     expect(console.info).toHaveBeenCalledOnce();
   });
 
-  it("skips a trace whose HTTP message is missing", () => {
+  it("skips a log whose HTTP message is missing", () => {
     const msg2 = makeHttpMessage("msg-2");
 
     const result = buildHttpMessageRecord(
-      [makeSamlTrace("trace-1", 1, "msg-1"), makeSamlTrace("trace-2", 2, "msg-2")],
+      [makeSamlLog("saml-log-1", 1, "msg-1"), makeSamlLog("saml-log-2", 2, "msg-2")],
       [msg2],
     );
 
@@ -102,7 +102,7 @@ describe("buildHttpMessageRecord", () => {
     expect(console.warn).toHaveBeenCalledOnce();
   });
 
-  it("returns an empty record when there are no traces", () => {
+  it("returns an empty record when there are no logs", () => {
     expect(buildHttpMessageRecord([], [makeHttpMessage("msg-1")])).toEqual({});
   });
 });
