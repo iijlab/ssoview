@@ -26,22 +26,22 @@ function init() {
 
   registerHttpInterceptionHandlers(
     async (tabId, httpRequest) => {
-      const sessionId = await ingestHttpRequestForSaml(httpRequest);
-      if (sessionId instanceof Error) {
-        console.warn("Failed to process HTTP request:", sessionId);
-      } else if (sessionId !== undefined) {
-        const publishError = await publishSessionUpdateEvent(tabId, sessionId);
+      const ssoTraceId = await ingestHttpRequestForSaml(httpRequest);
+      if (ssoTraceId instanceof Error) {
+        console.warn("Failed to process HTTP request:", ssoTraceId);
+      } else if (ssoTraceId !== undefined) {
+        const publishError = await publishSessionUpdateEvent(tabId, ssoTraceId);
         if (publishError) {
           console.warn("Failed to publish session update event:", publishError);
         }
       }
     },
     async (tabId, httpResponse, pairedHttpRequest) => {
-      const sessionId = await ingestHttpResponseForSaml(httpResponse, pairedHttpRequest);
-      if (sessionId instanceof Error) {
-        console.warn("Failed to process HTTP response:", sessionId);
-      } else if (sessionId !== undefined) {
-        const publishError = await publishSessionUpdateEvent(tabId, sessionId);
+      const ssoTraceId = await ingestHttpResponseForSaml(httpResponse, pairedHttpRequest);
+      if (ssoTraceId instanceof Error) {
+        console.warn("Failed to process HTTP response:", ssoTraceId);
+      } else if (ssoTraceId !== undefined) {
+        const publishError = await publishSessionUpdateEvent(tabId, ssoTraceId);
         if (publishError) {
           console.warn("Failed to publish session update event:", publishError);
         }

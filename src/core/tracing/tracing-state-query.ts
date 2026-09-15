@@ -20,19 +20,19 @@ export async function isTracing(): Promise<boolean | Error> {
   //     never be stopped.
   // [2] The user can detach from the banner.
 
-  const sessionId = await getOngoingTracingSessionId();
-  if (sessionId instanceof Error) {
-    return sessionId;
-  } else if (sessionId === undefined) {
+  const tracingSessionId = await getOngoingTracingSessionId();
+  if (tracingSessionId instanceof Error) {
+    return tracingSessionId;
+  } else if (tracingSessionId === undefined) {
     return false;
   }
 
-  const tabIds = await getTracedTabIds();
-  if (tabIds instanceof Error) {
-    return tabIds;
+  const tracedTabIds = await getTracedTabIds();
+  if (tracedTabIds instanceof Error) {
+    return tracedTabIds;
   }
 
-  return 0 < tabIds.length;
+  return 0 < tracedTabIds.length;
 }
 
 export async function getOngoingTracingSessionId(): Promise<string | undefined | Error> {
@@ -41,19 +41,19 @@ export async function getOngoingTracingSessionId(): Promise<string | undefined |
     return tracingLifecycleEvents;
   }
 
-  const latest = tracingLifecycleEvents
+  const latestTracingEvent = tracingLifecycleEvents
     .filter((e) => e.type === "TracingStarted" || e.type === "TracingStopped")
     .at(-1);
-  return latest?.type === "TracingStarted" ? latest.id : undefined;
+  return latestTracingEvent?.type === "TracingStarted" ? latestTracingEvent.id : undefined;
 }
 
 export async function isTracedTab(tabId: number): Promise<boolean | Error> {
-  const tabIds = await getTracedTabIds();
-  if (tabIds instanceof Error) {
-    return tabIds;
+  const tracedTabIds = await getTracedTabIds();
+  if (tracedTabIds instanceof Error) {
+    return tracedTabIds;
   }
 
-  return tabIds.includes(tabId);
+  return tracedTabIds.includes(tabId);
 }
 
 export async function getTracedTabIds(): Promise<number[] | Error> {
@@ -115,9 +115,13 @@ async function isDebugging(tabId: number): Promise<boolean | Error> {
     return tracingLifecycleEvents;
   }
 
-  const latest = tracingLifecycleEvents.findLast(
+  const latestDebuggingEvent = tracingLifecycleEvents.findLast(
     (e) => (e.type === "DebuggingStarted" || e.type === "DebuggingStopped") && e.tabId === tabId,
   );
 
-  return latest !== undefined && latest.type === "DebuggingStarted" && (await isAttached(tabId));
+  return (
+    latestDebuggingEvent !== undefined &&
+    latestDebuggingEvent.type === "DebuggingStarted" &&
+    (await isAttached(tabId))
+  );
 }

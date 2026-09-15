@@ -59,12 +59,12 @@ export async function startTracing(tabId: number): Promise<void | Error> {
 }
 
 async function closeStaleTracing(): Promise<void | Error> {
-  const sessionId = await getOngoingTracingSessionId();
-  if (sessionId instanceof Error) {
-    return sessionId;
+  const tracingSessionId = await getOngoingTracingSessionId();
+  if (tracingSessionId instanceof Error) {
+    return tracingSessionId;
   }
 
-  if (sessionId !== undefined) {
+  if (tracingSessionId !== undefined) {
     const tracedTabIds = await getTracedTabIds();
     if (tracedTabIds instanceof Error) {
       return tracedTabIds;
