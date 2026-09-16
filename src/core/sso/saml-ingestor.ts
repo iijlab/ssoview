@@ -16,7 +16,7 @@ import {
   detectSamlSignalFromHttpResponse,
 } from "@/core/sso/saml-signal-detector.ts";
 
-export async function ingestHttpRequest(
+export async function ingestHttpRequestForSaml(
   httpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {
   await debugHttpRequest(httpRequest);
@@ -41,7 +41,7 @@ export async function ingestHttpRequest(
   return ssoTrace.id;
 }
 
-export async function ingestHttpResponse(
+export async function ingestHttpResponseForSaml(
   httpResponse: HttpResponse,
   pairedHttpRequest: HttpRequest,
 ): Promise<string | undefined | Error> {

@@ -5,7 +5,7 @@
 
 import { publishCaptureTerminatedEvent, publishSessionUpdateEvent } from "@/common/pubsub.ts";
 import { registerStartMonitoringHandler, registerStopMonitoringHandler } from "@/common/rpc.ts";
-import { ingestHttpRequest, ingestHttpResponse } from "@/core/sso/saml-ingestor.ts";
+import { ingestHttpRequestForSaml, ingestHttpResponseForSaml } from "@/core/sso/saml-ingestor.ts";
 import { isTracedTab } from "@/core/tracing/tracing-state-query.ts";
 import { BadgeColor, hideBadge, showBadge } from "@/service-worker/action-icon.ts";
 import { registerDevCommands } from "@/service-worker/dev-commands.ts";
@@ -26,22 +26,22 @@ function init() {
 
   registerHttpInterceptionHandlers(
     async (tabId, httpRequest) => {
-      const sessionId = await ingestHttpRequest(httpRequest);
-      if (sessionId instanceof Error) {
-        console.warn("Failed to process HTTP request:", sessionId);
-      } else if (sessionId !== undefined) {
-        const publishError = await publishSessionUpdateEvent(tabId, sessionId);
+      const ssoTraceId = await ingestHttpRequestForSaml(httpRequest);
+      if (ssoTraceId instanceof Error) {
+        console.warn("Failed to process HTTP request:", ssoTraceId);
+      } else if (ssoTraceId !== undefined) {
+        const publishError = await publishSessionUpdateEvent(tabId, ssoTraceId);
         if (publishError) {
           console.warn("Failed to publish session update event:", publishError);
         }
       }
     },
     async (tabId, httpResponse, pairedHttpRequest) => {
-      const sessionId = await ingestHttpResponse(httpResponse, pairedHttpRequest);
-      if (sessionId instanceof Error) {
-        console.warn("Failed to process HTTP response:", sessionId);
-      } else if (sessionId !== undefined) {
-        const publishError = await publishSessionUpdateEvent(tabId, sessionId);
+      const ssoTraceId = await ingestHttpResponseForSaml(httpResponse, pairedHttpRequest);
+      if (ssoTraceId instanceof Error) {
+        console.warn("Failed to process HTTP response:", ssoTraceId);
+      } else if (ssoTraceId !== undefined) {
+        const publishError = await publishSessionUpdateEvent(tabId, ssoTraceId);
         if (publishError) {
           console.warn("Failed to publish session update event:", publishError);
         }
