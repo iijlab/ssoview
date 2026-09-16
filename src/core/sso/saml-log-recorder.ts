@@ -16,16 +16,14 @@ export async function recordSamlLog(
   httpMessage: HttpMessage,
   pairedHttpRequest?: HttpRequest,
 ): Promise<SsoTrace | Error> {
-  if (samlSignal.step === 2) {
+  if (samlSignal.type === "IncomingSamlAuthnRequest") {
     if (pairedHttpRequest === undefined) {
-      console.warn("No paired HTTP request for the AuthnRequest, skipping step 1:", {
-        correlationKey: samlSignal.correlationKey,
-      });
+      console.warn("No paired HTTP request for the SAML AuthnRequest");
     } else {
       const ssoTrace = await recordSamlLog(
         tracingSessionId,
         {
-          step: 1,
+          type: "UnauthenticatedResourceRequest",
           correlationKey: samlSignal.correlationKey,
         },
         pairedHttpRequest,

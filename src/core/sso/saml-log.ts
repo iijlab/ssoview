@@ -26,39 +26,39 @@ type SamlLogBase = {
   action: string;
 };
 
-// Step 1: An unauthenticated UA requests a resource from the SP
+// [1] An unauthenticated UA requests a resource from the SP
 export type UnauthenticatedResourceRequest = SamlLogBase & {
   step: 1;
   type: "UnauthenticatedResourceRequest";
 };
 
-// Step 2: The SP issues an AuthnRequest
+// [2] The SP issues an AuthnRequest
 export type IncomingSamlAuthnRequest = SamlLogBase & {
   step: 2;
   type: "IncomingSamlAuthnRequest";
 };
 
-// Step 3: The UA redirects the AuthnRequest to the IdP
+// [3] The UA redirects the AuthnRequest to the IdP
 export type OutgoingSamlAuthnRequest = SamlLogBase & {
   step: 3;
   type: "OutgoingSamlAuthnRequest";
 };
 
-// Step 4: The IdP issues a Response
+// [4] The IdP issues a Response
 export type IncomingSamlResponse = SamlLogBase & {
   step: 4;
   type: "IncomingSamlResponse";
   samlStatusCode: string;
 };
 
-// Step 5: The UA redirects the Response to the SP
+// [5] The UA redirects the Response to the SP
 export type OutgoingSamlResponse = SamlLogBase & {
   step: 5;
   type: "OutgoingSamlResponse";
   samlStatusCode: string;
 };
 
-// Step 6: The SP returns the resource
+// [6] The SP returns the resource
 export type AuthenticatedResourceResponse = SamlLogBase & {
   step: 6;
   type: "AuthenticatedResourceResponse";
@@ -94,55 +94,55 @@ export function newSamlLog(
     serverHostname: hostname,
   };
 
-  switch (samlSignal.step) {
-    case 1:
+  switch (samlSignal.type) {
+    case "UnauthenticatedResourceRequest":
       return {
         ...base,
         step: 1,
-        type: "UnauthenticatedResourceRequest",
+        type: samlSignal.type,
         action: "User Agent requests a secured resource at Service Provider",
       };
-    case 2:
+    case "IncomingSamlAuthnRequest":
       return {
         ...base,
         step: 2,
-        type: "IncomingSamlAuthnRequest",
+        type: samlSignal.type,
         action: "Service Provider issues SAML AuthnRequest",
       };
-    case 3:
+    case "OutgoingSamlAuthnRequest":
       return {
         ...base,
         step: 3,
-        type: "OutgoingSamlAuthnRequest",
+        type: samlSignal.type,
         action:
           httpMessage.method === "POST"
             ? "User Agent submits SAML AuthnRequest to Identity Provider"
             : "User Agent redirects SAML AuthnRequest to Identity Provider",
       };
-    case 4:
+    case "IncomingSamlResponse":
       return {
         ...base,
         step: 4,
-        type: "IncomingSamlResponse",
+        type: samlSignal.type,
         action: "Identity Provider issues SAML Response",
         samlStatusCode: samlSignal.samlStatusCode,
       };
-    case 5:
+    case "OutgoingSamlResponse":
       return {
         ...base,
         step: 5,
-        type: "OutgoingSamlResponse",
+        type: samlSignal.type,
         action:
           httpMessage.method === "POST"
             ? "User Agent submits SAML Response to Service Provider"
             : "User Agent redirects SAML Response to Service Provider",
         samlStatusCode: samlSignal.samlStatusCode,
       };
-    case 6:
+    case "AuthenticatedResourceResponse":
       return {
         ...base,
         step: 6,
-        type: "AuthenticatedResourceResponse",
+        type: samlSignal.type,
         action: "Service Provider returns the requested resource",
       };
   }
@@ -164,6 +164,6 @@ export const debugSamlLog =
   import.meta.env.MODE === "development" ? debugSamlLogImpl : () => Promise.resolve();
 
 async function debugSamlLogImpl(samlLog: SamlLog) {
-  const debug = await newLabeledDebugLogger(["SAML", samlLog.ssoTraceId, `Step ${samlLog.step}`]);
-  debug({ [samlLog.type]: samlLog });
+  const debug = await newLabeledDebugLogger(["SAML", samlLog.ssoTraceId, samlLog.type]);
+  debug({ SamlLog: samlLog });
 }

@@ -10,31 +10,31 @@ export type SamlSignal =
 
 export type SamlSignalFromHttpRequest =
   | {
-      step: 3;
+      type: "OutgoingSamlAuthnRequest";
       correlationKey: string;
     }
   | {
-      step: 5;
+      type: "OutgoingSamlResponse";
       correlationKey: string;
       samlStatusCode: string;
     };
 
 export type SamlSignalFromHttpResponse =
   | {
-      step: 2;
+      type: "IncomingSamlAuthnRequest";
       correlationKey: string;
     }
   | {
-      step: 4;
+      type: "IncomingSamlResponse";
       correlationKey: string;
       samlStatusCode: string;
     }
   | {
-      step: 6;
+      type: "AuthenticatedResourceResponse";
       correlationKey: string;
     };
 
 export type InferredSamlSignal = {
-  step: 1;
+  type: "UnauthenticatedResourceRequest";
   correlationKey: string;
 };

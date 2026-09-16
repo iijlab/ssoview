@@ -107,7 +107,7 @@ describe("newSamlLog", () => {
 
     const result = newSamlLog(
       "sso-trace-1",
-      { step: 1, correlationKey: "correlation-key-1" },
+      { type: "UnauthenticatedResourceRequest", correlationKey: "correlation-key-1" },
       request,
     );
 
@@ -128,7 +128,7 @@ describe("newSamlLog", () => {
 
     const result = newSamlLog(
       "sso-trace-1",
-      { step: 2, correlationKey: "correlation-key-1" },
+      { type: "IncomingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       response,
     );
 
@@ -150,7 +150,7 @@ describe("newSamlLog", () => {
 
     const result = newSamlLog(
       "sso-trace-1",
-      { step: 3, correlationKey: "correlation-key-1" },
+      { type: "OutgoingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       request,
     );
 
@@ -167,7 +167,7 @@ describe("newSamlLog", () => {
 
     const result = newSamlLog(
       "sso-trace-1",
-      { step: 3, correlationKey: "correlation-key-1" },
+      { type: "OutgoingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       request,
     );
 
@@ -182,7 +182,11 @@ describe("newSamlLog", () => {
 
     const result = newSamlLog(
       "sso-trace-1",
-      { step: 4, correlationKey: "correlation-key-1", samlStatusCode: STATUS_SUCCESS },
+      {
+        type: "IncomingSamlResponse",
+        correlationKey: "correlation-key-1",
+        samlStatusCode: STATUS_SUCCESS,
+      },
       response,
     );
 
@@ -199,7 +203,11 @@ describe("newSamlLog", () => {
 
     const result = newSamlLog(
       "sso-trace-1",
-      { step: 5, correlationKey: "correlation-key-1", samlStatusCode: STATUS_SUCCESS },
+      {
+        type: "OutgoingSamlResponse",
+        correlationKey: "correlation-key-1",
+        samlStatusCode: STATUS_SUCCESS,
+      },
       request,
     );
 
@@ -216,7 +224,7 @@ describe("newSamlLog", () => {
 
     const result = newSamlLog(
       "sso-trace-1",
-      { step: 6, correlationKey: "correlation-key-1" },
+      { type: "AuthenticatedResourceResponse", correlationKey: "correlation-key-1" },
       response,
     );
 
@@ -232,7 +240,7 @@ describe("newSamlLog", () => {
 
     const result = newSamlLog(
       "sso-trace-1",
-      { step: 2, correlationKey: "correlation-key-1" },
+      { type: "IncomingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       response,
     );
 

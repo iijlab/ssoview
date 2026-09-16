@@ -225,10 +225,13 @@ async function buildSampleSamlLogs(
 
   const samlLogs: SamlLog[] = [];
   for (const { samlSignal, httpMessage, pairedHttpRequest } of samlSignals) {
-    if (samlSignal.step === 2 && pairedHttpRequest !== undefined) {
+    if (samlSignal.type === "IncomingSamlAuthnRequest" && pairedHttpRequest !== undefined) {
       pushSamlLog(
         samlLogs,
-        { step: 1, correlationKey: samlSignal.correlationKey },
+        {
+          type: "UnauthenticatedResourceRequest",
+          correlationKey: samlSignal.correlationKey,
+        },
         pairedHttpRequest,
       );
     }

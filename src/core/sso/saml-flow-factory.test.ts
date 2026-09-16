@@ -27,7 +27,10 @@ function makeSamlLog(overrides: Partial<SamlLog>): SamlLog {
   };
 
   // Add default samlStatusCode for step 4 / 5
-  if ((base.step === 4 || base.step === 5) && !("samlStatusCode" in base)) {
+  if (
+    (base.type === "IncomingSamlResponse" || base.type === "OutgoingSamlResponse") &&
+    !("samlStatusCode" in base)
+  ) {
     return {
       ...base,
       samlStatusCode: "urn:oasis:names:tc:SAML:2.0:status:Success",

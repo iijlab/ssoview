@@ -210,7 +210,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "IncomingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("detects AuthnRequest in a 307 redirect", async () => {
@@ -227,7 +230,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "IncomingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("detects AuthnRequest in a 303 redirect", async () => {
@@ -244,7 +250,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "IncomingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("returns undefined for non-redirect status codes", async () => {
@@ -336,7 +345,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "IncomingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("returns undefined when Content-Type is not text/html", async () => {
@@ -382,7 +394,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "IncomingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
   });
 
@@ -400,7 +415,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "IncomingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("returns undefined when onclick has no SAMLRequest", async () => {
@@ -450,7 +468,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "IncomingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("detects AuthnRequest in a meta refresh tag with escaped quotes", async () => {
@@ -466,7 +487,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, makeRequest());
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 2, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "IncomingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("returns undefined when Content-Type is not text/html", async () => {
@@ -525,7 +549,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 3, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "OutgoingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("returns undefined for non-GET request", async () => {
@@ -558,7 +585,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpRequest(request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 3, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "OutgoingSamlAuthnRequest",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("returns undefined when POST body has no SAMLRequest", async () => {
@@ -590,7 +620,7 @@ describe("detectSamlSignal", () => {
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
-        step: 4,
+        type: "IncomingSamlResponse",
         correlationKey: AUTHN_REQUEST_ID,
         samlStatusCode: STATUS_SUCCESS,
       });
@@ -611,7 +641,7 @@ describe("detectSamlSignal", () => {
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
-        step: 4,
+        type: "IncomingSamlResponse",
         correlationKey: AUTHN_REQUEST_ID,
         samlStatusCode: STATUS_SUCCESS,
       });
@@ -650,7 +680,7 @@ describe("detectSamlSignal", () => {
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
-        step: 4,
+        type: "IncomingSamlResponse",
         correlationKey: AUTHN_REQUEST_ID,
         samlStatusCode: STATUS_SUCCESS,
       });
@@ -673,7 +703,7 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, request);
 
       expect(result).toEqual({
-        step: 4,
+        type: "IncomingSamlResponse",
         correlationKey: AUTHN_REQUEST_ID,
         samlStatusCode: STATUS_SUCCESS,
       });
@@ -728,7 +758,7 @@ describe("detectSamlSignal", () => {
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
-        step: 4,
+        type: "IncomingSamlResponse",
         correlationKey: AUTHN_REQUEST_ID,
         samlStatusCode: STATUS_SUCCESS,
       });
@@ -744,7 +774,7 @@ describe("detectSamlSignal", () => {
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
-        step: 5,
+        type: "OutgoingSamlResponse",
         correlationKey: AUTHN_REQUEST_ID,
         samlStatusCode: STATUS_SUCCESS,
       });
@@ -771,7 +801,7 @@ describe("detectSamlSignal", () => {
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
-        step: 5,
+        type: "OutgoingSamlResponse",
         correlationKey: AUTHN_REQUEST_ID,
         samlStatusCode: STATUS_SUCCESS,
       });
@@ -804,7 +834,7 @@ describe("detectSamlSignal", () => {
 
       expect(result).not.toBeInstanceOf(Error);
       expect(result).toEqual({
-        step: 5,
+        type: "OutgoingSamlResponse",
         correlationKey: RESPONSE_ID,
         samlStatusCode: STATUS_SUCCESS,
       });
@@ -843,7 +873,10 @@ describe("detectSamlSignal", () => {
       const result = await detectSamlSignalFromHttpResponse(response, request);
 
       expect(result).not.toBeInstanceOf(Error);
-      expect(result).toEqual({ step: 6, correlationKey: AUTHN_REQUEST_ID });
+      expect(result).toEqual({
+        type: "AuthenticatedResourceResponse",
+        correlationKey: AUTHN_REQUEST_ID,
+      });
     });
 
     it("returns undefined when request is not an OutgoingSamlResponse", async () => {

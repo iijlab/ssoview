@@ -58,7 +58,7 @@ describe("importHttpArchive", () => {
     } as unknown as HttpMessage;
     vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
-      step: 3,
+      type: "OutgoingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
@@ -72,7 +72,7 @@ describe("importHttpArchive", () => {
     expect(saveHttpMessage).toHaveBeenCalledWith(importedHttpMessage);
     expect(recordSamlLog).toHaveBeenCalledWith(
       importedEvent.id,
-      { step: 3, correlationKey: "correlation-key-1" },
+      { type: "OutgoingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       importedHttpMessage,
       undefined,
     );
@@ -89,7 +89,7 @@ describe("importHttpArchive", () => {
     } as unknown as HttpMessage;
     vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
-      step: 3,
+      type: "OutgoingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
@@ -125,7 +125,7 @@ describe("importHttpArchive", () => {
     });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue(undefined);
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
-      step: 6,
+      type: "AuthenticatedResourceResponse",
       correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
@@ -145,7 +145,7 @@ describe("importHttpArchive", () => {
     expect(saveHttpMessage).toHaveBeenNthCalledWith(2, importedHttpMessage);
     expect(recordSamlLog).toHaveBeenCalledExactlyOnceWith(
       importedEvent.id,
-      { step: 6, correlationKey: "correlation-key-1" },
+      { type: "AuthenticatedResourceResponse", correlationKey: "correlation-key-1" },
       importedHttpMessage,
       importedPairedRequest,
     );
@@ -176,7 +176,7 @@ describe("importHttpArchive", () => {
     } as unknown as HttpMessage;
     vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
-      step: 3,
+      type: "OutgoingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
@@ -196,7 +196,7 @@ describe("importHttpArchive", () => {
     } as unknown as HttpMessage;
     vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages: [httpMessage] });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
-      step: 3,
+      type: "OutgoingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
@@ -252,7 +252,7 @@ describe("importHttpArchive", () => {
     ] as unknown as HttpMessage[];
     vi.mocked(parseHttpArchiveJson).mockReturnValue({ version: 1, httpMessages });
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
-      step: 3,
+      type: "OutgoingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
