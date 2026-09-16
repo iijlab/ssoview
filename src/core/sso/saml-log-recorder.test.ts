@@ -76,7 +76,7 @@ describe("recordSamlLog", () => {
   it("creates an SSO trace for an unknown correlation key and saves the log", async () => {
     const result = await recordSamlLog(
       "tracing-session-1",
-      { step: 6, correlationKey: "correlation-key-1" },
+      { type: "AuthenticatedResourceResponse", correlationKey: "correlation-key-1" },
       makeResponse(),
     );
 
@@ -98,7 +98,7 @@ describe("recordSamlLog", () => {
 
     const result = await recordSamlLog(
       "tracing-session-1",
-      { step: 2, correlationKey: "correlation-key-1" },
+      { type: "IncomingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       makeResponse(),
       pairedHttpRequest,
     );
@@ -120,7 +120,7 @@ describe("recordSamlLog", () => {
 
     await recordSamlLog(
       "tracing-session-1",
-      { step: 2, correlationKey: "correlation-key-1" },
+      { type: "IncomingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       makeResponse(),
     );
 
@@ -131,7 +131,7 @@ describe("recordSamlLog", () => {
   it("does not create a step 1 log for steps other than 2", async () => {
     await recordSamlLog(
       "tracing-session-1",
-      { step: 6, correlationKey: "correlation-key-1" },
+      { type: "AuthenticatedResourceResponse", correlationKey: "correlation-key-1" },
       makeResponse(),
       makeRequest(),
     );
@@ -144,7 +144,7 @@ describe("recordSamlLog", () => {
 
     const result = await recordSamlLog(
       "tracing-session-1",
-      { step: 2, correlationKey: "correlation-key-1" },
+      { type: "IncomingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       makeResponse(),
       pairedHttpRequest,
     );
@@ -154,7 +154,10 @@ describe("recordSamlLog", () => {
   });
 
   it("reuses the SSO trace of the same correlation key", async () => {
-    const samlSignal = { step: 2, correlationKey: "correlation-key-1" } as const;
+    const samlSignal = {
+      type: "IncomingSamlAuthnRequest",
+      correlationKey: "correlation-key-1",
+    } as const;
     const first = await recordSamlLog(
       "tracing-session-1",
       samlSignal,
@@ -163,7 +166,7 @@ describe("recordSamlLog", () => {
     );
     const second = await recordSamlLog(
       "tracing-session-1",
-      { step: 6, correlationKey: "correlation-key-1" },
+      { type: "AuthenticatedResourceResponse", correlationKey: "correlation-key-1" },
       makeResponse(),
     );
 
@@ -172,7 +175,10 @@ describe("recordSamlLog", () => {
   });
 
   it("creates an SSO trace per tracing session", async () => {
-    const samlSignal = { step: 2, correlationKey: "correlation-key-1" } as const;
+    const samlSignal = {
+      type: "IncomingSamlAuthnRequest",
+      correlationKey: "correlation-key-1",
+    } as const;
     await recordSamlLog("tracing-session-1", samlSignal, makeResponse(), makeRequest());
     await recordSamlLog("tracing-session-2", samlSignal, makeResponse(), makeRequest());
 
@@ -187,7 +193,7 @@ describe("recordSamlLog", () => {
 
     const result = await recordSamlLog(
       "tracing-session-1",
-      { step: 2, correlationKey: "correlation-key-1" },
+      { type: "IncomingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       httpResponse,
       makeRequest(),
     );
@@ -201,7 +207,7 @@ describe("recordSamlLog", () => {
 
     const result = await recordSamlLog(
       "tracing-session-1",
-      { step: 6, correlationKey: "correlation-key-1" },
+      { type: "AuthenticatedResourceResponse", correlationKey: "correlation-key-1" },
       makeResponse(),
     );
 

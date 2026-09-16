@@ -51,7 +51,7 @@ export async function ingestHttpResponseForSaml(
   if (samlSignal instanceof Error) {
     return samlSignal;
   } else if (!samlSignal) {
-    // The response is not saved, so keep the request only if it is a step itself
+    // The response is not saved, so keep the request only if it carries a SAML signal itself
     const shouldKeep = await detectSamlSignalFromHttpRequest(pairedHttpRequest);
     if (shouldKeep instanceof Error) {
       return shouldKeep;

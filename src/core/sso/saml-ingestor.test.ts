@@ -101,7 +101,7 @@ describe("ingestHttpRequestForSaml", () => {
     const request = makeRequest();
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
-      step: 3,
+      type: "OutgoingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
     vi.mocked(recordSamlLog).mockResolvedValue({ id: "sso-trace-1" } as SsoTrace);
@@ -112,7 +112,7 @@ describe("ingestHttpRequestForSaml", () => {
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(request);
     expect(recordSamlLog).toHaveBeenCalledExactlyOnceWith(
       "tracing-session-1",
-      { step: 3, correlationKey: "correlation-key-1" },
+      { type: "OutgoingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       request,
     );
   });
@@ -133,7 +133,7 @@ describe("ingestHttpRequestForSaml", () => {
     const request = makeRequest();
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
-      step: 3,
+      type: "OutgoingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
     const error = new Error("error");
@@ -150,7 +150,7 @@ describe("ingestHttpResponseForSaml", () => {
     const pairedRequest = makeRequest({ id: "msg-1" });
     const response = makeResponse({ id: "msg-2", pairedHttpRequestId: "msg-1" });
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
-      step: 2,
+      type: "IncomingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);
@@ -163,7 +163,7 @@ describe("ingestHttpResponseForSaml", () => {
     expect(saveHttpMessage).toHaveBeenCalledExactlyOnceWith(response);
     expect(recordSamlLog).toHaveBeenCalledExactlyOnceWith(
       "tracing-session-1",
-      { step: 2, correlationKey: "correlation-key-1" },
+      { type: "IncomingSamlAuthnRequest", correlationKey: "correlation-key-1" },
       response,
       pairedRequest,
     );
@@ -191,7 +191,7 @@ describe("ingestHttpResponseForSaml", () => {
     const response = makeResponse();
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue(undefined);
     vi.mocked(detectSamlSignalFromHttpRequest).mockResolvedValue({
-      step: 3,
+      type: "OutgoingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
 
@@ -231,7 +231,7 @@ describe("ingestHttpResponseForSaml", () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
-      step: 2,
+      type: "IncomingSamlAuthnRequest",
       correlationKey: "correlation-key-1",
     });
     const error = new Error("error");
@@ -247,7 +247,7 @@ describe("ingestHttpResponseForSaml", () => {
     const pairedRequest = makeRequest();
     const response = makeResponse();
     vi.mocked(detectSamlSignalFromHttpResponse).mockResolvedValue({
-      step: 6,
+      type: "AuthenticatedResourceResponse",
       correlationKey: "correlation-key-1",
     });
     vi.mocked(saveHttpMessage).mockResolvedValue(undefined);

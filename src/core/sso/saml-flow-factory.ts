@@ -27,21 +27,24 @@ function updateSsoFlow(ssoFlow: SsoFlow, samlLog: SamlLog): SsoFlow {
     if (ssoFlow.status === "failed") {
       return "failed";
     } else {
-      switch (samlLog.step) {
-        case 4:
-        case 5:
+      switch (samlLog.type) {
+        case "IncomingSamlResponse":
+        case "OutgoingSamlResponse":
           if (!samlLog.samlStatusCode.endsWith(":Success")) {
             return "failed";
           }
           break;
-        case 6:
+        case "AuthenticatedResourceResponse":
           return "succeeded";
       }
       return "in_progress";
     }
   })();
 
-  const role = samlLog.step === 3 || samlLog.step === 4 ? "idp" : "sp";
+  const role =
+    samlLog.type === "OutgoingSamlAuthnRequest" || samlLog.type === "IncomingSamlResponse"
+      ? "idp"
+      : "sp";
 
   const warning: string[] = [];
 

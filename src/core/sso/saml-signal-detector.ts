@@ -53,7 +53,7 @@ export async function extractSamlpResponseXml(
     : await extractSamlpResponseXmlFromHttpResponse(httpMessage);
 }
 
-// Step 1: UA ---(resource request)--> SP
+// [1] UA ---(resource request)--> SP
 //
 // A resource request has no SAML marker, so it cannot be detected from the
 // request alone. Whether it is SAML-related is determined by whether the
@@ -62,10 +62,12 @@ async function detectUnauthenticatedResourceRequest(_: HttpRequest): Promise<und
   return undefined;
 }
 
-// Step 2: UA <--(AuthnRequest)--- SP
+// [2] UA <--(AuthnRequest)--- SP
 async function detectIncomingSamlAuthnRequest(
   httpResponse: HttpResponse,
-): Promise<(SamlSignalFromHttpResponse & { step: 2 }) | undefined | Error> {
+): Promise<
+  (SamlSignalFromHttpResponse & { type: "IncomingSamlAuthnRequest" }) | undefined | Error
+> {
   const authnRequestXml = await extractSamlpAuthnRequestXmlFromHttpResponse(httpResponse);
   if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
     return authnRequestXml;
@@ -77,7 +79,7 @@ async function detectIncomingSamlAuthnRequest(
   }
 
   return {
-    step: 2,
+    type: "IncomingSamlAuthnRequest",
     correlationKey,
   };
 }
@@ -93,7 +95,7 @@ async function extractSamlpAuthnRequestXmlFromHttpResponse(
   );
 }
 
-// Step 2 (HTTP Redirect Binding): UA <--(AuthnRequest)--- SP
+// [2] (HTTP Redirect Binding): UA <--(AuthnRequest)--- SP
 //
 // Detected when:
 // - It is a redirect response
@@ -129,7 +131,7 @@ async function extractSamlpAuthnRequestXmlFromHttpResponseForHttpRedirect(
   return await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
 }
 
-// Step 2 (HTTP POST Binding):  UA <--(AuthnRequest)--- SP
+// [2] (HTTP POST Binding):  UA <--(AuthnRequest)--- SP
 //
 // Detected when:
 // - The response body is HTML
@@ -161,7 +163,7 @@ function extractSamlRequestFromResponseBody(responseBody: string): string | unde
   );
 }
 
-// Step 2 (Script Redirect Binding): UA <--(AuthnRequest)--- SP
+// [2] (Script Redirect Binding): UA <--(AuthnRequest)--- SP
 //
 // A non-standard method used by some sites that navigates via location.href.
 // Presumably they want navigation to be triggered by a user action such as a click.
@@ -204,7 +206,7 @@ async function extractSamlpAuthnRequestXmlFromHttpResponseForScriptRedirect(
   return await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
 }
 
-// Step 2 (Meta Refresh Binding): UA <--(AuthnRequest)--- SP
+// [2] (Meta Refresh Binding): UA <--(AuthnRequest)--- SP
 //
 // A non-standard method used by some sites that navigates via <meta http-equiv="refresh">.
 // The SAMLRequest is encoded the same way as in the HTTP Redirect Binding.
@@ -251,10 +253,10 @@ function extractUrlFromMetaRefresh(responseBody: string): string | undefined {
   return matched?.[1];
 }
 
-// Step 3: UA ---(AuthnRequest)--> IdP
+// [3] UA ---(AuthnRequest)--> IdP
 async function detectOutgoingSamlAuthnRequest(
   httpRequest: HttpRequest,
-): Promise<(SamlSignalFromHttpRequest & { step: 3 }) | undefined | Error> {
+): Promise<(SamlSignalFromHttpRequest & { type: "OutgoingSamlAuthnRequest" }) | undefined | Error> {
   const authnRequestXml = await extractSamlpAuthnRequestXmlFromHttpRequest(httpRequest);
   if (authnRequestXml === undefined || authnRequestXml instanceof Error) {
     return authnRequestXml;
@@ -266,7 +268,7 @@ async function detectOutgoingSamlAuthnRequest(
   }
 
   return {
-    step: 3,
+    type: "OutgoingSamlAuthnRequest",
     correlationKey,
   };
 }
@@ -280,7 +282,7 @@ async function extractSamlpAuthnRequestXmlFromHttpRequest(
   );
 }
 
-// Step 3 (HTTP Redirect Binding): UA ---(AuthnRequest)--> IdP
+// [3] (HTTP Redirect Binding): UA ---(AuthnRequest)--> IdP
 //
 // Detected when:
 // - It is a GET request
@@ -306,7 +308,7 @@ async function extractSamlpAuthnRequestXmlFromHttpRequestForHttpRedirect(
   return await decodeSamlRedirectBindingMessage(encodedSamlAuthnRequest);
 }
 
-// Step 3 (HTTP POST Binding): UA ---(AuthnRequest)--> IdP
+// [3] (HTTP POST Binding): UA ---(AuthnRequest)--> IdP
 //
 // Detected when:
 // - It is a POST request
@@ -338,10 +340,10 @@ function extractSamlRequestFromRequestBody(requestBody: string): string | undefi
   }
 }
 
-// Step 4: UA <--(Response)--- IdP
+// [4] UA <--(Response)--- IdP
 async function detectIncomingSamlResponse(
   httpResponse: HttpResponse,
-): Promise<(SamlSignalFromHttpResponse & { step: 4 }) | undefined | Error> {
+): Promise<(SamlSignalFromHttpResponse & { type: "IncomingSamlResponse" }) | undefined | Error> {
   const responseXml = await extractSamlpResponseXmlFromHttpResponse(httpResponse);
   if (responseXml === undefined || responseXml instanceof Error) {
     return responseXml;
@@ -358,7 +360,7 @@ async function detectIncomingSamlResponse(
   }
 
   return {
-    step: 4,
+    type: "IncomingSamlResponse",
     correlationKey,
     samlStatusCode,
   };
@@ -373,7 +375,7 @@ async function extractSamlpResponseXmlFromHttpResponse(
   );
 }
 
-// Step 4 (HTTP Redirect Binding): UA <--(Response)--- IdP
+// [4] (HTTP Redirect Binding): UA <--(Response)--- IdP
 //
 // Detected when:
 // - It is a redirect response
@@ -409,7 +411,7 @@ async function extractSamlpResponseXmlFromHttpResponseForHttpRedirect(
   return await decodeSamlRedirectBindingMessage(encodedSamlResponse);
 }
 
-// Step 4 (HTTP POST Binding): UA <--(Response)--- IdP
+// [4] (HTTP POST Binding): UA <--(Response)--- IdP
 //
 // Detected when:
 // - The response body is HTML
@@ -441,10 +443,10 @@ function extractSamlResponseFromResponseBody(responseBody: string): string | und
   );
 }
 
-// Step 5: UA ---(Response)--> SP
+// [5] UA ---(Response)--> SP
 async function detectOutgoingSamlResponse(
   httpRequest: HttpRequest,
-): Promise<(SamlSignalFromHttpRequest & { step: 5 }) | undefined | Error> {
+): Promise<(SamlSignalFromHttpRequest & { type: "OutgoingSamlResponse" }) | undefined | Error> {
   const responseXml = await extractSamlpResponseXmlFromHttpRequest(httpRequest);
   if (responseXml === undefined || responseXml instanceof Error) {
     return responseXml;
@@ -461,7 +463,7 @@ async function detectOutgoingSamlResponse(
   }
 
   return {
-    step: 5,
+    type: "OutgoingSamlResponse",
     correlationKey,
     samlStatusCode,
   };
@@ -476,7 +478,7 @@ async function extractSamlpResponseXmlFromHttpRequest(
   );
 }
 
-// Step 5 (HTTP Redirect Binding): UA ---(Response)--> SP
+// [5] (HTTP Redirect Binding): UA ---(Response)--> SP
 //
 // Detected when:
 // - It is a GET request
@@ -502,7 +504,7 @@ async function extractSamlpResponseXmlFromHttpRequestForHttpRedirect(
   return await decodeSamlRedirectBindingMessage(encodedSamlResponse);
 }
 
-// Step 5 (HTTP POST Binding): UA ---(Response)--> SP
+// [5] (HTTP POST Binding): UA ---(Response)--> SP
 //
 // Detected when:
 // - It is a POST request
@@ -534,20 +536,22 @@ function extractSamlResponseFromRequestBody(requestBody: string): string | undef
   }
 }
 
-// Step 6: UA <--(result)--- SP
+// [6] UA <--(result)--- SP
 //
 // Detected when:
-// - It is the response to Step 5
+// - It is the response to [5]
 async function detectAuthenticatedResourceResponse(
   pairedHttpRequest: HttpRequest,
-): Promise<(SamlSignalFromHttpResponse & { step: 6 }) | undefined | Error> {
+): Promise<
+  (SamlSignalFromHttpResponse & { type: "AuthenticatedResourceResponse" }) | undefined | Error
+> {
   const samlOutgoingResponse = await detectOutgoingSamlResponse(pairedHttpRequest);
   if (samlOutgoingResponse instanceof Error || samlOutgoingResponse === undefined) {
     return samlOutgoingResponse;
   }
 
   return {
-    step: 6,
+    type: "AuthenticatedResourceResponse",
     correlationKey: samlOutgoingResponse.correlationKey,
   };
 }
