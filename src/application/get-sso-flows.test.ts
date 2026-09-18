@@ -10,7 +10,6 @@ import { type SsoTrace } from "@/core/sso/sso-trace.ts";
 import { findAllSsoTraces } from "@/core/sso/sso-trace-repository.ts";
 import { type TracingSession } from "@/core/tracing/tracing-session.ts";
 import { getTracingSessions } from "@/core/tracing/tracing-session-query.ts";
-import { isTracing } from "@/core/tracing/tracing-state-query.ts";
 import { getSsoFlows } from "./get-sso-flows.ts";
 
 vi.mock("@/core/tracing/tracing-session-query.ts", () => ({
@@ -25,15 +24,10 @@ vi.mock("@/core/sso/saml-log-repository.ts", () => ({
   findSamlLogsBySsoTraceId: vi.fn(),
 }));
 
-vi.mock("@/core/tracing/tracing-state-query.ts", () => ({
-  isTracing: vi.fn(),
-}));
-
 beforeEach(() => {
   vi.resetAllMocks();
 
   vi.mocked(getTracingSessions).mockResolvedValue([]);
-  vi.mocked(isTracing).mockResolvedValue(false);
   vi.mocked(findAllSsoTraces).mockResolvedValue([]);
   vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([]);
 });
@@ -150,7 +144,6 @@ describe("getSsoFlows", () => {
       makeSsoTrace({ id: "sso-trace-1", correlationKey: "correlation-key-1" }),
     ]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
-    vi.mocked(isTracing).mockResolvedValue(true);
 
     expect(await getSsoFlows()).toMatchObject([
       { id: "sso-trace-2", live: true },
@@ -176,7 +169,6 @@ describe("getSsoFlows", () => {
       makeSsoTrace({ id: "sso-trace-1", correlationKey: "correlation-key-1" }),
     ]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
-    vi.mocked(isTracing).mockResolvedValue(true);
 
     expect(await getSsoFlows()).toMatchObject([
       { id: "sso-trace-2", live: false },
@@ -188,16 +180,6 @@ describe("getSsoFlows", () => {
     vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession()]);
     vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
     vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
-    vi.mocked(isTracing).mockResolvedValue(true);
-
-    expect(await getSsoFlows()).toMatchObject([{ live: false }]);
-  });
-
-  it("does not set live when no tracing is running", async () => {
-    vi.mocked(getTracingSessions).mockResolvedValue([makeTracingSession({ endedAt: undefined })]);
-    vi.mocked(findAllSsoTraces).mockResolvedValue([makeSsoTrace()]);
-    vi.mocked(findSamlLogsBySsoTraceId).mockResolvedValue([makeSamlLog({})]);
-    vi.mocked(isTracing).mockResolvedValue(false);
 
     expect(await getSsoFlows()).toMatchObject([{ live: false }]);
   });
@@ -212,13 +194,6 @@ describe("getSsoFlows", () => {
     expect(await getSsoFlows()).toEqual([]);
     expect(consoleWarn).toHaveBeenCalledOnce();
     expect(findSamlLogsBySsoTraceId).not.toHaveBeenCalled();
-  });
-
-  it("propagates an error from the tracing state", async () => {
-    const error = new Error("error");
-    vi.mocked(isTracing).mockResolvedValue(error);
-
-    expect(await getSsoFlows()).toBe(error);
   });
 
   it("propagates an error from the tracing session query", async () => {
