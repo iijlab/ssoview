@@ -8,7 +8,6 @@ import { findSamlLogsBySsoTraceId } from "@/core/sso/saml-log-repository.ts";
 import { type SsoFlow, debugSsoFlow } from "@/core/sso/sso-flow.ts";
 import { findAllSsoTraces } from "@/core/sso/sso-trace-repository.ts";
 import { getTracingSessions } from "@/core/tracing/tracing-session-query.ts";
-import { isTracing } from "@/core/tracing/tracing-state-query.ts";
 
 // NOTE: getSsoFlows has known inefficiencies (e.g., repeated data fetches),
 // but we prioritize simplicity as performance is not a concern at current
@@ -20,11 +19,6 @@ import { isTracing } from "@/core/tracing/tracing-state-query.ts";
  * @returns SSO flows, newest first, or an Error
  */
 export async function getSsoFlows(): Promise<SsoFlow[] | Error> {
-  const tracing = await isTracing();
-  if (tracing instanceof Error) {
-    return tracing;
-  }
-
   const tracingSessions = await getTracingSessions();
   if (tracingSessions instanceof Error) {
     return tracingSessions;
@@ -56,7 +50,7 @@ export async function getSsoFlows(): Promise<SsoFlow[] | Error> {
 
     const ssoFlow = {
       ...deriveSsoFlowFromSamlLogs(ssoTrace, tracingSession, samlLogs),
-      live: ssoTrace.id === ongoingSsoTraceId && tracing,
+      live: ssoTrace.id === ongoingSsoTraceId,
     };
 
     ssoFlows.push(ssoFlow);
