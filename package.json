@@ -40,9 +40,9 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
-    "@vitest/browser": "<5.0.0",
-    "@vitest/browser-playwright": "<5.0.0",
-    "@vitest/coverage-istanbul": "<5.0.0",
+    "@vitest/browser": "^5.1.0",
+    "@vitest/browser-playwright": "^5.1.0",
+    "@vitest/coverage-istanbul": "^5.1.0",
     "devtools-protocol": "^0.0.1698617",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
@@ -58,6 +58,6 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.0",
     "vite": "^8.3.6",
-    "vitest": "<5.0.0"
+    "vitest": "^5.1.0"
   }
 }

@@ -42,6 +42,13 @@ export default mergeConfig(
           extends: true,
           optimizeDeps: {
             include: ["@emotion/react/jsx-dev-runtime", "@mui/icons-material", "@mui/material"],
+            // Vitest 5 sets keepProcessEnv on the browser "client" environment, so Vite's optimizer
+            // leaves `process.env.NODE_ENV` unreplaced and Rolldown (1.2.16) bundles both React CJS
+            // builds, then wrongly inlines `jsxDEV` from the production one (`exports.jsxDEV = void 0`).
+            // Define NODE_ENV for the optimizer only, so the production branch is dropped.
+            rolldownOptions: {
+              transform: { define: { "process.env.NODE_ENV": JSON.stringify("development") } },
+            },
           },
         },
       ],
