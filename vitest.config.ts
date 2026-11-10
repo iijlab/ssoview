@@ -7,7 +7,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       coverage: {
-        provider: "istanbul", // or 'v8'
+        provider: "v8",
         exclude: [
           "src/side-panel/index.tsx",
           "tests/browser/lib/*",

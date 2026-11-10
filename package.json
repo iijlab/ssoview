@@ -42,7 +42,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "@vitest/browser": "^5.1.0",
     "@vitest/browser-playwright": "^5.1.0",
-    "@vitest/coverage-istanbul": "^5.1.0",
+    "@vitest/coverage-v8": "^5.1.0",
     "devtools-protocol": "^0.0.1698617",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
