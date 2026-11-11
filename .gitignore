@@ -146,6 +146,7 @@ dist
 .\#*vscode
 
 # Vitest
+.vitest/
 .vitest-attachments/
 __screenshots__/
 
