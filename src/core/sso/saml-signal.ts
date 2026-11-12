@@ -4,9 +4,7 @@
  */
 
 export type SamlSignal =
-  | SamlSignalFromHttpRequest
-  | SamlSignalFromHttpResponse
-  | InferredSamlSignal;
+  SamlSignalFromHttpRequest | SamlSignalFromHttpResponse | InferredSamlSignal;
 
 export type SamlSignalFromHttpRequest =
   | {
