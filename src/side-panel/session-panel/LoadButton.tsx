@@ -34,8 +34,13 @@ const HideInput = ({
       return;
     }
 
+    // Copy the files, then reset the input before loading. Otherwise selecting the same file
+    // again does not fire onChange, including after a failed load.
+    const files = Array.from(fileList);
+    ev.target.value = "";
+
     await Promise.allSettled(
-      Array.from(fileList).map(async (file) => {
+      files.map(async (file) => {
         const har = await new Promise<string | Error>((resolve, reject) => {
           // Create FileReader
           const reader = new FileReader();
@@ -84,9 +89,6 @@ const HideInput = ({
     }
     setSessionSummaries(sessions);
     console.debug(`[${tabId}]: Session updated:`, { sessionSummaries: sessions });
-
-    // Workaround: If you select the same file twice, onChange will not fire.
-    ev.target.value = "";
   };
 
   // fix: support cancel event for input[type="file"]

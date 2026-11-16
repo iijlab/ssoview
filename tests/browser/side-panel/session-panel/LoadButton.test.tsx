@@ -6,7 +6,7 @@
 import { LoadButton } from "@/side-panel/session-panel/LoadButton.tsx";
 
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, type MockInstance, test, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { useState } from "react";
 
@@ -59,6 +59,16 @@ const TestLoadButton = ({ testId }: { testId: string }) => {
   );
 };
 
+// user.upload() returns before the async onChange handler finishes,
+// so wait until the handler logs the updated sessions at its end.
+const waitForSessionUpdated = (consoleDebugMock: MockInstance<typeof console.debug>) =>
+  vi.waitFor(() =>
+    expect(consoleDebugMock).toHaveBeenCalledWith(
+      expect.stringMatching(/Session updated:/),
+      expect.anything(),
+    ),
+  );
+
 const renderLoadButton = async (testId: string) => {
   render(<TestLoadButton testId={testId} />);
   // screen.debug();
@@ -92,6 +102,7 @@ describe("LoadButton", () => {
 
   // Test a file picker dialog...
   test("Upload files: success", async () => {
+    const consoleDebugMock = vi.spyOn(console, "debug");
     const consoleInfoMock = vi.spyOn(console, "info");
     const user = userEvent.setup();
     const { hideInput } = await renderLoadButton(testId);
@@ -102,38 +113,36 @@ describe("LoadButton", () => {
       new File(['{"id": 789}'], "test2.json", { type: "application/json" }),
     ];
 
-    // user.upload() returns before the async onChange handler finishes,
-    // so wait until the handler resets the input at its end.
-
     // []
+    // An empty selection does not change the input, so no change event fires.
     testSessions = [];
     await user.upload(hideInput, []);
-    await vi.waitFor(() => expect(hideInput.files).toHaveLength(0));
+    expect(hideInput.files).toHaveLength(0);
 
     // [test0.har]
     testSessions = testSessionSummaries.slice(0, 1);
+    consoleDebugMock.mockClear();
     consoleInfoMock.mockClear();
     await user.upload(hideInput, files.slice(0, 1));
-    await vi.waitFor(() => {
-      expect(hideInput.files).toHaveLength(0);
-      expect(consoleInfoMock).toHaveBeenCalledWith(
-        expect.stringMatching(/Sent "test0.har" to ServiceWorker/),
-      );
-    });
+    await waitForSessionUpdated(consoleDebugMock);
+    expect(hideInput.files).toHaveLength(0);
+    expect(consoleInfoMock).toHaveBeenCalledWith(
+      expect.stringMatching(/Sent "test0.har" to ServiceWorker/),
+    );
 
     // [test0.har, test1.har, test2.json]
     // Files are processed concurrently, so the order of the logs is not fixed.
     testSessions = testSessionSummaries.slice(0, 3);
+    consoleDebugMock.mockClear();
     consoleInfoMock.mockClear();
     await user.upload(hideInput, files);
-    await vi.waitFor(() => {
-      expect(hideInput.files).toHaveLength(0);
-      for (const name of ["test0.har", "test1.har", "test2.json"]) {
-        expect(consoleInfoMock).toHaveBeenCalledWith(
-          expect.stringMatching(new RegExp(`Sent "${name}" to ServiceWorker`)),
-        );
-      }
-    });
+    await waitForSessionUpdated(consoleDebugMock);
+    expect(hideInput.files).toHaveLength(0);
+    for (const name of ["test0.har", "test1.har", "test2.json"]) {
+      expect(consoleInfoMock).toHaveBeenCalledWith(
+        expect.stringMatching(new RegExp(`Sent "${name}" to ServiceWorker`)),
+      );
+    }
   });
 
   test("Upload files: failure", async () => {
@@ -183,18 +192,36 @@ describe("LoadButton", () => {
 
   test("Upload files: failure: getSessionSummaries", async () => {
     testSessions = new Error("TEST: getSessionSummaries failed");
+    const consoleInfoMock = vi.spyOn(console, "info");
     const consoleErrorMock = vi.spyOn(console, "error");
     const user = userEvent.setup();
     const { hideInput } = await renderLoadButton(testId);
 
-    await user.upload(hideInput, [
-      new File(['{"id": 123}'], "test0.har", { type: "application/json" }),
-    ]);
+    const file = new File(['{"id": 123}'], "test0.har", { type: "application/json" });
+    const changeEventCount = () =>
+      consoleInfoMock.mock.calls.filter(([msg]) => /Capture a change event/.test(String(msg)))
+        .length;
+
+    await user.upload(hideInput, file);
     await vi.waitFor(() =>
       expect(consoleErrorMock).toHaveBeenLastCalledWith(
         expect.stringMatching(/Failed to getSessionSummaries:/),
         expect.objectContaining(testSessions),
       ),
     );
+    expect(changeEventCount()).toBe(1);
+
+    // The input is reset even though loading failed, so selecting the same file
+    // again fires another change event.
+    expect(hideInput.files).toHaveLength(0);
+    consoleErrorMock.mockClear();
+    await user.upload(hideInput, file);
+    await vi.waitFor(() =>
+      expect(consoleErrorMock).toHaveBeenLastCalledWith(
+        expect.stringMatching(/Failed to getSessionSummaries:/),
+        expect.objectContaining(testSessions),
+      ),
+    );
+    expect(changeEventCount()).toBe(2);
   });
 });
