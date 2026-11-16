@@ -173,6 +173,44 @@ describe("LoadButton", () => {
     );
   });
 
+  test("Upload files: failure: empty file", async () => {
+    const consoleDebugMock = vi.spyOn(console, "debug");
+    const consoleErrorMock = vi.spyOn(console, "error");
+    const user = userEvent.setup();
+    const { hideInput } = await renderLoadButton(testId);
+
+    await user.upload(hideInput, new File([], "empty.har", { type: "application/json" }));
+    // The handler runs to the end instead of waiting for the empty file forever.
+    await waitForSessionUpdated(consoleDebugMock);
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringMatching(/Failed to read "empty.har":/),
+      expect.objectContaining({ message: expect.stringMatching(/empty/) }),
+    );
+  });
+
+  test("Upload files: failure: empty file with a valid file", async () => {
+    testSessions = testSessionSummaries.slice(0, 1);
+    const consoleDebugMock = vi.spyOn(console, "debug");
+    const consoleInfoMock = vi.spyOn(console, "info");
+    const consoleErrorMock = vi.spyOn(console, "error");
+    const user = userEvent.setup();
+    const { hideInput } = await renderLoadButton(testId);
+
+    await user.upload(hideInput, [
+      new File([], "empty.har", { type: "application/json" }),
+      new File(['{"id": 123}'], "test0.har", { type: "application/json" }),
+    ]);
+    // The valid file is loaded and the sessions are updated.
+    await waitForSessionUpdated(consoleDebugMock);
+    expect(consoleInfoMock).toHaveBeenCalledWith(
+      expect.stringMatching(/Sent "test0.har" to ServiceWorker/),
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringMatching(/Failed to read "empty.har":/),
+      expect.objectContaining({ message: expect.stringMatching(/empty/) }),
+    );
+  });
+
   test("Upload files: failure: loadSessionArchive", async () => {
     testIds = new Error("TEST: loadSessionArchive failed");
     const consoleErrorMock = vi.spyOn(console, "error");

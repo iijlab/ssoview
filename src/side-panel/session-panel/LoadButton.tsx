@@ -46,20 +46,29 @@ const HideInput = ({
           const reader = new FileReader();
           // Set EventHandler
           reader.addEventListener("load", () => {
-            if (reader.result instanceof ArrayBuffer && reader.result.byteLength > 0) {
-              const utf8decoder = new TextDecoder("utf-8", { fatal: true }); // default "utf-8" or "utf8"
-              try {
-                const har = utf8decoder.decode(new Uint8Array(reader.result));
-                console.debug(`[${tabId}]: Read from "${file.name}":`, JSON.parse(har));
-                resolve(har);
-              } catch (err) {
-                if (err instanceof TypeError) {
-                  console.error(`[${tabId}]: Failed to TextDecoder.decode:`, err);
-                } else if (err instanceof SyntaxError) {
-                  console.error(`[${tabId}]: Failed to JSON.parse:`, err);
-                }
-                reject(err);
+            // Settle the promise for an empty file too, or the handler never finishes.
+            if (!(reader.result instanceof ArrayBuffer) || reader.result.byteLength === 0) {
+              const err = new Error(
+                reader.result instanceof ArrayBuffer
+                  ? "The file is empty"
+                  : "The file was not read as an ArrayBuffer",
+              );
+              console.error(`[${tabId}]: Failed to read "${file.name}":`, err);
+              reject(err);
+              return;
+            }
+            const utf8decoder = new TextDecoder("utf-8", { fatal: true }); // default "utf-8" or "utf8"
+            try {
+              const har = utf8decoder.decode(new Uint8Array(reader.result));
+              console.debug(`[${tabId}]: Read from "${file.name}":`, JSON.parse(har));
+              resolve(har);
+            } catch (err) {
+              if (err instanceof TypeError) {
+                console.error(`[${tabId}]: Failed to TextDecoder.decode:`, err);
+              } else if (err instanceof SyntaxError) {
+                console.error(`[${tabId}]: Failed to JSON.parse:`, err);
               }
+              reject(err);
             }
           });
           reader.addEventListener("error", (err) => {
