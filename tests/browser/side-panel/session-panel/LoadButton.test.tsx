@@ -102,26 +102,38 @@ describe("LoadButton", () => {
       new File(['{"id": 789}'], "test2.json", { type: "application/json" }),
     ];
 
+    // user.upload() returns before the async onChange handler finishes,
+    // so wait until the handler resets the input at its end.
+
     // []
     testSessions = [];
     await user.upload(hideInput, []);
-    expect(hideInput.files).toHaveLength(0);
+    await vi.waitFor(() => expect(hideInput.files).toHaveLength(0));
 
     // [test0.har]
     testSessions = testSessionSummaries.slice(0, 1);
+    consoleInfoMock.mockClear();
     await user.upload(hideInput, files.slice(0, 1));
-    expect(hideInput.files).toHaveLength(0);
-    expect(consoleInfoMock).toHaveBeenLastCalledWith(
-      expect.stringMatching(/Sent "test0.har" to ServiceWorker/),
-    );
+    await vi.waitFor(() => {
+      expect(hideInput.files).toHaveLength(0);
+      expect(consoleInfoMock).toHaveBeenCalledWith(
+        expect.stringMatching(/Sent "test0.har" to ServiceWorker/),
+      );
+    });
 
     // [test0.har, test1.har, test2.json]
+    // Files are processed concurrently, so the order of the logs is not fixed.
     testSessions = testSessionSummaries.slice(0, 3);
+    consoleInfoMock.mockClear();
     await user.upload(hideInput, files);
-    expect(hideInput.files).toHaveLength(0);
-    expect(consoleInfoMock).toHaveBeenLastCalledWith(
-      expect.stringMatching(/Sent "test2.json" to ServiceWorker/),
-    );
+    await vi.waitFor(() => {
+      expect(hideInput.files).toHaveLength(0);
+      for (const name of ["test0.har", "test1.har", "test2.json"]) {
+        expect(consoleInfoMock).toHaveBeenCalledWith(
+          expect.stringMatching(new RegExp(`Sent "${name}" to ServiceWorker`)),
+        );
+      }
+    });
   });
 
   test("Upload files: failure", async () => {
@@ -132,9 +144,11 @@ describe("LoadButton", () => {
     // not_json.har
     const notJsonFile = new File(["not_json"], "not_json.har", { type: "application/json" });
     await user.upload(hideInput, notJsonFile);
-    expect(consoleErrorMock).toHaveBeenLastCalledWith(
-      expect.stringMatching(/Failed to JSON.parse:/),
-      expect.objectContaining(/SyntaxError/),
+    await vi.waitFor(() =>
+      expect(consoleErrorMock).toHaveBeenLastCalledWith(
+        expect.stringMatching(/Failed to JSON.parse:/),
+        expect.objectContaining(/SyntaxError/),
+      ),
     );
 
     // decode_error.har
@@ -142,9 +156,11 @@ describe("LoadButton", () => {
       type: "application/json",
     });
     await user.upload(hideInput, decodeErrorFile);
-    expect(consoleErrorMock).toHaveBeenLastCalledWith(
-      expect.stringMatching(/Failed to TextDecoder.decode:/),
-      expect.objectContaining(/TypeError/),
+    await vi.waitFor(() =>
+      expect(consoleErrorMock).toHaveBeenLastCalledWith(
+        expect.stringMatching(/Failed to TextDecoder.decode:/),
+        expect.objectContaining(/TypeError/),
+      ),
     );
   });
 
@@ -157,9 +173,11 @@ describe("LoadButton", () => {
     await user.upload(hideInput, [
       new File(['{"id": 123}'], "test0.har", { type: "application/json" }),
     ]);
-    expect(consoleErrorMock).toHaveBeenLastCalledWith(
-      expect.stringMatching(/Failed to loadSessionArchive:/),
-      expect.objectContaining(testIds),
+    await vi.waitFor(() =>
+      expect(consoleErrorMock).toHaveBeenLastCalledWith(
+        expect.stringMatching(/Failed to loadSessionArchive:/),
+        expect.objectContaining(testIds),
+      ),
     );
   });
 
@@ -172,9 +190,11 @@ describe("LoadButton", () => {
     await user.upload(hideInput, [
       new File(['{"id": 123}'], "test0.har", { type: "application/json" }),
     ]);
-    expect(consoleErrorMock).toHaveBeenLastCalledWith(
-      expect.stringMatching(/Failed to getSessionSummaries:/),
-      expect.objectContaining(testSessions),
+    await vi.waitFor(() =>
+      expect(consoleErrorMock).toHaveBeenLastCalledWith(
+        expect.stringMatching(/Failed to getSessionSummaries:/),
+        expect.objectContaining(testSessions),
+      ),
     );
   });
 });
