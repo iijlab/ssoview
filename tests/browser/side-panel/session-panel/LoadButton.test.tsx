@@ -156,7 +156,7 @@ describe("LoadButton", () => {
     await vi.waitFor(() =>
       expect(consoleErrorMock).toHaveBeenLastCalledWith(
         expect.stringMatching(/Failed to JSON.parse:/),
-        expect.objectContaining(/SyntaxError/),
+        expect.any(SyntaxError),
       ),
     );
 
@@ -168,7 +168,7 @@ describe("LoadButton", () => {
     await vi.waitFor(() =>
       expect(consoleErrorMock).toHaveBeenLastCalledWith(
         expect.stringMatching(/Failed to TextDecoder.decode:/),
-        expect.objectContaining(/TypeError/),
+        expect.any(TypeError),
       ),
     );
   });
@@ -212,7 +212,8 @@ describe("LoadButton", () => {
   });
 
   test("Upload files: failure: loadSessionArchive", async () => {
-    testIds = new Error("TEST: loadSessionArchive failed");
+    const message = "TEST: loadSessionArchive failed";
+    testIds = new Error(message);
     const consoleErrorMock = vi.spyOn(console, "error");
     const user = userEvent.setup();
     const { hideInput } = await renderLoadButton(testId);
@@ -223,13 +224,14 @@ describe("LoadButton", () => {
     await vi.waitFor(() =>
       expect(consoleErrorMock).toHaveBeenLastCalledWith(
         expect.stringMatching(/Failed to loadSessionArchive:/),
-        expect.objectContaining(testIds),
+        expect.objectContaining({ message }),
       ),
     );
   });
 
   test("Upload files: failure: getSessionSummaries", async () => {
-    testSessions = new Error("TEST: getSessionSummaries failed");
+    const message = "TEST: getSessionSummaries failed";
+    testSessions = new Error(message);
     const consoleInfoMock = vi.spyOn(console, "info");
     const consoleErrorMock = vi.spyOn(console, "error");
     const user = userEvent.setup();
@@ -244,7 +246,7 @@ describe("LoadButton", () => {
     await vi.waitFor(() =>
       expect(consoleErrorMock).toHaveBeenLastCalledWith(
         expect.stringMatching(/Failed to getSessionSummaries:/),
-        expect.objectContaining(testSessions),
+        expect.objectContaining({ message }),
       ),
     );
     expect(changeEventCount()).toBe(1);
@@ -257,7 +259,7 @@ describe("LoadButton", () => {
     await vi.waitFor(() =>
       expect(consoleErrorMock).toHaveBeenLastCalledWith(
         expect.stringMatching(/Failed to getSessionSummaries:/),
-        expect.objectContaining(testSessions),
+        expect.objectContaining({ message }),
       ),
     );
     expect(changeEventCount()).toBe(2);
