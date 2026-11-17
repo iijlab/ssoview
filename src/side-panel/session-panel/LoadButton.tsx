@@ -85,16 +85,30 @@ const HideInput = ({
           // Already logged above
           return;
         }
-        const ids = await loadSessionArchive(tabId, har);
-        if (ids instanceof Error) {
-          console.error(`[${tabId}]: Failed to loadSessionArchive:`, ids);
+        // The services return errors as values, but log an unexpected exception too
+        // instead of letting Promise.allSettled swallow it.
+        try {
+          const ids = await loadSessionArchive(tabId, har);
+          if (ids instanceof Error) {
+            console.error(`[${tabId}]: Failed to loadSessionArchive:`, ids);
+            return;
+          }
+        } catch (err) {
+          console.error(`[${tabId}]: Failed to load "${file.name}":`, err);
           return;
         }
         console.info(`[${tabId}]: Sent "${file.name}" to ServiceWorker`);
       }),
     );
 
-    const sessions = await getSessionSummaries(tabId);
+    // React does not await this handler, so an exception here would be an unhandled rejection.
+    let sessions: Awaited<ReturnType<typeof getSessionSummaries>>;
+    try {
+      sessions = await getSessionSummaries(tabId);
+    } catch (err) {
+      console.error(`[${tabId}]: Failed to getSessionSummaries:`, err);
+      return;
+    }
     if (sessions instanceof Error) {
       console.error(`[${tabId}]: Failed to getSessionSummaries:`, sessions);
       return;
