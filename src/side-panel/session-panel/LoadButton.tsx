@@ -41,7 +41,8 @@ const HideInput = ({
 
     await Promise.allSettled(
       files.map(async (file) => {
-        const har = await new Promise<string | Error>((resolve, reject) => {
+        // Read errors are logged here and resolved as Error values, like the services do.
+        const har = await new Promise<string | Error>((resolve) => {
           // Create FileReader
           const reader = new FileReader();
           // Set EventHandler
@@ -54,7 +55,7 @@ const HideInput = ({
                   : "The file was not read as an ArrayBuffer",
               );
               console.error(`[${tabId}]: Failed to read "${file.name}":`, err);
-              reject(err);
+              resolve(err);
               return;
             }
             const utf8decoder = new TextDecoder("utf-8", { fatal: true }); // default "utf-8" or "utf8"
@@ -67,19 +68,21 @@ const HideInput = ({
                 console.error(`[${tabId}]: Failed to TextDecoder.decode:`, err);
               } else if (err instanceof SyntaxError) {
                 console.error(`[${tabId}]: Failed to JSON.parse:`, err);
+              } else {
+                console.error(`[${tabId}]: Failed to read "${file.name}":`, err);
               }
-              reject(err);
+              resolve(err instanceof Error ? err : new Error(String(err)));
             }
           });
           reader.addEventListener("error", (err) => {
             console.error(`[${tabId}]: Failed to FileReader.readAsArrayBuffer(${file}):`, err);
-            reject(err);
+            resolve(new Error("Failed to read the file"));
           });
           // Read a file
           reader.readAsArrayBuffer(file);
         });
         if (har instanceof Error) {
-          // DONOTHING
+          // Already logged above
           return;
         }
         const ids = await loadSessionArchive(tabId, har);
