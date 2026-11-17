@@ -41,7 +41,8 @@ const HideInput = ({
 
     await Promise.allSettled(
       files.map(async (file) => {
-        const har = await new Promise<string | Error>((resolve, reject) => {
+        // Read errors are logged here and resolved as Error values, like the services do.
+        const har = await new Promise<string | Error>((resolve) => {
           // Create FileReader
           const reader = new FileReader();
           // Set EventHandler
@@ -54,7 +55,7 @@ const HideInput = ({
                   : "The file was not read as an ArrayBuffer",
               );
               console.error(`[${tabId}]: Failed to read "${file.name}":`, err);
-              reject(err);
+              resolve(err);
               return;
             }
             const utf8decoder = new TextDecoder("utf-8", { fatal: true }); // default "utf-8" or "utf8"
@@ -67,31 +68,49 @@ const HideInput = ({
                 console.error(`[${tabId}]: Failed to TextDecoder.decode:`, err);
               } else if (err instanceof SyntaxError) {
                 console.error(`[${tabId}]: Failed to JSON.parse:`, err);
+              } else {
+                console.error(`[${tabId}]: Failed to read "${file.name}":`, err);
               }
-              reject(err);
+              resolve(err instanceof Error ? err : new Error(String(err)));
             }
           });
-          reader.addEventListener("error", (err) => {
-            console.error(`[${tabId}]: Failed to FileReader.readAsArrayBuffer(${file}):`, err);
-            reject(err);
+          reader.addEventListener("error", () => {
+            // The event only says that the read failed. reader.error holds the cause.
+            const err = reader.error ?? new Error("Failed to read the file");
+            console.error(`[${tabId}]: Failed to read "${file.name}":`, err);
+            resolve(err);
           });
           // Read a file
           reader.readAsArrayBuffer(file);
         });
         if (har instanceof Error) {
-          // DONOTHING
+          // Already logged above
           return;
         }
-        const ids = await loadSessionArchive(tabId, har);
-        if (ids instanceof Error) {
-          console.error(`[${tabId}]: Failed to loadSessionArchive:`, ids);
+        // The services return errors as values, but log an unexpected exception too
+        // instead of letting Promise.allSettled swallow it.
+        try {
+          const ids = await loadSessionArchive(tabId, har);
+          if (ids instanceof Error) {
+            console.error(`[${tabId}]: Failed to loadSessionArchive:`, ids);
+            return;
+          }
+        } catch (err) {
+          console.error(`[${tabId}]: Failed to load "${file.name}":`, err);
           return;
         }
         console.info(`[${tabId}]: Sent "${file.name}" to ServiceWorker`);
       }),
     );
 
-    const sessions = await getSessionSummaries(tabId);
+    // React does not await this handler, so an exception here would be an unhandled rejection.
+    let sessions: Awaited<ReturnType<typeof getSessionSummaries>>;
+    try {
+      sessions = await getSessionSummaries(tabId);
+    } catch (err) {
+      console.error(`[${tabId}]: Failed to getSessionSummaries:`, err);
+      return;
+    }
     if (sessions instanceof Error) {
       console.error(`[${tabId}]: Failed to getSessionSummaries:`, sessions);
       return;

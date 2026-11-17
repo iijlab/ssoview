@@ -6,7 +6,7 @@
 import { LoadButton } from "@/side-panel/session-panel/LoadButton.tsx";
 
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, type MockInstance, test, vi } from "vitest";
+import { beforeEach, describe, expect, type MockInstance, onTestFinished, test, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { useState } from "react";
 
@@ -15,6 +15,8 @@ import { testSessionSummaries } from "@/tests/browser/lib/testSessionSummaries.t
 
 import type { SessionSummary } from "@/common/models/session-summary.ts";
 import { SidePanelState } from "@/side-panel/config.ts";
+import { loadSessionArchive } from "@/common/services/session-archiver.ts";
+import { getSessionSummaries } from "@/common/services/session-manager.ts";
 
 vi.mock("@/common/services/session-archiver.ts", () => ({
   loadSessionArchive: vi.fn(async (_tabId: number, _har: string): Promise<string[] | Error> => {
@@ -211,6 +213,30 @@ describe("LoadButton", () => {
     );
   });
 
+  test("Upload files: failure: FileReader error", async () => {
+    // Fail the read without a real I/O error.
+    const readSpy = vi
+      .spyOn(FileReader.prototype, "readAsArrayBuffer")
+      .mockImplementationOnce(function (this: FileReader) {
+        this.dispatchEvent(new ProgressEvent("error"));
+      });
+    onTestFinished(() => readSpy.mockRestore());
+    const consoleDebugMock = vi.spyOn(console, "debug");
+    const consoleErrorMock = vi.spyOn(console, "error");
+    const user = userEvent.setup();
+    const { hideInput } = await renderLoadButton(testId);
+
+    await user.upload(
+      hideInput,
+      new File(['{"id": 123}'], "test0.har", { type: "application/json" }),
+    );
+    await waitForSessionUpdated(consoleDebugMock);
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringMatching(/Failed to read "test0.har":/),
+      expect.any(Error),
+    );
+  });
+
   test("Upload files: failure: loadSessionArchive", async () => {
     const message = "TEST: loadSessionArchive failed";
     testIds = new Error(message);
@@ -226,6 +252,27 @@ describe("LoadButton", () => {
         expect.stringMatching(/Failed to loadSessionArchive:/),
         expect.objectContaining({ message }),
       ),
+    );
+  });
+
+  test("Upload files: failure: loadSessionArchive throws", async () => {
+    const message = "TEST: loadSessionArchive threw";
+    vi.mocked(loadSessionArchive).mockImplementationOnce(async () => {
+      throw new Error(message);
+    });
+    const consoleDebugMock = vi.spyOn(console, "debug");
+    const consoleErrorMock = vi.spyOn(console, "error");
+    const user = userEvent.setup();
+    const { hideInput } = await renderLoadButton(testId);
+
+    await user.upload(hideInput, [
+      new File(['{"id": 123}'], "test0.har", { type: "application/json" }),
+    ]);
+    // The exception is logged with the file name, and the handler runs to the end.
+    await waitForSessionUpdated(consoleDebugMock);
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringMatching(/Failed to load "test0.har":/),
+      expect.objectContaining({ message }),
     );
   });
 
@@ -263,5 +310,26 @@ describe("LoadButton", () => {
       ),
     );
     expect(changeEventCount()).toBe(2);
+  });
+
+  test("Upload files: failure: getSessionSummaries throws", async () => {
+    const message = "TEST: getSessionSummaries threw";
+    vi.mocked(getSessionSummaries).mockImplementationOnce(async () => {
+      throw new Error(message);
+    });
+    const consoleErrorMock = vi.spyOn(console, "error");
+    const user = userEvent.setup();
+    const { hideInput } = await renderLoadButton(testId);
+
+    await user.upload(hideInput, [
+      new File(['{"id": 123}'], "test0.har", { type: "application/json" }),
+    ]);
+    // The exception is logged instead of becoming an unhandled rejection.
+    await vi.waitFor(() =>
+      expect(consoleErrorMock).toHaveBeenLastCalledWith(
+        expect.stringMatching(/Failed to getSessionSummaries:/),
+        expect.objectContaining({ message }),
+      ),
+    );
   });
 });
