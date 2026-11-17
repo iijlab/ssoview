@@ -6,7 +6,7 @@
 import { LoadButton } from "@/side-panel/session-panel/LoadButton.tsx";
 
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, type MockInstance, test, vi } from "vitest";
+import { beforeEach, describe, expect, type MockInstance, onTestFinished, test, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { useState } from "react";
 
@@ -210,6 +210,30 @@ describe("LoadButton", () => {
     expect(consoleErrorMock).toHaveBeenCalledWith(
       expect.stringMatching(/Failed to read "empty.har":/),
       expect.objectContaining({ message: expect.stringMatching(/empty/) }),
+    );
+  });
+
+  test("Upload files: failure: FileReader error", async () => {
+    // Fail the read without a real I/O error.
+    const readSpy = vi
+      .spyOn(FileReader.prototype, "readAsArrayBuffer")
+      .mockImplementationOnce(function (this: FileReader) {
+        this.dispatchEvent(new ProgressEvent("error"));
+      });
+    onTestFinished(() => readSpy.mockRestore());
+    const consoleDebugMock = vi.spyOn(console, "debug");
+    const consoleErrorMock = vi.spyOn(console, "error");
+    const user = userEvent.setup();
+    const { hideInput } = await renderLoadButton(testId);
+
+    await user.upload(
+      hideInput,
+      new File(['{"id": 123}'], "test0.har", { type: "application/json" }),
+    );
+    await waitForSessionUpdated(consoleDebugMock);
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringMatching(/Failed to read "test0.har":/),
+      expect.any(Error),
     );
   });
 

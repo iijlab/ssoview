@@ -74,9 +74,11 @@ const HideInput = ({
               resolve(err instanceof Error ? err : new Error(String(err)));
             }
           });
-          reader.addEventListener("error", (err) => {
-            console.error(`[${tabId}]: Failed to FileReader.readAsArrayBuffer(${file}):`, err);
-            resolve(new Error("Failed to read the file"));
+          reader.addEventListener("error", () => {
+            // The event only says that the read failed. reader.error holds the cause.
+            const err = reader.error ?? new Error("Failed to read the file");
+            console.error(`[${tabId}]: Failed to read "${file.name}":`, err);
+            resolve(err);
           });
           // Read a file
           reader.readAsArrayBuffer(file);
