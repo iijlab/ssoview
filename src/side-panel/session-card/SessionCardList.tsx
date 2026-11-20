@@ -9,11 +9,8 @@ import { Box, type SxProps } from "@mui/material";
 // side-panel
 import { SessionCard } from "@/side-panel/session-card/SessionCard.tsx";
 import { sessionSummaryToCardProps } from "@/side-panel/session-card/props.ts";
-import { useEffectOnce } from "@/side-panel/utils.ts";
 // local
 import type { SessionSummary } from "@/common/models/session-summary.ts";
-import { subscribeSessionUpdateEvent } from "@/common/pubsub.ts";
-import { getSessionSummaries } from "@/common/services/session-manager.ts";
 
 interface SessionCardListProps {
   tabId: number;
@@ -32,36 +29,6 @@ const SessionCardList = ({
   sx,
   testId,
 }: SessionCardListProps) => {
-  useEffectOnce(() => {
-    // Update
-    {
-      const err = subscribeSessionUpdateEvent(
-        async (tabId: number, sessionId: string): Promise<void> => {
-          const result = await getSessionSummaries(tabId);
-          if (result instanceof Error) {
-            console.error(`[${tabId}]: Failed to getSessionSummaries:`, result);
-            return;
-          }
-          console.debug(`[${tabId}]: Session updated:`, { sessionId, sessionSummaries: result });
-          setSessionSummaries(result);
-        },
-      );
-      if (err instanceof Error) {
-        console.error(`[${tabId}]: subscribeSessionUpdateEvent failed:`, err);
-        return;
-      }
-    }
-    // Initialize
-    getSessionSummaries(tabId).then((result) => {
-      if (result instanceof Error) {
-        console.error(`[${tabId}]: Failed to getSessionSummaries:`, result);
-        return;
-      }
-      console.debug(`[${tabId}]: Session initialized:`, { sessionSummaries: result });
-      setSessionSummaries(result);
-    });
-  });
-
   // Avoid tsc errors: TS2769: No overload matches this call.
   const sxProps = { ...sx } as const;
 
