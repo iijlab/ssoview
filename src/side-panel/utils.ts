@@ -3,9 +3,6 @@
  * @license BSD-3-Clause
  */
 
-// react
-import { type EffectCallback, useEffect } from "react";
-
 const formatRFC3339Date = (d: Date) => {
   if (isNaN(d.valueOf())) return "";
 
@@ -40,10 +37,4 @@ const timestamp = () => {
   return ts.slice(0, -5) + "Z";
 };
 
-// Run once when initialized
-// - https://react.dev/reference/react/useEffect#my-effect-runs-twice-when-the-component-mounts
-const useEffectOnce = (effect: EffectCallback) => {
-  useEffect(effect, []); // eslint-disable-line react-hooks/exhaustive-deps
-};
-
-export { formatRFC3339, timestamp, useEffectOnce };
+export { formatRFC3339, timestamp };

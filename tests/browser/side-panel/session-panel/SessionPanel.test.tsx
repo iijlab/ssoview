@@ -15,10 +15,6 @@ import { testSessionSummaries } from "@/tests/browser/lib/testSessionSummaries.t
 import type { SessionSummary } from "@/common/models/session-summary.ts";
 import { SidePanelState } from "@/side-panel/config.ts";
 
-vi.mock("@/common/pubsub.ts", () => ({
-  subscribeSessionUpdateEvent: vi.fn(),
-}));
-
 vi.mock("@/common/services/session-manager.ts", () => ({
   getSessionSummaries: vi.fn(async (): Promise<SessionSummary[] | Error> => {
     return Promise.resolve(testSessions);
@@ -41,7 +37,8 @@ const TestSessionPanel = ({
   state: SidePanelState;
 }) => {
   const [panelState, setPanelState] = useState<SidePanelState>(state);
-  const [sessionSummaries, setSessionSummaries] = useState<SessionSummary[]>([]);
+  // The panel only shows the sessions it is given. SidePanel loads and updates them.
+  const [sessionSummaries, setSessionSummaries] = useState<SessionSummary[]>(testSessions);
   const [headerHeight, _setHeaderHeight] = useState(42);
   return (
     <SessionPanel
