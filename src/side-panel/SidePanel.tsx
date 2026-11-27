@@ -42,6 +42,7 @@ const SidePanel = ({ tabId, testId }: { tabId: number; testId?: string }) => {
 
   // Subscribe here, outside <Activity>. A subscription cannot be removed, and the effects of the
   // components inside <Activity> run again each time their tab is shown again.
+  // tabId does not change while the side panel is open, so the handlers keep using the first one.
   const subscribedRef = useRef(false);
   useEffect(() => {
     // Run once, also when <StrictMode> runs the effects twice
@@ -67,6 +68,7 @@ const SidePanel = ({ tabId, testId }: { tabId: number; testId?: string }) => {
         },
       );
       if (err instanceof Error) {
+        // Go on, so that the sessions already stored are still shown
         console.error(`[${tabId}]: subscribeSessionUpdateEvent failed:`, err);
       }
     }

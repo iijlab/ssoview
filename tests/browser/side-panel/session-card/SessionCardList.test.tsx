@@ -24,6 +24,7 @@ vi.mock("@/common/services/session-manager.ts", () => ({
   deleteSession: vi.fn(async (): Promise<void | Error> => {
     return Promise.resolve();
   }),
+  // The list does not call this. RemoveButton in each card does.
   getSessionSummaries: vi.fn(async (): Promise<SessionSummary[] | Error> => {
     return Promise.resolve([]);
   }),

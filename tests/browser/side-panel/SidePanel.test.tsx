@@ -8,6 +8,7 @@ import { SidePanel } from "@/side-panel/SidePanel.tsx";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 
 import { chrome } from "@/tests/browser/lib/vitest-chrome.ts";
 import { testSessionSummaries } from "@/tests/browser/lib/testSessionSummaries.ts";
@@ -18,6 +19,7 @@ import {
   subscribeCaptureTerminatedEvent,
   subscribeSessionUpdateEvent,
 } from "@/common/pubsub.ts";
+import { getSessionSummaries } from "@/common/services/session-manager.ts";
 
 type SessionUpdateHandler = (tabId: number, sessionId: string) => Promise<void>;
 type CaptureTerminatedHandler = (tabId: number, reason: CaptureTerminatedReason) => Promise<void>;
@@ -138,6 +140,20 @@ describe("SidePanel: PubSub", () => {
     expect(subscribeCaptureTerminatedEvent).toHaveBeenCalledTimes(1);
   });
 
+  // <StrictMode> runs the effects twice in development. The subscriptions cannot be removed,
+  // so the second run must not add them again.
+  test("StrictMode: subscribe to each event once", async () => {
+    render(
+      <StrictMode>
+        <SidePanel tabId={tabId} testId={testId} />
+      </StrictMode>,
+    );
+    expect(await screen.findAllByTestId(testId)).toHaveLength(1);
+    expect(subscribeSessionUpdateEvent).toHaveBeenCalledTimes(1);
+    expect(subscribeCaptureTerminatedEvent).toHaveBeenCalledTimes(1);
+    expect(getSessionSummaries).toHaveBeenCalledTimes(1);
+  });
+
   // Showing a hidden tab again runs the effects of its components again.
   // The subscriptions cannot be removed, so they must not be added there.
   test("Switch tabs: do not subscribe again", async () => {
@@ -169,6 +185,7 @@ describe("SidePanel: PubSub", () => {
     const consoleErrorMock = vi.spyOn(console, "error");
     render(<SidePanel tabId={tabId} testId={testId} />);
     expect(await screen.findAllByTestId(testId)).toHaveLength(1);
+    expect(sessionUpdateHandlers).toHaveLength(1);
 
     testSessions = new Error("TEST: getSessionSummaries failed");
     await sessionUpdateHandlers[0]?.(tabId, "test-subscribeSessionUpdateEvent");
@@ -201,6 +218,7 @@ describe("SidePanel: PubSub", () => {
     const user = userEvent.setup();
     await user.click(recButton);
     await waitFor(() => expect(recButton.disabled).toBeTruthy());
+    expect(captureTerminatedHandlers).toHaveLength(1);
 
     testSessions = testSessionSummaries.slice(0, 2);
     await captureTerminatedHandlers[0]?.(3456, "target_closed");
@@ -213,13 +231,16 @@ describe("SidePanel: PubSub", () => {
   test("Render: failure: subscribeSessionUpdateEvent", async () => {
     errSubscribeSessionUpdateEvent = new Error("TEST: subscribeSessionUpdateEvent failed");
     const consoleErrorMock = vi.spyOn(console, "error");
-    render(<SidePanel tabId={tabId} />);
+    render(<SidePanel tabId={tabId} testId={testId} />);
     await waitFor(() =>
       expect(consoleErrorMock).toHaveBeenCalledWith(
         expect.stringMatching(/subscribeSessionUpdateEvent failed:/),
         errSubscribeSessionUpdateEvent,
       ),
     );
+    // The other event is still subscribed to, and the sessions are still loaded
+    expect(subscribeCaptureTerminatedEvent).toHaveBeenCalledTimes(1);
+    expect(await screen.findAllByTestId(testId)).toHaveLength(1);
   });
 
   test("Render: failure: subscribeCaptureTerminatedEvent", async () => {
